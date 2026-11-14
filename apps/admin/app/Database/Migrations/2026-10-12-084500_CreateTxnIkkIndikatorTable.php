@@ -10,18 +10,17 @@ class CreateTxnIkkIndikatorTable extends Migration
     {
         $db = \Config\Database::connect();
 
-        $db->query("DROP TABLE IF EXISTS txn_ikk_indikator");
-
-        $this->forge->addField([
-            'id' => [
-                'type'           => 'BIGINT',
-                'unsigned'       => true,
-                'auto_increment' => true,
-            ],
-            'indikator_id' => [
-                'type'       => 'BIGINT',
-                'unsigned'   => true,
-            ],
+        if (!$db->tableExists('txn_ikk_indikator')) {
+            $this->forge->addField([
+                'id' => [
+                    'type'           => 'BIGINT',
+                    'unsigned'       => true,
+                    'auto_increment' => true,
+                ],
+                'indikator_id' => [
+                    'type'       => 'BIGINT',
+                    'unsigned'   => true,
+                ],
                 'tahun' => [
                     'type'       => 'SMALLINT',
                     'constraint' => 4,
@@ -79,15 +78,27 @@ class CreateTxnIkkIndikatorTable extends Migration
 
             $this->forge->addKey('id', true);
             $this->forge->createTable('txn_ikk_indikator', true);
+        }
 
-            // Tambahkan index dan unique constraint
+        // Tambahkan index dan unique constraint jika belum ada
+        $indexes = $db->query("SHOW INDEX FROM txn_ikk_indikator")->getResultArray();
+        $indexNames = array_column($indexes, 'Key_name');
+
+        if (!in_array('uniq_ind_periode', $indexNames)) {
             $db->query("ALTER TABLE txn_ikk_indikator ADD UNIQUE KEY uniq_ind_periode (indikator_id, tahun, triwulan)");
+        }
+        if (!in_array('idx_txn_ind_tahun_tw', $indexNames)) {
             $db->query("ALTER TABLE txn_ikk_indikator ADD INDEX idx_txn_ind_tahun_tw (tahun, triwulan)");
+        }
 
-            // Tambahkan Foreign Key jika tabel data_ikk_indikator ada
-            if ($db->tableExists('data_ikk_indikator')) {
+        // Tambahkan Foreign Key jika tabel data_ikk_indikator ada
+        if ($db->tableExists('data_ikk_indikator')) {
+            $fks = $db->query("SELECT CONSTRAINT_NAME FROM information_schema.TABLE_CONSTRAINTS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'txn_ikk_indikator' AND CONSTRAINT_TYPE = 'FOREIGN KEY'")->getResultArray();
+            $fkNames = array_column($fks, 'CONSTRAINT_NAME');
+            if (!in_array('fk_txn_ind_id', $fkNames)) {
                 $db->query("ALTER TABLE txn_ikk_indikator ADD CONSTRAINT fk_txn_ind_id FOREIGN KEY (indikator_id) REFERENCES data_ikk_indikator (id) ON DELETE CASCADE ON UPDATE CASCADE");
             }
+        }
     }
 
     public function down()

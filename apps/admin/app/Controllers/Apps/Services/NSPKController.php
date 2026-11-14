@@ -27,11 +27,7 @@ class NSPKController extends BaseController
     }
 
 
-    public function index(){
-        return $this->renderView('Apps/pages/services/nspk/main', [
-            'seslog' => session()->get(),
-        ]);
-    }    
+
 
     public function storeData(){
         $sess       = session()->get();
@@ -40,20 +36,21 @@ class NSPKController extends BaseController
         $period     = trim((string) $this->request->getPost('period'));
         $syncdate1  = trim((string) $this->request->getPost('syncdate1'));
         $syncdate2  = trim((string) $this->request->getPost('syncdate2'));
-        $level      = trim((string) $this->request->getPost('level'));
+        $level      = strtoupper(trim((string) $this->request->getPost('level')));
+        $nilaiRaw   = trim((string) ($this->request->getPost('nilai') ?? ''));
 
         $rules = [
             'instansi'      => 'required',
             'syncdate1'     => 'required',
             'syncdate2'     => 'required',
-            'level'         => 'required',
+            'level'         => 'required|in_list[A,B,C,D]',
             'period'        => 'required'
         ];
 
         if (!$this->validate($rules)) {
             $errorsArray = $this->validator->getErrors();
             $message = implode(', ', $errorsArray); 
-            return $this->response->setJSON([
+            return $this->response->setStatusCode(422)->setJSON([
                 'data'    => $this->request->getPost(),
                 'status'  => 'error',
                 'message' => $message
@@ -67,34 +64,49 @@ class NSPKController extends BaseController
             ]);
         }
 
-        $dataInsert = [
-            'action'            => 'create',
+        $nilaiClean = str_replace(',', '.', $nilaiRaw);
+        $nilaiVal = ($nilaiClean !== '' && is_numeric($nilaiClean)) ? (float) $nilaiClean : null;
+        if ($nilaiVal !== null && ($nilaiVal < 0 || $nilaiVal > 100)) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status'  => 'error',
+                'message' => 'Nilai indeks NSPK harus berada pada rentang 0 hingga 100.',
+            ]);
+        }
+
+        $cek = $this->nspkModel->isDuplicateNSPK($instansi, $period, $key !== '' ? $key : null);
+        if ($cek) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'status'  => 'error',
+                'message' => 'Data NSPK untuk instansi dan periode ini sudah terdaftar.'
+            ]);
+        }
+
+        $now = date('Y-m-d H:i:s');
+        $username = $sess['username'] ?? 'admin';
+
+        $dataPayload = [
             'period'            => $period,
             'period_date'       => $syncdate1,
             'period_start_date' => $syncdate1,
             'period_end_date'   => $syncdate2,
             'instansi_id'       => $instansi,
             'level'             => $level,
-            'created_by'        => $sess['username'],
-            'created_at'        => date('Y-m-d H:i:s')
+            'nilai'             => $nilaiVal,
+            'updated_at'        => $now,
         ];
 
         if (!empty($key)) {
-            $this->nspkModel->saveData($dataInsert, $key);
+            $dataPayload['action'] = 'update';
+            $this->nspkModel->saveData($dataPayload, $key);
         } else {
-            $cek = $this->nspkModel->isDuplicateNSPK($instansi, $period);
-            if ($cek) {
-                return $this->response->setJSON([
-                    'status'  => 'error',
-                    'message' => 'Data untuk instansi dan tahun ini sudah ada.'
-                ]);
-            }
-
-            $this->nspkModel->saveData($dataInsert);
+            $dataPayload['action']     = 'create';
+            $dataPayload['created_by'] = $username;
+            $dataPayload['created_at'] = $now;
+            $this->nspkModel->saveData($dataPayload);
             $this->nspkModel->logActivity([
                 'layanan_id' => 19,
                 'tanggal'    => date('Y-m-d'),
-                'created_by' => $sess['username']
+                'created_by' => $username
             ]);
         }
 
@@ -122,15 +134,10 @@ class NSPKController extends BaseController
 
     public function getData(){
         $bulan = $this->request->getPost('bulan');
+        $level = trim((string) ($this->request->getPost('level') ?? $this->request->getPost('category') ?? $this->request->getPost('kategori') ?? ''));
 
         if (!is_array($bulan)) {
             $bulan = [];
-        }
-
-        if (count($bulan) > 2) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 2 bulan diperbolehkan'
-            ])->setStatusCode(400);
         }
 
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
@@ -138,7 +145,8 @@ class NSPKController extends BaseController
         }));
 
         $builder = $this->nspkModel->getBuilder('recap', [
-            'bulan'     => $bulan
+            'bulan' => $bulan,
+            'level' => $level,
         ]);
 
         $columns    = $this->nspkModel->getColumns('recap');
@@ -153,12 +161,6 @@ class NSPKController extends BaseController
             $bulan = [];
         }
 
-        if (count($bulan) > 2) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 2 bulan diperbolehkan'
-            ])->setStatusCode(400);
-        }
-
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
             return $item >= 1 && $item <= 12;
         }));
@@ -169,4 +171,99 @@ class NSPKController extends BaseController
         ]);
     }
 
+    public function importBatch()
+    {
+        $sess = session()->get();
+        $file = $this->request->getFile('file');
+
+        if (!$file || !$file->isValid()) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status'  => 'error',
+                'message' => 'File tidak valid atau belum diunggah.'
+            ]);
+        }
+
+        try {
+            $this->uploader->validateFile($file);
+            $filePath = $file->getTempName();
+            $rows = $this->uploader->parseExcel($filePath);
+
+            if (!is_array($rows) || count($rows) < 2) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status'  => 'error',
+                    'message' => 'File Excel kosong atau format tidak sesuai.'
+                ]);
+            }
+
+            $dataBatch = [];
+            $username = $sess['username'] ?? 'admin';
+            $now = date('Y-m-d H:i:s');
+
+            foreach (array_slice($rows, 1) as $row) {
+                if (empty($row[0])) {
+                    continue;
+                }
+
+                $rawInstansi = trim((string) $row[0]);
+                $instansiId = $this->appsModel->getInstansiID($rawInstansi);
+                if (empty($instansiId)) {
+                    $instansiId = $rawInstansi;
+                }
+
+                $period = trim((string) ($row[1] ?? date('Y-m')));
+                $startDate = ExcelUploader::excelDate($row[2] ?? null);
+                $endDate = ExcelUploader::excelDate($row[3] ?? null);
+                $level = strtoupper(trim((string) ($row[4] ?? 'B')));
+                if (!in_array($level, ['A', 'B', 'C', 'D'])) {
+                    $level = 'B';
+                }
+
+                $nilaiCell = isset($row[5]) ? str_replace(',', '.', trim((string) $row[5])) : '';
+                $nilaiVal = ($nilaiCell !== '' && is_numeric($nilaiCell)) ? (float) $nilaiCell : null;
+
+                $dataBatch[] = [
+                    'action'            => 'create',
+                    'period'            => $period,
+                    'period_date'       => $startDate ?: date('Y-m-d'),
+                    'period_start_date' => $startDate ?: date('Y-m-d'),
+                    'period_end_date'   => $endDate ?: ($startDate ?: date('Y-m-d')),
+                    'instansi_id'       => $instansiId,
+                    'level'             => $level,
+                    'nilai'             => $nilaiVal,
+                    'created_by'        => $username,
+                    'created_at'        => $now,
+                    'updated_at'        => $now,
+                ];
+            }
+
+            if (empty($dataBatch)) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Tidak ada baris data valid yang dapat diimpor.'
+                ]);
+            }
+
+            $db = \Config\Database::connect();
+            $db->table('txn_nspk')->insertBatch($dataBatch);
+
+            $this->nspkModel->logActivity([
+                'layanan_id' => 19,
+                'tanggal'    => date('Y-m-d'),
+                'created_by' => $username
+            ]);
+
+            return $this->response->setJSON([
+                'status'       => 'success',
+                'message'      => 'Import batch data Indeks NSPK berhasil diproses.',
+                'total_import' => count($dataBatch)
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal memproses file Excel Indeks NSPK.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'NSPKController::importBatch'
+            );
+        }
+    }
 }

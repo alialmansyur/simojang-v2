@@ -5,7 +5,6 @@ namespace App\Controllers\Apps;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\Apps\AppsModel;
-use App\Libraries\ExcelUploader;
 use App\Libraries\DataTablesLib;
 
 class DataMasterController extends BaseController
@@ -15,58 +14,8 @@ class DataMasterController extends BaseController
     {
         $sess = session()->get();
         $this->apps = new AppsModel();
-        $this->uploader = new ExcelUploader();
         $this->dataTables = new DataTablesLib();               
     }
-
-    public function datapegawai(){
-        $data = array(
-            'title'     => 'Kelola Pegawai',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/data/pegawai', $data);
-    }
-
-    public function datainstansi(){
-        $data = array(
-            'title'     => 'Kelola Instansi',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/data/instansi', $data);
-    }
-
-    public function datass(){
-        $data = array(
-            'title'     => 'Kelola SS/IKU',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/_blank', $data);
-    }
-
-    public function datalayanan(){
-        $data = array(
-            'title'     => 'Kelola Layanan',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/_blank', $data);
-    }
-
-    public function datahakakses(){
-        $data = array(
-            'title'     => 'Hak Akses',
-            'seslog'    => session()->get(),
-        );
-        return $this->renderView('Apps/pages/_blank', $data);
-    }
-
-    public function datalog(){
-        $data = array(
-            'title'     => 'Log Pengguna',
-            'seslog'    => session()->get(),
-        );
-        return $this->renderView('Apps/pages/_blank', $data);
-    }
-
     public function getPegawai(){
         $sess       = session()->get();
         $builder    = $this->apps->getDataPegawai();

@@ -22,12 +22,6 @@ class IKPAData extends BaseController
         $sess = session()->get();
     }
 
-    public function index(){ 
-        return $this->renderView('Apps/pages/services/ikpa/main', [
-            'seslog' => session()->get(),
-        ]);
-    }    
-
     public function importData(){
         $session = session()->get();
         $file    = $this->request->getFile('file');
@@ -35,25 +29,25 @@ class IKPAData extends BaseController
         $syncdate1 = $this->request->getPost('syncdate1');
         $syncdate2 = $this->request->getPost('syncdate2');
 
-        $this->uploader->validateFile($file);
- 
-        $localPath  = $file->getTempName();
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows      = $this->uploader->parseExcel($localPath);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid atau gagal dibaca.', 422, 'IKPAData::importData');
+        }
+
+        if (!is_array($rows) || count($rows) < 1) {
+            return $this->apiError('Data kosong atau format salah.', 422);
+        }
+
         $fileSize   = filesize($localPath);
-        $mimeType   = $file->getClientMimeType();
+        $mimeType   = $file->getMimeType();
         $checksum   = hash_file('sha256', $localPath);
         $ipAddress  = $this->request->getIPAddress();
         $userAgent  = $this->request->getUserAgent()
                         ? $this->request->getUserAgent()->getAgentString()
-                        : null;
-
-        $rows   = $this->uploader->parseExcel($localPath);
-
-        if (!is_array($rows) || count($rows) < 1) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Data kosong atau format salah.',
-            ]);
-        }      
+                        : null;      
         
         $dataLog = [
             'action'     => 'create',

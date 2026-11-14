@@ -44,16 +44,14 @@ class DSPModel extends Model
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
 
-    public function getDataLog(){
+    public function getDataLog()
+    {
         $builder = $this->db->table($this->table);
         return $builder;
     }
 
-
-    // ----------------------------
-    //  QUERY BUILDER UTAMA
-    // ----------------------------    
-    public function getBuilder($type, $params = null){
+    public function getBuilder($type, $params = null)
+    {
         switch ($type) {
             case 'recap':
                 return $this->getDataRecap($params);
@@ -62,38 +60,49 @@ class DSPModel extends Model
             default:
                 throw new \Exception("Unknown builder type: $type");
         }
-    }    
+    }
 
-    // ----------------------------
-    //  DAPATKAN NAMA KOLOM OTOMATIS
-    // ----------------------------    
-    public function getColumns($type, $id = null){
+    public function getColumns($type, $id = null)
+    {
         $builder = $this->getBuilder($type, $id);
         $query = $builder->get();
         return $query->getFieldNames();
-    }    
+    }
 
     public function getDataRecap($params = [])
     {
         $bulan = $params['bulan'] ?? [];
+        $jenis = trim((string) ($params['jenis'] ?? ''));
 
         $builder = $this->db->table('txn_disparitas a')
-            ->select('a.*, SUM(b.jumlah) total ')
+            ->select("
+                a.*,
+                COALESCE(SUM(b.jumlah), 0) AS total,
+                COUNT(DISTINCT b.instansi_id) AS total_instansi,
+                COUNT(DISTINCT b.jenis_anomali) AS total_jenis_anomali,
+                GROUP_CONCAT(DISTINCT b.jenis_anomali SEPARATOR ', ') AS jenis_anomali_list,
+                MAX(b.instansi_id) AS instansi_single,
+                MAX(b.jenis_anomali) AS jenis_anomali_single
+            ")
             ->join('txn_disparitas_detail b', 'b.disparitas_log_id = a.id', 'left')
             ->where('a.created_at >=', date('Y-01-01 00:00:00'))
             ->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00')
             ->groupBy('a.id')
             ->orderBy('a.created_at', 'DESC');
 
-        // 🔹 FILTER BULAN (IN)
         if (!empty($bulan)) {
             $builder->whereIn('MONTH(a.created_at)', $bulan);
+        }
+
+        if ($jenis !== '' && strtolower($jenis) !== 'all') {
+            $builder->where('b.jenis_anomali', $jenis);
         }
 
         return $builder;
     }
 
-    public function getDataDetail($param){
+    public function getDataDetail($param)
+    {
         return $this->db->table('txn_disparitas a')
             ->select('
                 a.*,
@@ -111,7 +120,7 @@ class DSPModel extends Model
             ->where('a.id', (int) $param);
     }
 
-    public function getSummary($bulan = [])
+    public function getSummary($bulan = [], string $jenis = '')
     {
         $builder = $this->db->table('txn_disparitas a');
         $builder->select("
@@ -129,13 +138,16 @@ class DSPModel extends Model
             $builder->whereIn('MONTH(a.created_at)', $bulan);
         }
 
+        if ($jenis !== '' && strtolower($jenis) !== 'all') {
+            $builder->where('b.jenis_anomali', $jenis);
+        }
+
         return $builder->get()->getRowArray() ?? [
-            'total_upload' => 0,
-            'total_anomali' => 0,
-            'total_instansi' => 0,
+            'total_upload'        => 0,
+            'total_anomali'       => 0,
+            'total_instansi'      => 0,
             'total_jenis_anomali' => 0,
-            'last_update' => null,
+            'last_update'         => null,
         ];
     }
-
 }

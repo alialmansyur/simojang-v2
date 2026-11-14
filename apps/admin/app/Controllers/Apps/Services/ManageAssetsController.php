@@ -22,27 +22,18 @@ class ManageAssetsController extends BaseController
         helper(['form', 'url']);
     }
 
-    public function index()
+
+
+    public function getCategoriesApi()
     {
         $categories = $this->manageAssets->getCategories();
-        return $this->renderView('Apps/pages/services/manage-assets/index', [
-            'seslog'     => session()->get(),
-            'categories' => $categories
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data'   => $categories,
         ]);
     }
 
-    public function detail($uid)
-    {
-        $category = $this->manageAssets->getCategoryByUid($uid);
-        if (!$category) {
-            return redirect()->to('/apps-manage-assets')->with('error', 'Kategori tidak ditemukan');
-        }
 
-        return $this->renderView('Apps/pages/services/manage-assets/detail', [
-            'seslog'   => session()->get(),
-            'category' => $category
-        ]);
-    }
 
     // ----------------------------------------------------
     // CATEGORY CRUD
@@ -205,18 +196,31 @@ class ManageAssetsController extends BaseController
     // ----------------------------------------------------
     public function getData()
     {
-        $categoryUid = $this->request->getPost('category_uid');
+        $categoryUid = $this->request->getPost('category_uid')
+            ?: $this->request->getPost('category_id')
+            ?: $this->request->getPost('category')
+            ?: $this->request->getPost('kategori');
 
         $builder = $this->manageAssets->getBuilder('detail', $categoryUid);
         $columns = $this->manageAssets->getColumns('detail');
         $result  = $this->dataTables->render($builder, $columns);
+        if (!empty($result['data']) && is_array($result['data'])) {
+            $storage = new \App\Services\Storage\FileStorageService();
+            foreach ($result['data'] as &$row) {
+                $row['foto_url'] = !empty($row['foto']) ? $storage->toPublicUrl((string) $row['foto'], 'assets') : null;
+            }
+            unset($row);
+        }
 
         return $this->response->setJSON($result);
     }
 
     public function getSummary()
     {
-        $categoryUid = $this->request->getPost('category_uid');
+        $categoryUid = $this->request->getPost('category_uid')
+            ?: $this->request->getPost('category_id')
+            ?: $this->request->getPost('category')
+            ?: $this->request->getPost('kategori');
 
         return $this->response->setJSON([
             'status'  => 'success',
@@ -227,10 +231,6 @@ class ManageAssetsController extends BaseController
     public function storeDetail()
     {
         $rules = [
-            'category_uid' => [
-                'rules'  => 'required',
-                'errors' => ['required' => 'Kategori tidak valid.'],
-            ],
             'kode' => [
                 'rules'  => 'required|min_length[2]|max_length[100]',
                 'errors' => [
@@ -275,10 +275,31 @@ class ManageAssetsController extends BaseController
             ]);
         }
 
-        $categoryUid = (string) $this->request->getPost('category_uid');
-        $category = $this->manageAssets->getCategoryByUid($categoryUid);
+        $categoryUid = (string) (
+            $this->request->getPost('category_uid')
+            ?: $this->request->getPost('category_id')
+            ?: $this->request->getPost('category')
+            ?: ''
+        );
+
+        $category = null;
+        if (!empty($categoryUid)) {
+            $category = $this->manageAssets->getCategoryByUid($categoryUid);
+            if (!$category && is_numeric($categoryUid)) {
+                $category = $this->manageAssets->getCategoryById((int) $categoryUid);
+            }
+        }
+
+        // Fallback default category jika tidak ada
         if (!$category) {
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Kategori tidak ditemukan.']);
+            $allCats = $this->manageAssets->getCategories();
+            if (!empty($allCats)) {
+                $category = $allCats[0];
+            }
+        }
+
+        if (!$category) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Kategori asset tidak ditemukan.']);
         }
 
         // Sanitasi nilai perolehan (convert ke bentuk angka murni integer/float)
@@ -302,11 +323,13 @@ class ManageAssetsController extends BaseController
         $fotoName = null;
         try {
             $fotoName = $this->handlePhotoUpload();
-        } catch (\Exception $e) {
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal mengunggah foto asset.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'ManageAssetsController::saveDetail'
+            );
         }
 
         $data = [
@@ -419,12 +442,26 @@ class ManageAssetsController extends BaseController
             'keterangan'      => trim((string) ($this->request->getPost('keterangan') ?? '')) ?: null,
         ];
 
+        // Update category if provided
+        $categoryUid = (string) (
+            $this->request->getPost('category_uid')
+            ?: $this->request->getPost('category_id')
+            ?: $this->request->getPost('category')
+            ?: ''
+        );
+        if (!empty($categoryUid)) {
+            $cat = $this->manageAssets->getCategoryByUid($categoryUid);
+            if (!$cat && is_numeric($categoryUid)) {
+                $cat = $this->manageAssets->getCategoryById((int) $categoryUid);
+            }
+            if ($cat) {
+                $data['category_id'] = $cat['id'];
+            }
+        }
+
         // Handle penghapusan foto jika diminta user
         if ($this->request->getPost('remove_foto') === '1' && !empty($existing['foto'])) {
-            $oldFilePath = FCPATH . 'apps/assets/uploads/assets/' . $existing['foto'];
-            if (is_file($oldFilePath)) {
-                @unlink($oldFilePath);
-            }
+            (new \App\Services\Storage\FileStorageService())->delete((string) $existing['foto'], 'assets');
             $data['foto'] = null;
         }
 
@@ -434,11 +471,13 @@ class ManageAssetsController extends BaseController
             if ($newFoto !== null) {
                 $data['foto'] = $newFoto;
             }
-        } catch (\Exception $e) {
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal mengunggah foto asset.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'ManageAssetsController::updateDetail'
+            );
         }
 
         if ($this->manageAssets->updateDetail($id, $data)) {
@@ -462,10 +501,7 @@ class ManageAssetsController extends BaseController
 
         // Hapus file foto dari disk jika ada
         if (!empty($existing['foto'])) {
-            $filePath = FCPATH . 'apps/assets/uploads/assets/' . $existing['foto'];
-            if (is_file($filePath)) {
-                @unlink($filePath);
-            }
+            (new \App\Services\Storage\FileStorageService())->delete((string) $existing['foto'], 'assets');
         }
 
         if ($this->manageAssets->deleteDetail($id)) {
@@ -484,7 +520,9 @@ class ManageAssetsController extends BaseController
 
         $data = $this->manageAssets->getDetailById($id);
         if ($data) {
-            $data['foto_url'] = !empty($data['foto']) ? base_url('apps/assets/uploads/assets/' . $data['foto']) : null;
+            $data['foto_url'] = !empty($data['foto'])
+                ? (new \App\Services\Storage\FileStorageService())->toPublicUrl((string) $data['foto'], 'assets')
+                : null;
             return $this->response->setJSON(['status' => 'success', 'data' => $data]);
         }
 
@@ -495,36 +533,131 @@ class ManageAssetsController extends BaseController
     {
         $file = $this->request->getFile('foto');
         if ($file && $file->isValid() && !$file->hasMoved()) {
-            $allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
-            $mimeType     = $file->getMimeType();
-            if (!in_array($mimeType, $allowedTypes, true)) {
-                throw new \RuntimeException('Format foto harus berupa JPG, PNG, atau WEBP.');
-            }
-
-            if ($file->getSizeByUnit('mb') > 3) {
-                throw new \RuntimeException('Ukuran foto maksimal 3MB.');
-            }
-
-            $uploadPath = FCPATH . 'apps/assets/uploads/assets/';
-            if (!is_dir($uploadPath)) {
-                mkdir($uploadPath, 0755, true);
-            }
-
             $ext = $file->getClientExtension();
             $fileName = 'asset_' . date('YmdHis') . '_' . bin2hex(random_bytes(6)) . '.' . ($ext ?: 'jpg');
-            $file->move($uploadPath, $fileName);
+            $storage = new \App\Services\Storage\FileStorageService();
+            $stored  = $storage->storeUploadedFile($file, 'assets', [
+                'customName' => $fileName,
+            ]);
 
-            // Hapus file lama jika ada
             if ($oldPhoto) {
-                $oldFilePath = $uploadPath . $oldPhoto;
-                if (is_file($oldFilePath)) {
-                    @unlink($oldFilePath);
-                }
+                $storage->delete($oldPhoto, 'assets');
             }
 
-            return $fileName;
+            return $stored['file_name'];
         }
 
         return null;
+    }
+
+    public function importBatch()
+    {
+        $file = $this->request->getFile('file');
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'message' => 'Berkas Excel (.xlsx / .xls) wajib diunggah.',
+            ]);
+        }
+
+        try {
+            $uploader = new \App\Libraries\ExcelUploader();
+            $uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows = $uploader->parseExcel($localPath);
+
+            if (!is_array($rows) || count($rows) < 2) {
+                return $this->response->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Berkas Excel kosong atau baris data tidak ditemukan.',
+                ]);
+            }
+
+            $imported = 0;
+            $skipped = 0;
+
+            foreach (array_slice($rows, 1) as $idx => $row) {
+                // Kolom: [0] No, [1] Kode BMN, [2] NUP / Subcode, [3] Uraian Barang, [4] Kategori,
+                // [5] Qty, [6] Satuan, [7] Kondisi, [8] Area, [9] Lokasi, [10] Tahun, [11] Nilai, [12] Keterangan
+                $kode = !empty($row[1]) ? trim((string)$row[1]) : '';
+                $uraian = !empty($row[3]) ? trim((string)$row[3]) : '';
+                if (empty($kode) && empty($uraian)) {
+                    continue;
+                }
+
+                $subcode = !empty($row[2]) ? trim((string)$row[2]) : null;
+                $catName = !empty($row[4]) ? trim((string)$row[4]) : 'Peralatan dan Mesin';
+
+                // Cari kategori atau buat otomatis bila belum ada
+                $category = $this->manageAssets->getCategoryByName($catName);
+                if (!$category) {
+                    $category = $this->manageAssets->getCategoryByUid($catName);
+                }
+                if (!$category && is_numeric($catName)) {
+                    $category = $this->manageAssets->getCategoryById((int)$catName);
+                }
+                if (!$category) {
+                    $newUid = $this->manageAssets->insertCategory(['name' => $catName]);
+                    $category = $this->manageAssets->getCategoryByUid($newUid);
+                }
+
+                $categoryId = $category ? $category['id'] : 1;
+
+                $rawQty = !empty($row[5]) ? str_replace(',', '.', (string)$row[5]) : '1';
+                $qty = is_numeric($rawQty) ? (float)$rawQty : 1.0;
+                $satuan = !empty($row[6]) ? trim((string)$row[6]) : 'Unit';
+
+                $kondisiRaw = !empty($row[7]) ? trim((string)$row[7]) : 'Baik';
+                $kondisi = in_array($kondisiRaw, ['Baik', 'Rusak Ringan', 'Rusak Berat'], true) ? $kondisiRaw : 'Baik';
+
+                $areaRaw = !empty($row[8]) ? trim((string)$row[8]) : 'Kantor Regional III BKN';
+                $area = in_array($areaRaw, ['Kantor Regional III BKN', 'UPT Bandung', 'UPT Serang'], true) ? $areaRaw : 'Kantor Regional III BKN';
+
+                $lokasi = !empty($row[9]) ? trim((string)$row[9]) : null;
+
+                $rawTahun = !empty($row[10]) ? (int)$row[10] : null;
+                $tahun = ($rawTahun && $rawTahun > 1900 && $rawTahun <= 2100) ? $rawTahun : null;
+
+                $rawNilai = !empty($row[11]) ? (string)$row[11] : '0';
+                $cleanNilai = preg_replace('/[^\d]/', '', $rawNilai);
+                $nilaiPerolehan = !empty($cleanNilai) ? (float)$cleanNilai : 0.00;
+
+                $keterangan = !empty($row[12]) ? trim((string)$row[12]) : null;
+
+                $data = [
+                    'category_id'     => $categoryId,
+                    'kode'            => $kode ?: 'BMN-' . time() . '-' . ($idx + 1),
+                    'subcode'         => $subcode,
+                    'uraian'          => $uraian ?: 'Barang BMN Tanpa Uraian',
+                    'satuan'          => $satuan,
+                    'qty'             => $qty,
+                    'kondisi'         => $kondisi,
+                    'area'            => $area,
+                    'lokasi'          => $lokasi,
+                    'tahun_perolehan' => $tahun,
+                    'nilai_perolehan' => $nilaiPerolehan,
+                    'keterangan'      => $keterangan,
+                ];
+
+                if ($this->manageAssets->insertDetail($data)) {
+                    $imported++;
+                } else {
+                    $skipped++;
+                }
+            }
+
+            return $this->response->setJSON([
+                'status'         => 'success',
+                'message'        => "Berhasil mengimpor {$imported} item aset BMN." . ($skipped > 0 ? " ({$skipped} dilewati)" : ''),
+                'total_imported' => $imported,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal membaca berkas Excel aset BMN.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'ManageAssetsController::importBatch'
+            );
+        }
     }
 }

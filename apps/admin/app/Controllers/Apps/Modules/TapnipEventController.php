@@ -43,6 +43,30 @@ class TapnipEventController extends BaseController
             }, $rows);
         }
 
+        // Pastikan kategori yang sudah ada di txn_activity_upload_logs (misal hasil rename/historis) tetap muncul di tab filter
+        $existingNames = array_map(static fn($r) => strtolower(trim((string) ($r['nama'] ?? ''))), $rows);
+        $db = \Config\Database::connect();
+        $logCats = $db->table('txn_activity_upload_logs')
+            ->select('DISTINCT(doc_category) AS doc_category')
+            ->where('layanan_id', self::TAPNIP_LAYANAN_ID)
+            ->where('doc_category IS NOT NULL')
+            ->where('doc_category !=', '')
+            ->orderBy('doc_category', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        foreach ($logCats as $lc) {
+            $catName = trim((string) ($lc['doc_category'] ?? ''));
+            if ($catName !== '' && !in_array(strtolower($catName), $existingNames, true)) {
+                $rows[] = [
+                    'id'          => null,
+                    'nama'        => $catName,
+                    'is_fallback' => true,
+                ];
+                $existingNames[] = strtolower($catName);
+            }
+        }
+
         return $this->response->setJSON([
             'status'      => 'success',
             'table_ready' => $this->apps->serviceEventsTableExists(),

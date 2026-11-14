@@ -1,46 +1,53 @@
 networks:
   appnet:
+    driver: bridge
+
+volumes:
+  simojang_writable:
 
 services:
   nginx:
-    image: nginx:alpine
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+      args:
+        - VITE_BASE_PATH=/simojang/
+        - VITE_API_BASE_URL=/simojang-api
     container_name: simojang-nginx
+    restart: unless-stopped
     ports:
-      - "8105:80"
+      - "${FE_PORT:-8205}:80"
+      - "${BE_PORT:-8206}:8080"
     volumes:
-      - ./apps/admin:/var/www/html
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - simojang_writable:/var/www/html/writable:ro
     depends_on:
-      - app
+      app:
+        condition: service_started
     networks:
       - appnet
     environment:
       - TZ=Asia/Jakarta
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost"]
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
   app:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: simojang-app
+    restart: unless-stopped
+    env_file:
+      - ./apps/admin/.env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     volumes:
-      - ./apps/admin:/var/www/html
+      - simojang_writable:/var/www/html/writable
     environment:
       - TZ=Asia/Jakarta
-    networks:
-      - appnet
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:alpine
-    container_name: simojang-redis
-    environment:
-      - TZ=Asia/Jakarta
-    ports:
-      - "6379:6379"
+      - CI_ENVIRONMENT=${CI_ENVIRONMENT:-production}
     networks:
       - appnet

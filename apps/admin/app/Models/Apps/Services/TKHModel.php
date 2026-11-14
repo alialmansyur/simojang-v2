@@ -44,15 +44,14 @@ class TKHModel extends Model
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
 
-    public function getDataLog(){
+    public function getDataLog()
+    {
         $builder = $this->db->table($this->table);
         return $builder;
     }
 
-    // ----------------------------
-    //  QUERY BUILDER UTAMA
-    // ----------------------------    
-    public function getBuilder($type, $params = null){
+    public function getBuilder($type, $params = null)
+    {
         switch ($type) {
             case 'recap':
                 return $this->getDataRecap($params);
@@ -61,41 +60,67 @@ class TKHModel extends Model
             default:
                 throw new \Exception("Unknown builder type: $type");
         }
-    }     
+    }
 
-    // ----------------------------
-    //  DAPATKAN NAMA KOLOM OTOMATIS
-    // ----------------------------    
-    public function getColumns($type, $id = null){
+    public function getColumns($type, $id = null)
+    {
         $builder = $this->getBuilder($type, $id);
         $query = $builder->get();
         return $query->getFieldNames();
-    }    
+    }
 
     public function getDataRecap($params = [])
     {
         $bulan = $params['bulan'] ?? [];
 
         $builder = $this->db->table('txn_takah a')
-            ->select('a.*, COUNT(b.id) total')
+            ->select("
+                a.*,
+                COUNT(b.id) AS total,
+                COUNT(DISTINCT b.instansi_id) AS total_instansi,
+                GROUP_CONCAT(DISTINCT c.nama SEPARATOR ', ') AS nama_instansi_list,
+                COALESCE(SUM(
+                    COALESCE(b.d2nip,0) + COALESCE(b.ijazah,0) + COALESCE(b.akta,0) + COALESCE(b.drh,0) +
+                    COALESCE(b.cpns,0) + COALESCE(b.pns,0) + COALESCE(b.perubahan,0) + COALESCE(b.kp,0) +
+                    COALESCE(b.jabatan,0) + COALESCE(b.berhenti,0) + COALESCE(b.pensiun,0)
+                ), 0) AS total_dokumen,
+                MAX(b.nip) AS nip_single,
+                MAX(b.nama) AS nama_single,
+                MAX(b.instansi_id) AS instansi_single,
+                MAX(b.d2nip) AS d2nip,
+                MAX(b.ijazah) AS ijazah,
+                MAX(b.akta) AS akta,
+                MAX(b.drh) AS drh,
+                MAX(b.cpns) AS cpns,
+                MAX(b.pns) AS pns,
+                MAX(b.perubahan) AS perubahan,
+                MAX(b.kp) AS kp,
+                MAX(b.jabatan) AS jabatan,
+                MAX(b.berhenti) AS berhenti,
+                MAX(b.pensiun) AS pensiun
+            ")
             ->join('txn_takah_detail b', 'b.takah_log_id = a.id', 'left')
+            ->join('data_instansi c', 'c.kodeins = b.instansi_id', 'left')
             ->where('a.created_at >=', date('Y-01-01 00:00:00'))
             ->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00')
             ->groupBy('a.id')
             ->orderBy('a.created_at', 'DESC');
 
-        // 🔹 FILTER BULAN (IN)
         if (!empty($bulan)) {
             $builder->whereIn('MONTH(a.created_at)', $bulan);
         }
 
         return $builder;
     }
- 
-    public function getDataDetail($param){
+
+    public function getDataDetail($param)
+    {
         return $this->db->table('txn_takah a')
             ->select('
                 a.id AS log_id,
+                a.period,
+                a.period_start_date,
+                a.period_end_date,
                 b.*,
                 c.logo,
                 c.kodeins AS kode_instansi,
@@ -132,82 +157,11 @@ class TKHModel extends Model
         }
 
         return $builder->get()->getRowArray() ?? [
-            'total_upload' => 0,
-            'total_nip' => 0,
+            'total_upload'   => 0,
+            'total_nip'      => 0,
             'total_instansi' => 0,
-            'total_dokumen' => 0,
-            'last_update' => null,
+            'total_dokumen'  => 0,
+            'last_update'    => null,
         ];
-    }    
-
-    // public function getDataRecap($param){
-    //     $rawSql = "
-    //         SELECT 
-    //         a.*, b.nama nama_instansi
-    //         FROM txn_takah a
-    //         LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-    //         WHERE a.tanggal_proses = CURDATE() AND a.created_by = '$param'
-    //     ";
-    //     return $this->db->table("($rawSql) AS recap");
-    // }
-
-    // public function getDataRecapUpload($param){
-    //     $rawSql = "
-    //         SELECT 
-    //         a.*, b.nama nama_instansi
-    //         FROM txn_takah a
-    //         LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-    //         WHERE a.skema = 'upload' AND a.tanggal_proses = CURDATE() AND a.created_by = '$param'
-    //     ";
-    //     return $this->db->table("($rawSql) AS recap");
-    // }
-
-    // public function getResumeData($param){
-    //     $rawSql = "
-    //         SELECT 
-    //             (SELECT COUNT(DISTINCT nip) FROM txn_takah WHERE MONTH(tanggal_proses) = MONTH(CURDATE()) AND created_by = ? ) total,
-    //             COUNT(DISTINCT a.kode_instansi) AS total_instansi,
-    //             COUNT(DISTINCT a.nip) AS total_nip,
-    //             (
-    //                 SUM(CASE WHEN a.d2nip IS NOT NULL AND a.d2nip != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.ijazah IS NOT NULL AND a.ijazah != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.akta IS NOT NULL AND a.akta != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.drh IS NOT NULL AND a.drh != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.cpns IS NOT NULL AND a.cpns != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.pns IS NOT NULL AND a.pns != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.perubahan IS NOT NULL AND a.perubahan != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.kp IS NOT NULL AND a.kp != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.jabatan IS NOT NULL AND a.jabatan != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.berhenti IS NOT NULL AND a.berhenti != '' THEN 1 ELSE 0 END) +
-    //                 SUM(CASE WHEN a.pensiun IS NOT NULL AND a.pensiun != '' THEN 1 ELSE 0 END)
-    //             ) AS total_dokumen
-    //         FROM txn_takah a
-    //         WHERE a.tanggal_proses = CURDATE() AND a.created_by = ?
-    //         ";
-    //     return $this->db->query($rawSql, [$param, $param])->getRow();
-    // }
-
-    // public function getDailyData($param){
-    //     $rawSql = "
-    //         SELECT 
-    //             DATE_FORMAT(a.tanggal_proses, '%Y-%m-%dT00:00:00.000Z') tanggal, COUNT(1) total
-    //         FROM txn_takah a
-    //         LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-    //         WHERE a.created_by = ? AND WEEK(tanggal_proses) = WEEK(CURDATE())
-    //         GROUP BY a.tanggal_proses
-    //         ORDER BY a.tanggal_proses asc
-    //     ";
-    //     return $this->db->query($rawSql, [$param])->getResultArray();
-    // }
-
-    // public function getRefInstansi($param){
-    //     $rawSql = "
-    //         SELECT 
-    //             LPAD(IFNULL(MAX(CAST(a.no_ref AS UNSIGNED)), 0) + 1, 5, '0') AS last
-    //         FROM txn_takah a
-    //         WHERE a.kode_instansi = 6108
-    //     ";
-    //     return $this->db->query($rawSql, [$param])->getRow();
-    // }
-
+    }
 }

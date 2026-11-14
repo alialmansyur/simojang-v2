@@ -8,11 +8,71 @@ use CodeIgniter\HTTP\ResponseInterface;
 
 class RbacFilter implements FilterInterface
 {
+    /**
+     * Resolve parent permission URLs for administrative API/action routes
+     * that are not directly registered as sidebar menu items.
+     *
+     * @return array{strictAdmin: bool, permissionUrls: list<string>}
+     */
+    private function resolveAccessRequirement(string $path): array
+    {
+        $strictAdminPrefixes = [
+            'download/database-backup',
+            'download/schema-rebuild-090326',
+            'execute/schema-rebuild-090326',
+            'audit/database-schema-090326',
+            'migrate/database-schema-090326',
+        ];
+        foreach ($strictAdminPrefixes as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return ['strictAdmin' => true, 'permissionUrls' => []];
+            }
+        }
+
+        if ($path === 'api/services/maintenance-status' || $path === 'api/public/maintenance-status') {
+            return ['strictAdmin' => false, 'permissionUrls' => []];
+        }
+
+        $prefixMap = [
+            'api/manage-role'            => ['manage-role'],
+            'api/manage-user'            => ['manage-user'],
+            'api/manage-setting'         => ['manage-setting'],
+            'store/system-setting'       => ['manage-setting'],
+            'api/manage-smtp'            => ['manage-smtp'],
+            'store/smtp-setting'         => ['manage-smtp'],
+            'api/manage-layanan'         => ['manage-layanan', 'manage-service'],
+            'api/manage-service'         => ['manage-service', 'manage-layanan'],
+            'api/manage-log'             => ['manage-log'],
+            'setting/service'            => ['manage-layanan', 'manage-service'],
+            'api/menus'                  => ['manage-role', 'manage-service'],
+            'api/users'                  => ['manage-user', 'manage-role'],
+            'api/services'               => ['manage-service', 'manage-layanan'],
+            'api/ref'                    => ['ref'],
+            'store/pull-datalist-pegawai'  => ['manage-pegawai', 'manage-user'],
+            'store/pull-datalist-instansi' => ['manage-instansi', 'ref/instansi'],
+        ];
+
+        foreach ($prefixMap as $prefix => $urls) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return ['strictAdmin' => false, 'permissionUrls' => $urls];
+            }
+        }
+
+        return ['strictAdmin' => false, 'permissionUrls' => [$path]];
+    }
+
     public function before(RequestInterface $request, $arguments = null)
     {
         $userId = (int) session()->get('userid');
+
         if ($userId <= 0) {
-            return redirect()->to('/login')->with('error', 'Sesi login tidak valid.');
+            return service('response')
+                ->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED)
+                ->setJSON([
+                    'code'    => 401,
+                    'status'  => 'error',
+                    'message' => 'Sesi masuk Anda tidak valid atau telah berakhir. Silakan masuk kembali.',
+                ]);
         }
 
         $path = trim($request->getUri()->getPath(), '/');
@@ -20,20 +80,24 @@ class RbacFilter implements FilterInterface
             return;
         }
 
-        // Endpoints without menu mapping stay open for backward compatibility.
-        $db = db_connect();
-        $permission = $db->table('auth_permissions')
-            ->select('id, url')
-            ->where('url', $path)
-            ->limit(1)
-            ->get()
-            ->getRowArray();
-
-        if (empty($permission)) {
-            return;
+        // Dashboard, Kalender Kegiatan, Galeri Kegiatan, dan status maintenance dapat diakses oleh semua role yang login
+        $publicAuthenticatedPrefixes = [
+            'dashboard',
+            'api/dashboard',
+            'calendar-event',
+            'api/calendar-event',
+            'activity-gallery',
+            'api/services/maintenance-status',
+            'api/public/maintenance-status',
+            'api/user/menus',
+        ];
+        foreach ($publicAuthenticatedPrefixes as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return;
+            }
         }
 
-        // 1. Cek User dan Role
+        $db = db_connect();
         $user = $db->table('auth_users')
             ->select('role')
             ->where('id', $userId)
@@ -46,46 +110,85 @@ class RbacFilter implements FilterInterface
             return;
         }
 
-        // 2. Cek izin via auth_role_permissions
-        if (in_array('auth_role_permissions', $db->listTables(), true) && in_array('auth_roles', $db->listTables(), true)) {
+        $requirement = $this->resolveAccessRequirement($path);
+        if ($requirement['strictAdmin']) {
+            return $this->denyAccess();
+        }
+
+        $permissions = $db->table('auth_permissions')
+            ->select('id, url')
+            ->whereIn('url', $requirement['permissionUrls'])
+            ->get()
+            ->getResultArray();
+
+        // Jika endpoint memang bukan halaman/aksi manajemen dan tidak terdaftar di auth_permissions
+        $isManagedPrefix = $requirement['permissionUrls'] !== [$path];
+        if (empty($permissions)) {
+            if ($isManagedPrefix) {
+                return $this->denyAccess();
+            }
+            return;
+        }
+
+        $permissionIds = array_map(static fn ($row) => (int) $row['id'], $permissions);
+        $method = strtoupper((string) $request->getMethod());
+        $requiredColumn = 'is_read';
+        if ($isManagedPrefix) {
+            if ($method === 'DELETE' || str_contains($path, '/delete') || str_contains($path, '/remove') || str_contains($path, '/unassign') || str_contains($path, '/kill')) {
+                $requiredColumn = 'is_delete';
+            } elseif ($method === 'PUT' || $method === 'PATCH' || str_contains($path, '/update')) {
+                $requiredColumn = 'is_update';
+            } elseif ($method === 'POST' && !str_contains($path, '/datatable') && !str_ends_with($path, '/get-data') && !str_ends_with($path, '/get-layanan')) {
+                // Untuk /store, /create, /assign, /toggle, /reset, /copy, /save, /test, /sync
+                $requiredColumn = str_contains($path, '/create') || str_contains($path, '/store') ? 'is_create' : 'is_update';
+            }
+        }
+
+        // Cek izin via auth_role_permissions
+        $tables = $db->listTables();
+        if (in_array('auth_role_permissions', $tables, true) && in_array('auth_roles', $tables, true)) {
             $rolePermit = $db->table('auth_role_permissions rp')
-                ->select('rp.is_read')
+                ->select("rp.{$requiredColumn}")
                 ->join('auth_roles r', 'r.id = rp.role_id', 'inner')
                 ->where('r.role_code', $roleCode)
                 ->where('r.is_active', 1)
-                ->where('rp.permission_id', (int) $permission['id'])
+                ->whereIn('rp.permission_id', $permissionIds)
+                ->where("rp.{$requiredColumn}", 1)
                 ->limit(1)
                 ->get()
                 ->getRowArray();
 
-            if (!empty($rolePermit) && (int) ($rolePermit['is_read'] ?? 0) === 1) {
+            if (!empty($rolePermit)) {
                 return;
             }
         }
 
-        // 3. Fallback ke auth_users_permissions
+        // Fallback ke auth_users_permissions
         $permit = $db->table('auth_users_permissions')
-            ->select('is_read')
+            ->select($requiredColumn)
             ->where('user_id', $userId)
-            ->where('permission_id', (int) $permission['id'])
+            ->whereIn('permission_id', $permissionIds)
+            ->where($requiredColumn, 1)
             ->limit(1)
             ->get()
             ->getRowArray();
 
-        if (!empty($permit) && (int) ($permit['is_read'] ?? 0) === 1) {
+        if (!empty($permit)) {
             return;
         }
 
-        if ($request->isAJAX()) {
-            return service('response')
-                ->setStatusCode(403)
-                ->setJSON([
-                    'status'  => false,
-                    'message' => 'Anda tidak memiliki izin akses halaman ini.',
-                ]);
-        }
+        return $this->denyAccess();
+    }
 
-        return redirect()->to('/home')->with('error', 'Anda tidak memiliki izin akses halaman ini.');
+    private function denyAccess(): ResponseInterface
+    {
+        return service('response')
+            ->setStatusCode(403)
+            ->setJSON([
+                'code'    => 403,
+                'status'  => 'error',
+                'message' => 'Anda tidak memiliki hak akses untuk fitur ini.',
+            ]);
     }
 
     public function after(RequestInterface $request, ResponseInterface $response, $arguments = null)

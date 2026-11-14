@@ -30,10 +30,14 @@ class PembinaanKinerjaModel extends Model
                 'id',
                 'instansi_id',
                 'instansi_name',
+                'wilayah',
+                'kanreg',
                 'logo',
                 'kategori_id',
                 'kategori_nama',
                 'kategori_code',
+                'kegiatan',
+                'aplikasi',
                 'period_year',
                 'period_date',
                 'period_date_label',
@@ -43,6 +47,9 @@ class PembinaanKinerjaModel extends Model
                 'pendampingan_date',
                 'pendampingan_date_label',
                 'catatan',
+                'created_by',
+                'updated_by',
+                'created_at',
                 'updated_at',
                 'updated_at_label',
             ];
@@ -64,10 +71,14 @@ class PembinaanKinerjaModel extends Model
                 a.id,
                 a.instansi_id,
                 b.nama AS instansi_name,
+                b.wilayah AS wilayah,
+                b.kanreg AS kanreg,
                 b.logo AS logo,
                 a.kategori_id,
                 c.nama AS kategori_nama,
                 c.code AS kategori_code,
+                a.kegiatan,
+                a.aplikasi,
                 a.period_year,
                 a.period_date,
                 DATE_FORMAT(a.period_date, '%d %M %Y') AS period_date_label,
@@ -77,6 +88,9 @@ class PembinaanKinerjaModel extends Model
                 a.pendampingan_date,
                 DATE_FORMAT(a.pendampingan_date, '%d %M %Y') AS pendampingan_date_label,
                 a.catatan,
+                a.created_by,
+                a.updated_by,
+                a.created_at,
                 a.updated_at,
                 DATE_FORMAT(a.updated_at, '%d %M %Y %H:%i:%s') AS updated_at_label
             FROM txn_pembinaan_kinerja a
@@ -137,6 +151,7 @@ class PembinaanKinerjaModel extends Model
             ->select("
                 COUNT(*) AS total_data,
                 COUNT(DISTINCT instansi_id) AS total_instansi,
+                SUM(CASE WHEN capaian_percent >= 90 THEN 1 ELSE 0 END) AS total_tinggi,
                 ROUND(AVG(capaian_percent),2) AS avg_capaian,
                 MAX(updated_at) AS last_update
             ")
@@ -154,6 +169,7 @@ class PembinaanKinerjaModel extends Model
         return [
             'total_data' => (int) ($row['total_data'] ?? 0),
             'total_instansi' => (int) ($row['total_instansi'] ?? 0),
+            'total_tinggi' => (int) ($row['total_tinggi'] ?? 0),
             'avg_capaian' => (float) ($row['avg_capaian'] ?? 0),
             'last_update' => $row['last_update'] ?? null,
         ];
@@ -207,5 +223,63 @@ class PembinaanKinerjaModel extends Model
             ->getRowArray();
 
         return isset($row['id']) ? (int) $row['id'] : null;
+    }
+
+    public function getKategoriById(int $kategoriId): ?array
+    {
+        if ($kategoriId <= 0) {
+            return null;
+        }
+
+        $row = $this->db->table('data_support_pembinaan_kinerja_kategori')
+            ->select('id, code, nama')
+            ->where('id', $kategoriId)
+            ->get()
+            ->getRowArray();
+
+        return $row ?: null;
+    }
+
+    public function resolveKegiatanEnum(int $kategoriId, ?string $rawCode = null): string
+    {
+        $allowed = ['PELAPORAN_SKP', 'PENYUSUNAN_SKP', 'PEMANFAATAN_EKINERJA'];
+        $candidate = strtoupper(trim((string) $rawCode));
+        if (in_array($candidate, $allowed, true)) {
+            return $candidate;
+        }
+
+        $kat = $this->getKategoriById($kategoriId);
+        $katCode = strtoupper(trim((string) ($kat['code'] ?? '')));
+        if (in_array($katCode, $allowed, true)) {
+            return $katCode;
+        }
+
+        return 'PELAPORAN_SKP';
+    }
+
+    public function resolveAplikasiEnum(string $kegiatanEnum, ?string $rawAplikasi = null): string
+    {
+        $allowed = ['SIASN', 'EKINERJA_BKN', 'EKINERJA_MANDIRI'];
+        $candidate = strtoupper(trim((string) $rawAplikasi));
+        if (in_array($candidate, $allowed, true)) {
+            return $candidate;
+        }
+
+        return match (strtoupper($kegiatanEnum)) {
+            'PENYUSUNAN_SKP' => 'EKINERJA_BKN',
+            'PEMANFAATAN_EKINERJA' => 'EKINERJA_MANDIRI',
+            default => 'SIASN',
+        };
+    }
+
+    public function resolveKategoriCapaianEnum(float $percent): string
+    {
+        if ($percent >= 90) {
+            return 'DIATAS_90';
+        }
+        if ($percent >= 50) {
+            return 'ANTARA_50_90';
+        }
+        return 'DIBAWAH_50';
     }
 }

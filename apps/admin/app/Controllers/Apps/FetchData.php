@@ -121,8 +121,12 @@ class FetchData extends BaseController
         $options = [];
         foreach ($data as $row) {
             $options[] = [
-                'id'   => $row['kodeins'],
-                'text' => $row['nama']
+                'id'      => $row['kodeins'],
+                'text'    => $row['nama'],
+                'kodeins' => $row['kodeins'],
+                'nama'    => $row['nama'],
+                'kanreg'  => $row['kanreg'] ?? null,
+                'wilayah' => $row['wilayah'] ?? null,
             ];
         }
 

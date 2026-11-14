@@ -25,7 +25,17 @@ class IkkModel extends Model
             $subRealWhere .= " AND r.tahun = {$tahun}";
         }
         if ($triwulan !== null) {
-            $subRealWhere .= " AND r.triwulan = {$triwulan}";
+            if ($triwulan === 1) {
+                $subRealWhere .= " AND r.triwulan = 1";
+            } elseif ($triwulan === 2) {
+                $subRealWhere .= " AND r.triwulan <= 2";
+            } elseif ($triwulan === 3) {
+                $subRealWhere .= " AND r.triwulan <= 3";
+            } elseif ($triwulan === 4) {
+                $subRealWhere .= " AND r.triwulan <= 4";
+            } else {
+                $subRealWhere .= " AND r.triwulan = {$triwulan}";
+            }
         }
 
         $selectReal = "
@@ -422,8 +432,15 @@ class IkkModel extends Model
                     if (!empty($filter['tahun'])) {
                         $trxBuilder->where('tahun', (int) $filter['tahun']);
                     }
-                    if (!empty($filter['triwulan'])) {
-                        $trxBuilder->where('triwulan <=', (int) $filter['triwulan']);
+                    if (!empty($filter['triwulan']) && $filter['triwulan'] !== 'all') {
+                        $tw = (int) $filter['triwulan'];
+                        if ($tw == 1) {
+                            $trxBuilder->where('triwulan', 1);
+                        } elseif ($tw <= 4) {
+                            $trxBuilder->where('triwulan <=', $tw);
+                        } else {
+                            $trxBuilder->where('triwulan', $tw);
+                        }
                     }
                     if (!empty($filter['bulan'])) {
                         $trxBuilder->where('bulan <=', (int) $filter['bulan']);

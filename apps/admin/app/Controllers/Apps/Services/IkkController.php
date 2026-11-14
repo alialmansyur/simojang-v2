@@ -45,14 +45,6 @@ class IkkController extends BaseController
         ]);
     }
 
-    public function index()
-    {
-        return $this->renderView('Apps/pages/services/ikk/main', [
-            'title'  => 'Manajemen Capaian IKK',
-            'seslog' => session()->get(),
-        ]);
-    }
-
     /**
      * Mengambil ringkasan KPI untuk kartu metrik atas
      */
@@ -140,10 +132,7 @@ class IkkController extends BaseController
             ]);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage(),
-            ]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat menyimpan data IKK.', 500, 'IkkController');
         }
     }
 
@@ -182,7 +171,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data Sasaran berhasil dihapus.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -354,7 +343,7 @@ class IkkController extends BaseController
             ]);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -387,7 +376,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data realisasi indikator berhasil dihapus.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -463,7 +452,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data Indikator berhasil disimpan.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -505,7 +494,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data Indikator berhasil dihapus.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -615,7 +604,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data Kegiatan dan Tim Pengampu berhasil disimpan.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -657,7 +646,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data Kegiatan berhasil dihapus.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -725,7 +714,7 @@ class IkkController extends BaseController
             ]);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -769,8 +758,18 @@ class IkkController extends BaseController
         if (!empty($tahun)) {
             $builder->where('a.tahun', (int) $tahun);
         }
-        if (!empty($triwulan)) {
-            $builder->where('a.triwulan', (int) $triwulan);
+        if (!empty($triwulan) && $triwulan !== 'all') {
+            if ($triwulan == '1') {
+                $builder->where('a.triwulan', 1);
+            } elseif ($triwulan == '2') {
+                $builder->whereIn('a.triwulan', [1, 2]);
+            } elseif ($triwulan == '3') {
+                $builder->whereIn('a.triwulan', [1, 2, 3]);
+            } elseif ($triwulan == '4') {
+                $builder->whereIn('a.triwulan', [1, 2, 3, 4]);
+            } else {
+                $builder->where('a.triwulan', (int) $triwulan);
+            }
         }
         if (!empty($timkerja_id)) {
             $builder->where("EXISTS (
@@ -823,7 +822,7 @@ class IkkController extends BaseController
             'pelaksana_kegiatan_harian' => 'required|min_length[3]',
             'period_start_date'         => 'permit_empty|valid_date[Y-m-d]',
             'period_end_date'           => 'permit_empty|valid_date[Y-m-d]',
-            'progres_realisasi'         => 'permit_empty|numeric|greater_than_equal_to[0]|less_than_equal_to[100]',
+            'progres_realisasi'         => 'permit_empty|numeric|greater_than_equal_to[0]',
             'jumlah_realisasi'          => 'permit_empty|numeric',
         ];
 
@@ -891,7 +890,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Transaksi harian berhasil disimpan.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -921,7 +920,7 @@ class IkkController extends BaseController
             return $this->response->setJSON(['status' => 'success', 'message' => 'Data transaksi berhasil dihapus.']);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON(['status' => 'error', 'message' => 'Terjadi kesalahan: ' . $e->getMessage()]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat memproses data IKK.', 500, 'IkkController');
         }
     }
 
@@ -1009,19 +1008,13 @@ class IkkController extends BaseController
         try {
             $uploader->validateFile($file);
         } catch (\Throwable $e) {
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => $e->getMessage(),
-            ]);
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid.', $e instanceof \RuntimeException ? 422 : 500, 'IkkController::importValidate');
         }
 
         try {
             $rows = $uploader->parseExcel($file->getTempName());
         } catch (\Throwable $e) {
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => 'Gagal membaca format file Excel: ' . $e->getMessage(),
-            ]);
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal membaca format file Excel IKK.', $e instanceof \RuntimeException ? 422 : 500, 'IkkController::importParse');
         }
 
         if (!is_array($rows) || count($rows) === 0) {
@@ -1211,10 +1204,7 @@ class IkkController extends BaseController
             ]);
         } catch (\Throwable $e) {
             $db->transRollback();
-            return $this->response->setJSON([
-                'status'  => 'error',
-                'message' => 'Terjadi kesalahan sistem saat menyimpan data import: ' . $e->getMessage(),
-            ]);
+            return $this->apiException($e, 'Terjadi kesalahan sistem saat menyimpan data import IKK.', 500, 'IkkController::importSave');
         }
     }
 }

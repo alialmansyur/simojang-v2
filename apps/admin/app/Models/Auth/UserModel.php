@@ -309,15 +309,15 @@ class UserModel extends Model
         if ($password === '') {
             return [
                 'status'  => false,
-                'message' => 'Password awal wajib diisi (minimal 6 karakter).',
+                'message' => 'Kata sandi awal wajib diisi (minimal 8 karakter).',
                 'field'   => 'password',
             ];
         }
 
-        if (strlen($password) < 6) {
+        if (strlen($password) < 8) {
             return [
                 'status'  => false,
-                'message' => 'Password terlalu pendek. Password minimal terdiri dari 6 karakter.',
+                'message' => 'Kata sandi terlalu pendek. Kata sandi minimal harus terdiri dari 8 karakter.',
                 'field'   => 'password',
             ];
         }
@@ -347,10 +347,12 @@ class UserModel extends Model
 
             if ($newId <= 0) {
                 $dbError = $this->db->error();
-                $errDetail = !empty($dbError['message']) ? ' (' . $dbError['message'] . ')' : '';
+                if (!empty($dbError['message'])) {
+                    log_message('error', 'UserModel createUser DB error: {message}', ['message' => $dbError['message']]);
+                }
                 return [
                     'status'  => false,
-                    'message' => 'Gagal menambahkan pengguna ke database' . $errDetail,
+                    'message' => 'Gagal menyimpan pengguna baru. Silakan periksa kembali data Anda.',
                     'field'   => 'general',
                 ];
             }
@@ -361,9 +363,10 @@ class UserModel extends Model
                 'message' => "Pengguna baru '{$fullname}' ({$username}) berhasil ditambahkan ke sistem.",
             ];
         } catch (\Throwable $e) {
+            log_message('error', 'UserModel createUser failed: {message}', ['message' => $e->getMessage()]);
             return [
                 'status'  => false,
-                'message' => 'Terjadi kesalahan sistem database: ' . $e->getMessage(),
+                'message' => 'Terjadi gangguan sistem saat menyimpan data pengguna. Silakan coba lagi.',
                 'field'   => 'general',
             ];
         }
@@ -435,8 +438,8 @@ class UserModel extends Model
 
         if (!empty($data['password'])) {
             $pwd = (string) $data['password'];
-            if (strlen($pwd) < 6) {
-                return ['status' => false, 'message' => 'Password baru minimal terdiri dari 6 karakter.', 'field' => 'password'];
+            if (strlen($pwd) < 8) {
+                return ['status' => false, 'message' => 'Kata sandi baru minimal harus terdiri dari 8 karakter.', 'field' => 'password'];
             }
             $payload['password'] = password_hash($pwd, PASSWORD_BCRYPT);
         }
@@ -451,9 +454,10 @@ class UserModel extends Model
                 'message' => $ok ? 'Data pengguna berhasil diperbarui.' : 'Tidak ada perubahan data yang disimpan.',
             ];
         } catch (\Throwable $e) {
+            log_message('error', 'UserModel updateUser failed: {message}', ['message' => $e->getMessage()]);
             return [
                 'status'  => false,
-                'message' => 'Terjadi kesalahan saat memperbarui data: ' . $e->getMessage(),
+                'message' => 'Terjadi gangguan sistem saat memperbarui data pengguna. Silakan coba lagi.',
                 'field'   => 'general',
             ];
         }
@@ -470,11 +474,11 @@ class UserModel extends Model
 
         $pwd = trim($newPassword);
         if ($pwd === '') {
-            return ['status' => false, 'message' => 'Password baru wajib diisi.'];
+            return ['status' => false, 'message' => 'Kata sandi baru wajib diisi.'];
         }
 
-        if (strlen($pwd) < 6) {
-            return ['status' => false, 'message' => 'Password baru terlalu pendek (minimal 6 karakter).'];
+        if (strlen($pwd) < 8) {
+            return ['status' => false, 'message' => 'Kata sandi baru terlalu pendek (minimal 8 karakter).'];
         }
 
         $user = $this->getUserDetail($id);
@@ -493,12 +497,13 @@ class UserModel extends Model
             $userName = !empty($user['fullname']) ? $user['fullname'] : $user['username'];
             return [
                 'status'  => $ok,
-                'message' => $ok ? "Password untuk akun '{$userName}' ({$user['username']}) berhasil diperbarui." : 'Gagal memperbarui password pengguna.',
+                'message' => $ok ? "Kata sandi untuk akun '{$userName}' ({$user['username']}) berhasil diperbarui." : 'Gagal memperbarui kata sandi pengguna.',
             ];
         } catch (\Throwable $e) {
+            log_message('error', 'UserModel resetPassword failed: {message}', ['message' => $e->getMessage()]);
             return [
                 'status'  => false,
-                'message' => 'Terjadi kesalahan saat reset password: ' . $e->getMessage(),
+                'message' => 'Terjadi gangguan sistem saat memperbarui kata sandi. Silakan coba lagi.',
             ];
         }
     }

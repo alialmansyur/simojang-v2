@@ -34,6 +34,9 @@ class PembinaanKompetensiKarierModel extends Model
                 'penyelenggara',
                 'eviden_link',
                 'catatan',
+                'created_by',
+                'updated_by',
+                'created_at',
                 'updated_at',
                 'updated_at_label',
             ];
@@ -45,6 +48,7 @@ class PembinaanKompetensiKarierModel extends Model
     public function getDataRecap(array $params = [])
     {
         $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $category = strtolower(trim((string) ($params['category'] ?? '')));
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
         if (empty($periodMonths)) {
             $periodMonth = (int) ($params['period_month'] ?? 0);
@@ -67,6 +71,9 @@ class PembinaanKompetensiKarierModel extends Model
                 a.penyelenggara,
                 a.eviden_link,
                 a.catatan,
+                a.created_by,
+                a.updated_by,
+                a.created_at,
                 a.updated_at,
                 DATE_FORMAT(a.updated_at, '%d %M %Y %H:%i:%s') AS updated_at_label
             FROM txn_pembinaan_kompetensi_karier a
@@ -79,6 +86,14 @@ class PembinaanKompetensiKarierModel extends Model
 
         if (!empty($periodMonths)) {
             $builder->whereIn('MONTH(tanggal_kegiatan)', $periodMonths, false);
+        }
+
+        if ($category === 'klasikal') {
+            $builder->whereIn('LOWER(metode)', ['klasikal', 'tatap muka', 'offline']);
+        } elseif ($category === 'daring') {
+            $builder->whereIn('LOWER(metode)', ['daring (zoom)', 'daring', 'online']);
+        } elseif ($category === 'hybrid') {
+            $builder->where('LOWER(metode)', 'hybrid');
         }
 
         return $builder;
@@ -118,9 +133,9 @@ class PembinaanKompetensiKarierModel extends Model
                 COUNT(id) AS total_kegiatan,
                 SUM(total_partisipan) AS total_partisipan,
                 ROUND(AVG(total_partisipan), 2) AS avg_partisipan,
-                SUM(CASE WHEN metode = 'Tatap Muka' THEN 1 ELSE 0 END) AS total_tatap_muka,
-                SUM(CASE WHEN metode = 'Hybrid' THEN 1 ELSE 0 END) AS total_hybrid,
-                SUM(CASE WHEN metode = 'Online' THEN 1 ELSE 0 END) AS total_online,
+                SUM(CASE WHEN LOWER(metode) IN ('klasikal', 'tatap muka', 'offline') THEN 1 ELSE 0 END) AS total_tatap_muka,
+                SUM(CASE WHEN LOWER(metode) = 'hybrid' THEN 1 ELSE 0 END) AS total_hybrid,
+                SUM(CASE WHEN LOWER(metode) IN ('daring (zoom)', 'online', 'daring') THEN 1 ELSE 0 END) AS total_online,
                 MAX(updated_at) AS last_update
             ")
             ->where('period_year', $periodYear);
@@ -132,12 +147,15 @@ class PembinaanKompetensiKarierModel extends Model
         $row = $builder->get()->getRowArray() ?? [];
 
         return [
+            'total_data' => (int) ($row['total_kegiatan'] ?? 0),
             'total_kegiatan' => (int) ($row['total_kegiatan'] ?? 0),
             'total_partisipan' => (int) ($row['total_partisipan'] ?? 0),
             'avg_partisipan' => (float) ($row['avg_partisipan'] ?? 0),
             'total_tatap_muka' => (int) ($row['total_tatap_muka'] ?? 0),
+            'metode_klasikal' => (int) ($row['total_tatap_muka'] ?? 0),
             'total_hybrid' => (int) ($row['total_hybrid'] ?? 0),
             'total_online' => (int) ($row['total_online'] ?? 0),
+            'metode_daring' => (int) ($row['total_online'] ?? 0),
             'last_update' => $row['last_update'] ?? null,
         ];
     }

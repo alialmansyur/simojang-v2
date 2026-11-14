@@ -12,8 +12,24 @@ class DatabaseBackupController extends BaseController
     private const TARGET_ITEM_TABLE = 'txn_anggaran_realisasi_item';
     private const TARGET_REALISASI_TABLE = 'txn_anggaran_realisasi';
 
+    private function guardAdminAccess(): ?\CodeIgniter\HTTP\ResponseInterface
+    {
+        $role = strtoupper(trim((string) (session()->get('role') ?? '')));
+        if ((int) (session()->get('userid') ?? 0) <= 0 || $role !== 'ADM') {
+            return $this->response->setStatusCode(403)->setJSON([
+                'status'  => false,
+                'message' => 'Hanya administrator sistem yang dapat mengakses fitur pemeliharaan basis data.',
+            ]);
+        }
+
+        return null;
+    }
+
     public function download()
     {
+        if ($denied = $this->guardAdminAccess()) {
+            return $denied;
+        }
         try {
             $db = db_connect();
             $databaseName = $this->resolveDatabaseName($db);
@@ -66,6 +82,9 @@ class DatabaseBackupController extends BaseController
 
     public function auditSchema090326()
     {
+        if ($denied = $this->guardAdminAccess()) {
+            return $denied;
+        }
         try {
             $db = db_connect();
             $diff = $this->buildInlineSchemaAudit($db);
@@ -94,6 +113,9 @@ class DatabaseBackupController extends BaseController
 
     public function migrateSchema090326()
     {
+        if ($denied = $this->guardAdminAccess()) {
+            return $denied;
+        }
         try {
             $db = db_connect();
             $executed = [];
@@ -219,13 +241,15 @@ class DatabaseBackupController extends BaseController
             return $this->response->setStatusCode(500)->setJSON([
                 'status' => false,
                 'message' => 'Migrasi schema gagal dijalankan.',
-                'error' => $e->getMessage(),
             ]);
         }
     }
 
     public function downloadRebuildScript090326()
     {
+        if ($denied = $this->guardAdminAccess()) {
+            return $denied;
+        }
         try {
             $tables = $this->getInlineRebuildTableNames(db_connect());
             if ($tables === []) {
@@ -248,6 +272,9 @@ class DatabaseBackupController extends BaseController
 
     public function executeRebuildScript090326()
     {
+        if ($denied = $this->guardAdminAccess()) {
+            return $denied;
+        }
         try {
             $db = db_connect();
             $tables = $this->getInlineRebuildTableNames($db);
@@ -293,7 +320,6 @@ class DatabaseBackupController extends BaseController
             return $this->response->setStatusCode(500)->setJSON([
                 'status' => false,
                 'message' => 'Execute rebuild script gagal dijalankan.',
-                'error' => $e->getMessage(),
             ]);
         }
     }

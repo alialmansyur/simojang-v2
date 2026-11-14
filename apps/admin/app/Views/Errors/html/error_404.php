@@ -1,36 +1,25 @@
 <?php
 /**
  * SIMOJANG - Kanreg III BKN
- * Custom Global 404 Error Page
+ * Global 404 Handler (API-only JSON + minimal standalone fallback)
  */
-
-$isLoggedIn = false;
-$userFullname = '';
-
-try {
-    $session = \Config\Services::session();
-    $jwtToken = $session->get('jwt_auth_token');
-    $userId = $session->get('userid');
-
-    if (!empty($jwtToken) && !empty($userId)) {
-        $jwtSecret = getenv('JWT_TOKEN_SECRET') ?: (env('JWT_TOKEN_SECRET') ?: 'simojang_default_jwt_secret_key_2026');
-        try {
-            $decoded = \Firebase\JWT\JWT::decode($jwtToken, new \Firebase\JWT\Key($jwtSecret, 'HS256'));
-            if (!empty($decoded->user_id)) {
-                $isLoggedIn = true;
-                $userFullname = (string) ($session->get('fullname') ?? $decoded->user_fullname ?? '');
-            }
-        } catch (\Throwable $e) {
-            $isLoggedIn = false;
-        }
+$acceptHeader = strtolower((string) ($_SERVER['HTTP_ACCEPT'] ?? ''));
+$requestedWith = strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? ''));
+if (
+    strpos($acceptHeader, 'application/json') !== false
+    || $requestedWith === 'xmlhttprequest'
+    || strpos((string) ($_SERVER['REQUEST_URI'] ?? ''), '/api/') !== false
+) {
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
     }
-} catch (\Throwable $e) {
-    $isLoggedIn = false;
+    echo json_encode([
+        'code'    => 404,
+        'status'  => 'error',
+        'message' => 'Endpoint tidak ditemukan.',
+    ]);
+    return;
 }
-
-$actionUrl = $isLoggedIn ? base_url('dashboard') : base_url('login');
-$actionLabel = $isLoggedIn ? 'Kembali ke Home' : 'Login';
-$actionIcon = $isLoggedIn ? 'bi-house-door-fill' : 'bi-box-arrow-in-right';
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -38,19 +27,7 @@ $actionIcon = $isLoggedIn ? 'bi-house-door-fill' : 'bi-box-arrow-in-right';
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>404 - Halaman Tidak Ditemukan | Simojang</title>
-    
-    <!-- Favicon -->
-    <link rel="shortcut icon" href="<?= asset_url('apps/assets/images/logo/favicon.svg') ?>" type="image/x-icon">
-    <link rel="shortcut icon" href="<?= asset_url('apps/assets/images/logo/favicon.png') ?>" type="image/png">
-    
-    <!-- Fonts & External Stylesheets -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="<?= asset_url('apps/assets/css/main/app.css') ?>">
-    <link rel="stylesheet" href="<?= asset_url('apps/assets/css/main/custom.css') ?>">
-    <link rel="stylesheet" href="<?= asset_url('apps/assets/extensions/bootstrap-icons/font/bootstrap-icons.css') ?>">
+    <title>404 - Endpoint Tidak Ditemukan | Simojang API</title>
 
     <style>
         :root {
@@ -308,25 +285,16 @@ $actionIcon = $isLoggedIn ? 'bi-house-door-fill' : 'bi-box-arrow-in-right';
 
         <!-- Badge -->
         <div class="error-badge">
-            <i class="bi bi-exclamation-triangle-fill"></i>
             <span>Galat 404</span>
         </div>
 
         <!-- Heading -->
-        <h1 class="error-heading">Halaman Tidak Ditemukan</h1>
+        <h1 class="error-heading">Endpoint Tidak Ditemukan</h1>
 
         <!-- Short Description -->
         <p class="error-description">
-            Maaf, halaman yang Anda tuju tidak ditemukan, telah dipindahkan, atau alamat URL yang dimasukkan salah. Silakan periksa kembali tautan Anda.
+            Maaf, endpoint atau halaman yang Anda tuju tidak ditemukan atau alamat URL yang dimasukkan salah.
         </p>
-
-        <!-- Action Button -->
-        <div class="action-group">
-            <a href="<?= esc($actionUrl, 'attr') ?>" class="btn-action-primary">
-                <i class="bi <?= esc($actionIcon, 'attr') ?>"></i>
-                <span><?= esc($actionLabel) ?></span>
-            </a>
-        </div>
 
         <!-- Subtitle/Footer -->
         <div class="app-footer-note">

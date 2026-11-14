@@ -22,12 +22,6 @@ class EKINData extends BaseController
         $sess = session()->get();
     }
 
-    public function index(){ 
-        return $this->renderView('Apps/pages/services/ekin/main', [
-            'seslog' => session()->get(),
-        ]);
-    }    
-
     public function importData(){
         $session = session()->get();
         $file    = $this->request->getFile('file');
@@ -35,25 +29,25 @@ class EKINData extends BaseController
         $syncdate1 = $this->request->getPost('syncdate1');
         $syncdate2 = $this->request->getPost('syncdate2');
 
-        $this->uploader->validateFile($file);
- 
-        $localPath  = $file->getTempName();
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows      = $this->uploader->parseExcel($localPath);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid atau gagal dibaca.', 422, 'EKINData::importData');
+        }
+
+        if (!is_array($rows) || count($rows) < 1) {
+            return $this->apiError('Data kosong atau format salah.', 422);
+        }
+
         $fileSize   = filesize($localPath);
-        $mimeType   = $file->getClientMimeType();
+        $mimeType   = $file->getMimeType();
         $checksum   = hash_file('sha256', $localPath);
         $ipAddress  = $this->request->getIPAddress();
         $userAgent  = $this->request->getUserAgent()
                         ? $this->request->getUserAgent()->getAgentString()
-                        : null;
-
-
-        $rows = $this->uploader->parseExcel($localPath);
-        if (!is_array($rows) || count($rows) < 1) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Data kosong atau format salah.',
-            ]);
-        }      
+                        : null;      
         
         $this->apps->db->transBegin();
         
@@ -245,7 +239,8 @@ class EKINData extends BaseController
     }       
     
     public function getData(){
-        $bulan = $this->request->getPost('bulan');
+        $bulan   = $this->request->getPost('bulan');
+        $subUnit = trim((string) ($this->request->getPost('sub_unit') ?? $this->request->getPost('category') ?? ''));
 
         if (!is_array($bulan)) {
             $bulan = [];
@@ -262,7 +257,8 @@ class EKINData extends BaseController
         }));
 
         $builder = $this->ekinmodel->getBuilder('recap', [
-            'bulan'     => $bulan
+            'bulan'    => $bulan,
+            'sub_unit' => $subUnit,
         ]);
 
         $columns    = $this->ekinmodel->getColumns('recap');
@@ -297,7 +293,9 @@ class EKINData extends BaseController
 
     public function getSummary()
     {
-        $bulan = $this->request->getPost('bulan');
+        $bulan   = $this->request->getPost('bulan');
+        $subUnit = trim((string) ($this->request->getPost('sub_unit') ?? $this->request->getPost('category') ?? ''));
+
         if (!is_array($bulan)) {
             $bulan = [];
         }
@@ -314,14 +312,18 @@ class EKINData extends BaseController
 
         return $this->response->setJSON([
             'status' => 'success',
-            'summary' => $this->ekinmodel->getSummary($bulan),
+            'summary' => $this->ekinmodel->getSummary($bulan, $subUnit),
         ]);
     }
 
     public function getDataDetail(){
         $draw       = (int) ($this->request->getPost('draw') ?? 0);
         $key        = (int) ($this->request->getPost('key') ?? 0);
-        if ($key <= 0) {
+        $periodDate = trim((string) ($this->request->getPost('period_date') ?? ''));
+
+        $param = $key > 0 ? $key : $periodDate;
+
+        if (empty($param)) {
             return $this->response->setJSON([
                 'draw' => $draw,
                 'recordsTotal' => 0,
@@ -329,10 +331,122 @@ class EKINData extends BaseController
                 'data' => [],
             ]);
         }
-        $builder    = $this->ekinmodel->getBuilder('detail', $key);
-        $columns    = $this->ekinmodel->getColumns('detail', $key);
-        $result     = $this->dataTables->render($builder, $columns);
-        return $this->response->setJSON($result); 
+
+        $builder = $this->ekinmodel->getBuilder('detail', $param);
+        $data = $builder->get()->getResultArray();
+        return $this->response->setJSON([
+            'status' => 'success',
+            'draw' => $draw,
+            'recordsTotal' => count($data),
+            'recordsFiltered' => count($data),
+            'data' => $data,
+        ]);
+    }
+
+    public function storeManualData()
+    {
+        $session = session()->get();
+        $id = (int) ($this->request->getPost('id') ?? 0);
+        $subUnit = trim((string) ($this->request->getPost('sub_unit') ?? 'Subbagian Kepegawaian Kantor Regional III BKN'));
+        $tanggal = trim((string) ($this->request->getPost('tanggal_kegiatan') ?? date('Y-m-d')));
+        $nip = trim((string) ($this->request->getPost('nip') ?? ''));
+        $waktu = trim((string) ($this->request->getPost('waktu') ?? '08:00 - 16:00'));
+        $kegiatan = trim((string) ($this->request->getPost('kegiatan') ?? ''));
+        $realisasi = trim((string) ($this->request->getPost('realisasi') ?? '1'));
+
+        if ($nip === '' || !$this->isValidNIP($nip)) {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'NIP pegawai tidak valid (wajib 18 digit angka).',
+            ]);
+        }
+
+        if ($kegiatan === '') {
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'error',
+                'message' => 'Uraian kegiatan wajib diisi.',
+            ]);
+        }
+
+        $this->apps->db->transBegin();
+
+        if ($id > 0) {
+            // Edit existing detail row
+            $updateData = [
+                'nip' => $nip,
+                'waktu' => $waktu,
+                'kegiatan' => $kegiatan,
+                'realisasi' => $realisasi,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ];
+            $this->apps->db->table('txn_ekin_detail')->where('id', $id)->update($updateData);
+        } else {
+            // Find existing log & header for this date & sub_unit, or create them
+            $existingHeader = $this->apps->db->table('txn_ekin_header h')
+                ->select('h.id AS header_id, h.ekin_log_id')
+                ->join('txn_ekin a', 'a.id = h.ekin_log_id')
+                ->where('h.tanggal_kegiatan', $tanggal)
+                ->where('h.sub_unit', $subUnit)
+                ->get()
+                ->getRowArray();
+
+            if ($existingHeader && !empty($existingHeader['header_id'])) {
+                $logId = $existingHeader['ekin_log_id'];
+                $headerId = $existingHeader['header_id'];
+            } else {
+                $monthStr = date('Y-m', strtotime($tanggal));
+                $dataLog = [
+                    'action' => 'manual',
+                    'period' => $monthStr,
+                    'period_date' => $tanggal,
+                    'period_start_date' => $tanggal,
+                    'period_end_date' => $tanggal,
+                    'file_name' => 'manual_entry.sys',
+                    'file_size' => 0,
+                    'file_type' => 'manual',
+                    'file_hash' => 'manual',
+                    'ip_address' => $this->request->getIPAddress(),
+                    'created_by' => $session['username'] ?? 'Admin',
+                ];
+                $logId = $this->apps->storeData($dataLog, 'txn_ekin');
+
+                $header = [
+                    'ekin_log_id' => $logId,
+                    'unit' => '4011 - Bagian Tata Usaha Kantor Regional III BKN',
+                    'sub_unit' => $subUnit,
+                    'periode' => date('F Y', strtotime($tanggal)),
+                    'tanggal_kegiatan' => $tanggal,
+                    'created_by' => $session['username'] ?? 'Admin',
+                ];
+                $headerId = $this->apps->storeData($header, 'txn_ekin_header');
+            }
+
+            $detail = [
+                'ekin_log_id' => $logId,
+                'ekin_header_id' => $headerId,
+                'nip' => $nip,
+                'waktu' => $waktu,
+                'kegiatan' => $kegiatan,
+                'realisasi' => $realisasi,
+                'created_by' => $session['username'] ?? 'Admin',
+            ];
+            $this->apps->db->table('txn_ekin_detail')->insert($detail);
+        }
+
+        if ($this->apps->db->transStatus() === false) {
+            $this->apps->db->transRollback();
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => 'error',
+                'message' => 'Gagal menyimpan data kegiatan ke basis data.',
+            ]);
+        }
+
+        $this->apps->db->transCommit();
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'message' => $id > 0 ? 'Data kegiatan berhasil diperbarui.' : 'Data kegiatan berhasil disimpan.',
+        ]);
     } 
 
     // public function getData(){

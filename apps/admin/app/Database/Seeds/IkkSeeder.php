@@ -10,8 +10,8 @@ class IkkSeeder extends Seeder
     {
         $db = \Config\Database::connect();
         
-        // Bersihkan tabel sebelum seeding ulang (opsional)
-        $db->table('txn_ikk_harian')->emptyTable();
+        // Bersihkan tabel master IKK sebelum seeding ulang (tabel transaksi txn_ikk_harian DILINDUNGI & TIDAK BOLEH dihapus)
+        // $db->table('txn_ikk_harian')->emptyTable(); // DIHAPUS UNTUK KEAMANAN DATA TRANSAKSI RIIL
         $db->table('data_ikk_pengampu')->emptyTable();
         $db->table('data_ikk_kegiatan')->emptyTable();
         $db->table('data_ikk_indikator')->emptyTable();

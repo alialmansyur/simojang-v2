@@ -67,16 +67,30 @@ class PNBPSignController extends BaseController
             ]);
         }
 
-        // Decode Base64 PNG
-        if (preg_match('/^data:image\/(\w+);base64,/', $imageData, $type)) {
-            $imageData = substr($imageData, strpos($imageData, ',') + 1);
-            $type = strtolower($type[1]); // png
+        if (strtolower(trim((string) ($signature['sign_status'] ?? ''))) === 'signed') {
+            return $this->response->setStatusCode(409)->setJSON([
+                'status'  => 'error',
+                'message' => 'Dokumen ini sudah ditandatangani sebelumnya dan tidak dapat ditimpa ulang.',
+            ]);
+        }
 
-            $decoded = base64_decode($imageData);
-            if ($decoded === false) {
+        // Decode Base64 PNG
+        if (preg_match('/^data:image\/([A-Za-z0-9+]+);base64,/', $imageData, $typeMatch)) {
+            $rawData = substr($imageData, strpos($imageData, ',') + 1);
+            $type = strtolower($typeMatch[1]);
+
+            if ($type !== 'png') {
                 return $this->response->setStatusCode(422)->setJSON([
                     'status'  => 'error',
-                    'message' => 'Format gambar tanda tangan tidak valid.',
+                    'message' => 'Format tanda tangan harus berupa gambar PNG.',
+                ]);
+            }
+
+            $decoded = base64_decode($rawData, true);
+            if ($decoded === false || $decoded === '' || strncmp($decoded, "\x89PNG\r\n\x1a\n", 8) !== 0) {
+                return $this->response->setStatusCode(422)->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Data gambar PNG tanda tangan tidak valid.',
                 ]);
             }
         } else {
@@ -86,17 +100,24 @@ class PNBPSignController extends BaseController
             ]);
         }
 
-        // Folder penyimpanan tanda tangan
+        // Folder penyimpanan tanda tangan terpusat (private)
         $year = date('Y');
-        $uploadDir = WRITEPATH . 'uploads/signatures/' . $year;
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
+        $safeToken = preg_replace('/[^A-Za-z0-9_-]/', '', $token);
+        $fileName = 'sig_' . ($safeToken !== '' ? $safeToken : bin2hex(random_bytes(8))) . '.png';
+        try {
+            $stored = (new \App\Services\Storage\FileStorageService())->storeBinary(
+                $decoded,
+                'signatures',
+                $fileName,
+                $year
+            );
+            $relPath = $stored['relative_path'];
+        } catch (\Throwable $e) {
+            return $this->response->setStatusCode(500)->setJSON([
+                'status'  => 'error',
+                'message' => 'Gagal menyimpan berkas gambar tanda tangan.',
+            ]);
         }
-
-        $fileName = 'sig_' . $token . '.png';
-        $relPath  = 'uploads/signatures/' . $year . '/' . $fileName;
-        $fullPath = $uploadDir . '/' . $fileName;
-        @file_put_contents($fullPath, $decoded);
 
         $ipAddress = $this->request->getIPAddress();
         $userAgent = $this->request->getUserAgent() ? $this->request->getUserAgent()->getAgentString() : 'Unknown';

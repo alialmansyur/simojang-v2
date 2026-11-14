@@ -10,35 +10,51 @@ class ExcelUploader
 
     public function __construct()
     {
-        $this->uploadPath = ROOTPATH . 'public/uploads/excel/';
+        $this->uploadPath = config(\Config\Upload::class)->rootPath . 'public' . DIRECTORY_SEPARATOR . 'excel' . DIRECTORY_SEPARATOR;
     }
 
-    public function validateFile($file)
+    public function validateFile($file, int $maxSizeMb = 20)
     {
         if (!$file || !$file->isValid()) {
-            throw new \Exception('File tidak valid atau tidak terunggah.');
+            throw new \RuntimeException('File tidak valid atau tidak terunggah.');
+        }
+
+        $maxBytes = $maxSizeMb * 1024 * 1024;
+        if ((int) $file->getSize() > $maxBytes) {
+            throw new \RuntimeException("Ukuran file melebihi batas maksimal {$maxSizeMb} MB.");
+        }
+
+        $allowedExtensions = ['xls', 'xlsx'];
+        $ext = strtolower((string) $file->getClientExtension());
+        if (!in_array($ext, $allowedExtensions, true)) {
+            throw new \RuntimeException('Ekstensi file tidak diizinkan. Gunakan file .xlsx atau .xls.');
         }
 
         $allowedMimes = [
             'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'application/zip',
+            'application/x-ole-storage',
         ];
 
-        if (!in_array($file->getMimeType(), $allowedMimes)) {
-            throw new \Exception('Tipe file tidak didukung.');
-        }
-
-        $allowedExtensions = ['xls', 'xlsx'];
-        if (!in_array($file->getExtension(), $allowedExtensions)) {
-            throw new \Exception('Ekstensi file tidak diizinkan.');
+        $detectedMime = (string) $file->getMimeType();
+        if (!in_array($detectedMime, $allowedMimes, true)) {
+            throw new \RuntimeException('Tipe file tidak didukung (' . $detectedMime . ').');
         }
     }
 
     public function parseExcel($filePath)
     { 
-        // $newName = $file->getRandomName();
-        // $file->move($this->uploadPath, $newName);
-        // $filePath = $this->uploadPath . $newName;
+        if (!class_exists(\ZipArchive::class)) {
+            $fh = @fopen($filePath, 'rb');
+            $magic = $fh ? fread($fh, 2) : '';
+            if ($fh) {
+                fclose($fh);
+            }
+            if ($magic === 'PK') {
+                throw new \RuntimeException('Ekstensi PHP ZipArchive belum aktif di server untuk membaca file .xlsx. Aktifkan extension=zip pada php.ini atau unggah format .xls.');
+            }
+        }
         $spreadsheet = IOFactory::load($filePath);
         // $rows = $spreadsheet->getActiveSheet()->toArray();
         $rows  = $spreadsheet->getSheet(0)->toArray();
@@ -62,7 +78,7 @@ class ExcelUploader
 
     public static function excelDate($value, $format = 'Y-m-d')
     {
-        if (empty($value)) {
+        if ($value === null || trim((string) $value) === '') {
             return null;
         }
 
@@ -70,7 +86,15 @@ class ExcelUploader
             return Date::excelToDateTimeObject($value)->format($format);
         }
 
-        $time = strtotime($value);
+        $raw = trim((string) $value);
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y', 'Y/m/d', 'd/m/y'] as $inputFmt) {
+            $dt = \DateTime::createFromFormat($inputFmt, $raw);
+            if ($dt instanceof \DateTime && $dt->format($inputFmt) === $raw) {
+                return $dt->format($format);
+            }
+        }
+
+        $time = strtotime($raw);
         return $time ? date($format, $time) : null;
     }
 

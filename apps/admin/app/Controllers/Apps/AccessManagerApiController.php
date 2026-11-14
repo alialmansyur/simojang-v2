@@ -411,6 +411,20 @@ class AccessManagerApiController extends BaseController
             'actor' => $actorId,
             'context' => json_encode($context, JSON_UNESCAPED_UNICODE),
         ]);
+
+        $targetId = $context['menu_id']
+            ?? $context['target_user_id']
+            ?? $context['service_id']
+            ?? null;
+        $targetType = explode('.', $action)[0] ?? 'access';
+        (new \App\Models\Apps\AuditLogModel())->record(
+            $action,
+            $targetType,
+            $targetId !== null ? (string) $targetId : null,
+            null,
+            $context,
+            $actorId > 0 ? $actorId : null
+        );
     }
 
     private function forbiddenUnlessCanRead(string $menuUrl)

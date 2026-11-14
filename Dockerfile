@@ -40,12 +40,27 @@ WORKDIR /var/www/html
 
 COPY apps/admin/ /var/www/html/
 
-RUN mkdir -p /var/www/html/public/uploads/excel \
+# Optimize Composer autoloader for production
+RUN if [ ! -d "/var/www/html/vendor" ] || [ ! -f "/var/www/html/vendor/autoload.php" ]; then \
+        composer install --no-dev --optimize-autoloader --no-interaction; \
+    else \
+        composer dump-autoload --optimize --no-dev; \
+    fi
+
+RUN mkdir -p /var/www/html/public/apps/assets \
     && mkdir -p /var/www/html/writable/cache/mpdf \
-    && mkdir -p /var/www/html/writable/uploads/pnbp \
-    && mkdir -p /var/www/html/writable/uploads/signatures \
+    && mkdir -p /var/www/html/writable/logs \
+    && mkdir -p /var/www/html/writable/session \
+    && mkdir -p /var/www/html/writable/uploads/public/excel \
+    && mkdir -p /var/www/html/writable/uploads/public/avatars \
+    && mkdir -p /var/www/html/writable/uploads/public/gallery \
+    && mkdir -p /var/www/html/writable/uploads/public/lost_and_found \
+    && mkdir -p /var/www/html/writable/uploads/public/assets \
+    && mkdir -p /var/www/html/writable/uploads/public/projects/progress \
+    && mkdir -p /var/www/html/writable/uploads/public/general \
+    && mkdir -p /var/www/html/writable/uploads/private/pnbp \
+    && mkdir -p /var/www/html/writable/uploads/private/signatures \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 775 /var/www/html/public/uploads \
-    && chmod -R 777 /var/www/html/writable
+    && chmod -R 775 /var/www/html/writable
 

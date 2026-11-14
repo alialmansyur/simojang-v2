@@ -233,7 +233,6 @@ class PNBPSignatureModel extends Model
             case 'hadir':
             case 'hadir_jamuan':
             case 'surat_jalan':
-            case 'faktur':
             default:
                 // 2 Kolom TTD: Koordinator Tilok / Pengirim & Penerima
                 $koordinator = $defaultSigners['koordinator'] ?? null;

@@ -8,6 +8,7 @@ class AddEnrichedFieldsToDataAssets extends Migration
 {
     public function up()
     {
+        $db = \Config\Database::connect();
         $fields = [
             'foto' => [
                 'type' => 'VARCHAR',
@@ -46,7 +47,16 @@ class AddEnrichedFieldsToDataAssets extends Migration
             ],
         ];
 
-        $this->forge->addColumn('data_assets', $fields);
+        $fieldsToAdd = [];
+        foreach ($fields as $fieldName => $fieldDef) {
+            if (!$db->fieldExists($fieldName, 'data_assets')) {
+                $fieldsToAdd[$fieldName] = $fieldDef;
+            }
+        }
+
+        if (!empty($fieldsToAdd)) {
+            $this->forge->addColumn('data_assets', $fieldsToAdd);
+        }
     }
 
     public function down()

@@ -4,7 +4,7 @@ namespace App\Models\Apps\Services;
 
 use CodeIgniter\Model;
 
-class PDMModel extends Model 
+class PDMModel extends Model
 {
     protected $table            = 'txn_pdm';
     protected $primaryKey       = 'id';
@@ -44,15 +44,14 @@ class PDMModel extends Model
     protected $beforeDelete   = [];
     protected $afterDelete    = [];
 
-    public function getDataLog(){
+    public function getDataLog()
+    {
         $builder = $this->db->table($this->table);
         return $builder;
     }
 
-    // ----------------------------
-    //  QUERY BUILDER UTAMA
-    // ----------------------------    
-    public function getBuilder($type, $params = null){
+    public function getBuilder($type, $params = null)
+    {
         switch ($type) {
             case 'recap':
                 return $this->getDataRecapV2($params);
@@ -61,76 +60,92 @@ class PDMModel extends Model
             default:
                 throw new \Exception("Unknown builder type: $type");
         }
-    }    
+    }
 
-    // ----------------------------
-    //  DAPATKAN NAMA KOLOM OTOMATIS
-    // ----------------------------    
-    public function getColumns($type, $id = null){
+    public function getColumns($type, $id = null)
+    {
         $builder = $this->getBuilder($type, $id);
         $query = $builder->get();
         return $query->getFieldNames();
-    }    
-
-
-    public function getDataRecap($param){
-        $rawSql = "
-            SELECT 
-            a.*, b.nama nama_instansi
-            FROM txn_pdm a
-            LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-            WHERE a.tanggal_proses = CURDATE() AND a.created_by = '$param'
-        ";
-        return $this->db->table("($rawSql) AS recap");
     }
 
     public function getDataRecapV2($params = [])
     {
         $bulan = $params['bulan'] ?? [];
-        $builder = $this->db->table('txn_pdm')
-            ->select('*')
-            ->where('created_at >=', date('Y-01-01 00:00:00'))
-            ->where('created_at <', (date('Y') + 1) . '-01-01 00:00:00');
+        $jenis = trim((string) ($params['jenis'] ?? ''));
 
-        // 🔹 FILTER BULAN (IN)
+        $builder = $this->db->table('txn_pdm a')
+            ->select("
+                a.*,
+                (SELECT COUNT(p.id) FROM txn_pdm p WHERE p.scema_group = a.scema_group) AS batch_count
+            ")
+            ->where('a.created_at >=', date('Y-01-01 00:00:00'))
+            ->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00');
+
         if (!empty($bulan)) {
-            $builder->whereIn('MONTH(created_at)', $bulan);
+            $builder->whereIn('MONTH(COALESCE(NULLIF(a.period_date, "0000-00-00"), DATE(a.created_at)))', $bulan, false);
         }
 
-        $builder->orderBy('created_at', 'DESC');
+        if ($jenis !== '' && strtolower($jenis) !== 'all') {
+            $builder->where('a.jenis', $jenis);
+        }
+
+        $builder->orderBy('a.created_at', 'DESC');
 
         return $builder;
     }
 
+    public function getDataDetail($param)
+    {
+        $key = (int) $param;
+        $row = $this->db->table('txn_pdm')
+            ->where('id', $key)
+            ->get()
+            ->getRowArray();
 
-    public function getResumeData($param){
+        $builder = $this->db->table('txn_pdm a')
+            ->select("
+                a.*,
+                (COALESCE(a.total_acc, 0) + COALESCE(a.total_btl, 0) + COALESCE(a.total_tms, 0)) AS total_usulan
+            ");
+
+        if ($row && !empty($row['scema_group']) && $row['scema_group'] !== '0') {
+            $builder->where('a.scema_group', $row['scema_group']);
+        } else {
+            $builder->where('a.id', $key);
+        }
+
+        return $builder->orderBy('a.id', 'ASC');
+    }
+
+    public function getResumeData($param)
+    {
         $rawSql = "
             SELECT 
                 COUNT(1) total,
-                SUM(CASE WHEN a.tindak_lanjut = 'Disetujui' THEN 1 ELSE 0 END) AS acc,
-                SUM(CASE WHEN a.tindak_lanjut = 'BTS' THEN 1 ELSE 0 END) AS bts,
-                SUM(CASE WHEN a.tindak_lanjut = 'TMS' THEN 1 ELSE 0 END) AS tms
+                SUM(COALESCE(a.total_acc, 0)) AS acc,
+                SUM(COALESCE(a.total_btl, 0)) AS bts,
+                SUM(COALESCE(a.total_tms, 0)) AS tms
             FROM txn_pdm a
-            LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-                WHERE a.tanggal_proses = CURDATE() AND a.created_by = ?
-            ";
+            WHERE DATE(a.created_at) = CURDATE() AND a.created_by = ?
+        ";
         return $this->db->query($rawSql, [$param])->getRow();
     }
 
-    public function getDailyData($param){
+    public function getDailyData($param)
+    {
         $rawSql = "
             SELECT 
-                DATE_FORMAT(a.tanggal_proses, '%Y-%m-%dT00:00:00.000Z') tanggal, COUNT(1) total
+                DATE_FORMAT(DATE(a.created_at), '%Y-%m-%dT00:00:00.000Z') tanggal, COUNT(1) total
             FROM txn_pdm a
-            LEFT JOIN data_instansi b ON b.kodeins = a.kode_instansi
-            WHERE WEEK(a.tanggal_proses) = WEEK(CURDATE()) AND a.created_by = ?
-            GROUP BY a.tanggal_proses
-            ORDER BY a.tanggal_proses asc
+            WHERE WEEK(a.created_at) = WEEK(CURDATE()) AND a.created_by = ?
+            GROUP BY DATE(a.created_at)
+            ORDER BY DATE(a.created_at) ASC
         ";
         return $this->db->query($rawSql, [$param])->getResultArray();
     }
 
-    public function getSummary($bulan = [])
+    public function getSummary($bulan = [], string $jenis = '')
     {
         $builder = $this->db->table('txn_pdm');
         $builder->select("
@@ -145,17 +160,20 @@ class PDMModel extends Model
         $builder->where('created_at <', (date('Y') + 1) . '-01-01 00:00:00');
 
         if (is_array($bulan) && !empty($bulan)) {
-            $builder->whereIn('MONTH(created_at)', $bulan);
+            $builder->whereIn('MONTH(COALESCE(NULLIF(period_date, "0000-00-00"), DATE(created_at)))', $bulan, false);
+        }
+
+        if ($jenis !== '' && strtolower($jenis) !== 'all') {
+            $builder->where('jenis', $jenis);
         }
 
         return $builder->get()->getRowArray() ?? [
             'total_skema' => 0,
-            'total_data' => 0,
-            'total_acc' => 0,
-            'total_btl' => 0,
-            'total_tms' => 0,
+            'total_data'  => 0,
+            'total_acc'   => 0,
+            'total_btl'   => 0,
+            'total_tms'   => 0,
             'last_update' => null,
         ];
     }
-
 }

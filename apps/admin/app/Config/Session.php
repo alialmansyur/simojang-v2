@@ -39,8 +39,9 @@ class Session extends BaseConfig
      *
      * The number of SECONDS you want the session to last.
      * Setting to 0 (zero) means expire when the browser is closed.
+     * Dibatasi maksimal 1 jam (3600 detik) sesuai standar keamanan SIMOJANG.
      */
-    public int $expiration = 7200;
+    public int $expiration = 3600;
 
     /**
      * --------------------------------------------------------------------------

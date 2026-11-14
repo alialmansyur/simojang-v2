@@ -15,7 +15,9 @@ class PNBPPersonelModel extends Model
     protected $allowedFields    = [
         'document_id',
         'nip',
+        'is_external',
         'nama',
+        'instansi_asal',
         'pangkat_gol',
         'nik',
         'jabatan',

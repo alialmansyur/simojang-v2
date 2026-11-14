@@ -3,25 +3,33 @@
 namespace App\Controllers\Apps;
 
 use App\Controllers\BaseController;
+use App\Models\Apps\DashboardModel;
 
 class DashboardController extends BaseController
 {
+    private DashboardModel $dashboardModel;
+
+    public function __construct()
+    {
+        $this->dashboardModel = new DashboardModel();
+    }
+
     /**
-     * Halaman Utama / Welcome Landing Dashboard SIMOJANG
+     * Endpoint API JSON Ringkasan Workspace Dashboard (Sapaan, Shortcut, & Log Terbaru)
+     * GET /api/dashboard/summary
      */
-    public function index()
+    public function summary()
     {
         $session = session()->get();
-        $fullname = trim((string) ($session['fullname'] ?? $session['username'] ?? 'Rekan Kerja'));
+        $nip = trim((string) ($session['username'] ?? ($this->request->user['username'] ?? '')));
 
-        $data = [
-            'title'       => 'Dashboard',
-            'page_title'  => 'Dashboard Utama',
-            'user_name'   => $fullname,
-            'user_role'   => trim((string) ($session['role'] ?? 'User')),
-            'seslog'      => $session,
-        ];
+        $payload = $this->dashboardModel->getWorkspaceSummary($nip);
 
-        return $this->renderView('Apps/pages/dashboard', $data);
+        return $this->response->setStatusCode(200)->setJSON([
+            'code'    => 200,
+            'status'  => 'success',
+            'message' => 'Ringkasan workspace dashboard berhasil dimuat.',
+            'data'    => $payload,
+        ]);
     }
 }

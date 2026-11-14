@@ -75,6 +75,15 @@ class EKINModel extends Model
     public function getDataRecap($params = [])
     {
         $bulan = $params['bulan'] ?? [];
+        $subUnit = $params['sub_unit'] ?? ($params['category'] ?? '');
+
+        $whereClause = "WHERE a.created_at >= CONCAT(YEAR(CURDATE()), '-01-01 00:00:00')
+                          AND a.created_at < CONCAT(YEAR(CURDATE()) + 1, '-01-01 00:00:00')";
+
+        if (!empty($subUnit)) {
+            $subUnitEscaped = $this->db->escapeString(trim($subUnit));
+            $whereClause .= " AND h.sub_unit LIKE '%{$subUnitEscaped}%'";
+        }
 
         $rawSql = "
             SELECT 
@@ -82,15 +91,15 @@ class EKINModel extends Model
                 DATE_FORMAT(a.period_date, '%d %M %Y') AS period_date_label,
                 COUNT(DISTINCT a.id) AS total_upload,
                 COUNT(DISTINCT h.sub_unit) AS total_sub_unit,
+                GROUP_CONCAT(DISTINCT h.sub_unit SEPARATOR ' | ') AS sub_unit_list,
                 COUNT(DISTINCT d.nip) AS total_nip,
                 COUNT(d.id) AS total_kegiatan,
-                SUM(CASE WHEN d.realisasi >= 1 THEN 1 ELSE 0 END) AS total_realisasi,
+                SUM(CASE WHEN d.realisasi >= 1 OR d.realisasi = 'Selesai' THEN 1 ELSE 0 END) AS total_realisasi,
                 MAX(a.created_at) AS last_upload_at
             FROM txn_ekin a
             LEFT JOIN txn_ekin_header h ON h.ekin_log_id = a.id
             LEFT JOIN txn_ekin_detail d ON d.ekin_header_id = h.id
-            WHERE a.created_at >= CONCAT(YEAR(CURDATE()), '-01-01 00:00:00')
-              AND a.created_at < CONCAT(YEAR(CURDATE()) + 1, '-01-01 00:00:00')
+            {$whereClause}
             GROUP BY a.period_date
         ";
         $builder = $this->db->table("($rawSql) AS recap");
@@ -111,12 +120,14 @@ class EKINModel extends Model
                 a.period_date,
                 a.period_start_date,
                 a.period_end_date,
+                a.file_name,
                 GROUP_CONCAT(DISTINCT h.sub_unit SEPARATOR ' | ') AS sub_unit,
+                MAX(h.unit) AS unit,
                 MAX(h.periode) AS periode,
                 MAX(h.tanggal_kegiatan) AS tanggal_kegiatan,
                 COUNT(DISTINCT d.nip) AS total_nip,
                 COUNT(d.id) AS total_kegiatan,
-                SUM(CASE WHEN d.realisasi >= 1 THEN 1 ELSE 0 END) AS total_realisasi,
+                SUM(CASE WHEN d.realisasi >= 1 OR d.realisasi = 'Selesai' THEN 1 ELSE 0 END) AS total_realisasi,
                 a.created_by,
                 a.created_at
             ", false)
@@ -129,7 +140,7 @@ class EKINModel extends Model
             ->getResultArray();
     }
 
-    public function getSummary(array $bulan = [])
+    public function getSummary(array $bulan = [], string $subUnit = '')
     {
         $builder = $this->db->table('txn_ekin a')
             ->select('
@@ -138,16 +149,24 @@ class EKINModel extends Model
                 SUM(COALESCE(x.total_nip, 0)) AS total_nip,
                 SUM(COALESCE(x.total_realisasi, 0)) AS total_realisasi,
                 MAX(a.created_at) AS last_update
-            ')
-            ->join('(
+            ');
+
+        $subUnitCondition = '';
+        if (!empty($subUnit)) {
+            $subUnitEscaped = $this->db->escapeString(trim($subUnit));
+            $subUnitCondition = " AND eh.sub_unit LIKE '%{$subUnitEscaped}%'";
+        }
+
+        $builder->join("(
                 SELECT 
                     eh.ekin_log_id,
                     COUNT(DISTINCT ed.nip) AS total_nip,
-                    SUM(CASE WHEN ed.realisasi >= 1 THEN 1 ELSE 0 END) AS total_realisasi
+                    SUM(CASE WHEN ed.realisasi >= 1 OR ed.realisasi = 'Selesai' THEN 1 ELSE 0 END) AS total_realisasi
                 FROM txn_ekin_header eh
                 LEFT JOIN txn_ekin_detail ed ON ed.ekin_header_id = eh.id
+                WHERE 1=1 {$subUnitCondition}
                 GROUP BY eh.ekin_log_id
-            ) x', 'x.ekin_log_id = a.id', 'left');
+            ) x", 'x.ekin_log_id = a.id', 'left');
 
         $builder->where('a.created_at >=', date('Y-01-01 00:00:00'));
         $builder->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00');
@@ -160,7 +179,7 @@ class EKINModel extends Model
     }
 
     public function getDataDetail($param){
-        return $this->db->table('txn_ekin_detail d')
+        $builder = $this->db->table('txn_ekin_detail d')
             ->select('
                 d.id,
                 d.ekin_log_id,
@@ -172,17 +191,30 @@ class EKINModel extends Model
                 d.realisasi,
                 d.created_by,
                 d.created_at,
+                h.unit,
                 h.sub_unit,
                 h.periode,
-                h.tanggal_kegiatan
+                h.tanggal_kegiatan,
+                a.file_name
             ')
             ->join('txn_ekin_header h', 'h.id = d.ekin_header_id', 'left')
-            ->join('data_pegawai p', 'p.nip = d.nip', 'left')
-            ->groupStart()
-                ->where('d.ekin_log_id', $param)
-                ->orWhere('h.ekin_log_id', $param)
-            ->groupEnd()
-            ->orderBy('d.id', 'ASC');
+            ->join('txn_ekin a', 'a.id = d.ekin_log_id', 'left')
+            ->join('data_pegawai p', 'p.nip COLLATE utf8mb4_unicode_520_ci = d.nip', 'left');
+
+        if (is_numeric($param) && (int)$param > 0) {
+            $builder->groupStart()
+                ->where('d.ekin_log_id', (int)$param)
+                ->orWhere('h.ekin_log_id', (int)$param)
+                ->orWhere('d.id', (int)$param)
+            ->groupEnd();
+        } else if (is_string($param) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($param))) {
+            $builder->groupStart()
+                ->where('a.period_date', trim($param))
+                ->orWhere('h.tanggal_kegiatan', trim($param))
+            ->groupEnd();
+        }
+
+        return $builder->orderBy('d.id', 'ASC');
     }    
 
     // public function getDataRecap($param){

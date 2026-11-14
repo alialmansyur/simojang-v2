@@ -23,15 +23,6 @@ class SettingManagerController extends BaseController
         $this->dataTables = new DataTablesLib();
     }
 
-    public function roleManager()
-    {
-        $roles = $this->manager->getRoles();
-        return $this->renderView('Apps/pages/data/role_manager', [
-            'title' => 'Kelola Role & Hak Akses',
-            'roles' => $roles,
-        ]);
-    }
-
     public function getRoles()
     {
         $onlyActive = (string) $this->request->getGet('active') === '1';
@@ -81,6 +72,7 @@ class SettingManagerController extends BaseController
         }
 
         $createdRole = $this->manager->getRoleById($newRoleId);
+        $this->recordAudit('role.create', 'auth_roles', (string) $newRoleId, null, $createdRole);
         return $this->jsonSuccess('Role baru berhasil ditambahkan', $createdRole, 201);
     }
 
@@ -112,6 +104,7 @@ class SettingManagerController extends BaseController
         }
 
         $updatedRole = $this->manager->getRoleById($roleId);
+        $this->recordAudit('role.update', 'auth_roles', (string) $roleId, null, $updatedRole);
         return $this->jsonSuccess('Role berhasil diperbarui', $updatedRole);
     }
 
@@ -129,6 +122,7 @@ class SettingManagerController extends BaseController
             return $this->jsonError($result['message'] ?? 'Gagal menghapus role', 400);
         }
 
+        $this->recordAudit('role.delete', 'auth_roles', (string) $roleId, null, ['role_id' => $roleId]);
         return $this->jsonSuccess($result['message'] ?? 'Role berhasil dihapus', ['role_id' => $roleId]);
     }
 
@@ -205,6 +199,9 @@ class SettingManagerController extends BaseController
         }
 
         $role = $this->manager->getRoleById($roleId);
+        $this->recordAudit('role.permission.toggle', 'auth_role_permissions', (string) $roleId, null, [
+            'role_id' => $roleId, 'menu_id' => $menuId, 'allowed' => $allowed, 'affected_ids' => $result['affected_ids'] ?? [$menuId],
+        ]);
 
         return $this->jsonSuccess('Hak akses role berhasil diperbarui', [
             'role_id'      => $roleId,
@@ -255,6 +252,7 @@ class SettingManagerController extends BaseController
         }
 
         $role = $this->manager->getRoleById($roleId);
+        $this->recordAudit('role.user.assign', 'auth_users', (string) $userId, null, ['user_id' => $userId, 'role_id' => $roleId, 'role_code' => $role['role_code'] ?? null]);
         return $this->jsonSuccess('Role user berhasil diubah', [
             'user_id' => $userId,
             'role'    => $role,
@@ -289,18 +287,6 @@ class SettingManagerController extends BaseController
         }
 
         return [];
-    }
-
-    public function serviceManager()
-    {
-        $selectedNip = trim((string) ($this->request->getGet('nip') ?? ''));
-        $selectedPegawai = $selectedNip !== '' ? $this->manager->getServicePegawaiDetail($selectedNip) : null;
-
-        return $this->renderView('Apps/pages/data/service_manager', [
-            'title'           => 'Kelola Akses Layanan',
-            'selectedNip'     => $selectedNip,
-            'selectedPegawai' => $selectedPegawai,
-        ]);
     }
 
     public function getServicePegawaiListApi()
@@ -355,6 +341,9 @@ class SettingManagerController extends BaseController
             return $this->jsonError($result['message'] ?? 'Gagal memperbarui izin layanan', 500);
         }
 
+        $this->recordAudit('service.permission.toggle', 'auth_service_permission', $nip, null, [
+            'nip' => $nip, 'node_id' => $nodeId, 'node_type' => $nodeType, 'allowed' => $allowed,
+        ]);
         return $this->jsonSuccess('Hak akses layanan berhasil diperbarui', $result);
     }
 
@@ -376,6 +365,7 @@ class SettingManagerController extends BaseController
 
         $tree = $this->manager->getServiceTreeForPegawai($nip);
         $detail = $this->manager->getServicePegawaiDetail($nip);
+        $this->recordAudit('service.permission.reset', 'auth_service_permission', $nip, null, ['nip' => $nip]);
 
         return $this->jsonSuccess('Hak akses layanan berhasil dikembalikan ke default unit kerja', [
             'nip'    => $nip,
@@ -410,6 +400,9 @@ class SettingManagerController extends BaseController
 
         $tree = $this->manager->getServiceTreeForPegawai($targetNip);
         $detail = $this->manager->getServicePegawaiDetail($targetNip);
+        $this->recordAudit('service.permission.copy', 'auth_service_permission', $targetNip, null, [
+            'source_nip' => $sourceNip, 'target_nip' => $targetNip,
+        ]);
 
         return $this->jsonSuccess('Hak akses layanan berhasil disalin', [
             'source_nip' => $sourceNip,
@@ -468,6 +461,9 @@ class SettingManagerController extends BaseController
             return $this->jsonError('Gagal memperbarui mode layanan', 500);
         }
 
+        $this->recordAudit('layanan.mode.update', 'auth_service_access', (string) $serviceId, null, [
+            'layanan_id' => $serviceId, 'access_mode' => $mode === 'assigned' ? 'assigned' : 'everyone',
+        ]);
         return $this->jsonSuccess('Mode akses layanan diperbarui', [
             'layanan_id'  => $serviceId,
             'access_mode' => $mode === 'assigned' ? 'assigned' : 'everyone',
@@ -496,6 +492,9 @@ class SettingManagerController extends BaseController
             );
         }
 
+        $this->recordAudit('layanan.assign.add', 'auth_service_access', (string) $serviceId, null, [
+            'layanan_id' => $serviceId, 'nip' => $nip,
+        ]);
         return $this->jsonSuccess('NIP berhasil ditambahkan', [
             'layanan_id' => $serviceId,
             'nip'        => $nip,
@@ -520,57 +519,65 @@ class SettingManagerController extends BaseController
             return $this->jsonError('Gagal menghapus NIP assign', 500);
         }
 
+        $this->recordAudit('layanan.assign.remove', 'auth_service_access', (string) $serviceId, null, [
+            'layanan_id' => $serviceId, 'nip' => $nip,
+        ]);
         return $this->jsonSuccess('NIP berhasil dihapus', [
             'layanan_id' => $serviceId,
             'nip'        => $nip,
         ]);
     }
 
-    public function saveServiceMode()
+    public function toggleServiceMaintenanceApi()
     {
-        $serviceId = (int) $this->request->getPost('layanan_id');
-        $mode = (string) $this->request->getPost('access_mode');
-        if ($serviceId > 0) {
-            $this->manager->setServiceMode($serviceId, $mode);
-        }
-        return redirect()->to('/manage-layanan?service_id=' . $serviceId)->with('success', 'Mode akses layanan diperbarui.');
-    }
+        $payload = $this->getPayload();
+        $serviceId = (int) ($payload['layanan_id'] ?? $payload['service_id'] ?? 0);
+        $isMaintenance = (isset($payload['is_maintenance']) && in_array((string) $payload['is_maintenance'], ['1', 'true', 'on', 1], true)) ? 1 : 0;
+        $msg = isset($payload['maintenance_msg']) ? trim((string) $payload['maintenance_msg']) : null;
 
-    public function addServiceAssignee()
-    {
-        $serviceId = (int) $this->request->getPost('layanan_id');
-        $nip = trim((string) $this->request->getPost('nip'));
-        if ($serviceId > 0 && $nip !== '') {
-            $this->manager->addAssignedNip($serviceId, $nip);
+        if ($serviceId <= 0) {
+            return $this->jsonError('layanan_id wajib valid', 422, ['layanan_id' => 'layanan_id wajib valid']);
         }
-        return redirect()->to('/manage-layanan?service_id=' . $serviceId)->with('success', 'NIP berhasil ditambahkan.');
-    }
 
-    public function removeServiceAssignee()
-    {
-        $serviceId = (int) $this->request->getPost('layanan_id');
-        $nip = trim((string) $this->request->getPost('nip'));
-        if ($serviceId > 0 && $nip !== '') {
-            $this->manager->removeAssignedNip($serviceId, $nip);
+        $service = $this->manager->getServiceAccessRowById($serviceId);
+        if (!$service) {
+            return $this->jsonError('Layanan tidak ditemukan', 404);
         }
-        return redirect()->to('/manage-layanan?service_id=' . $serviceId)->with('success', 'NIP berhasil dihapus.');
-    }
 
-    public function systemSetting()
-    {
-        return $this->renderView('Apps/pages/data/system_setting', [
-            'title' => 'System Setting',
+        $ok = $this->manager->toggleServiceMaintenance($serviceId, $isMaintenance, $msg);
+        if (!$ok) {
+            return $this->jsonError('Gagal memperbarui status maintenance layanan', 500);
+        }
+
+        $this->recordAudit(
+            'layanan.maintenance.toggle',
+            'data_timkerja_layanan',
+            (string) $serviceId,
+            null,
+            [
+                'layanan_id'      => $serviceId,
+                'nama_layanan'    => $service['nama_layanan'] ?? '',
+                'is_maintenance'  => $isMaintenance,
+                'maintenance_msg' => $msg,
+            ]
+        );
+
+        return $this->jsonSuccess('Status pemeliharaan layanan berhasil diperbarui', [
+            'layanan_id'      => $serviceId,
+            'is_maintenance'  => $isMaintenance,
+            'maintenance_msg' => $msg,
         ]);
+    }
+
+    public function getMaintenanceServicesApi()
+    {
+        $rows = $this->manager->getAllServicesMaintenanceStatus();
+        return $this->jsonSuccess('OK', $rows);
     }
 
     public function getSystemSettingData()
     {
         return $this->jsonSuccess('OK', $this->settings->getAllAsMap());
-    }
-
-    public function saveSystemSetting()
-    {
-        return redirect()->to('/manage-setting')->with('warning', 'Gunakan endpoint API /api/manage-setting/save');
     }
 
     public function saveSystemSettingApi()
@@ -606,14 +613,8 @@ class SettingManagerController extends BaseController
             return $this->jsonError('Gagal menyimpan system setting', 500);
         }
 
+        $this->recordAudit('setting.system.save', 'sys_system_settings', 'general', null, $normalized);
         return $this->jsonSuccess('System setting berhasil disimpan', $this->settings->getAllAsMap());
-    }
-
-    public function smtpSetting()
-    {
-        return $this->renderView('Apps/pages/data/smtp_setting', [
-            'title' => 'SMTP Setting',
-        ]);
     }
 
     public function getSmtpSettingData()
@@ -623,11 +624,6 @@ class SettingManagerController extends BaseController
         $smtp['has_password'] = $hasPassword;
         $smtp['smtp.password'] = '';
         return $this->jsonSuccess('OK', $smtp);
-    }
-
-    public function saveSmtpSetting()
-    {
-        return redirect()->to('/manage-smtp')->with('warning', 'Gunakan endpoint API /api/manage-smtp/save');
     }
 
     public function saveSmtpSettingApi()
@@ -668,6 +664,7 @@ class SettingManagerController extends BaseController
         $updatedSmtp = $this->settings->getGroup('smtp');
         $updatedSmtp['has_password'] = !empty($updatedSmtp['smtp.password']);
         $updatedSmtp['smtp.password'] = '';
+        $this->recordAudit('setting.smtp.save', 'sys_system_settings', 'smtp', null, ['host' => $updatedSmtp['smtp.host'] ?? '', 'port' => $updatedSmtp['smtp.port'] ?? '']);
 
         return $this->jsonSuccess('Konfigurasi SMTP berhasil disimpan', $updatedSmtp);
     }
@@ -724,26 +721,17 @@ class SettingManagerController extends BaseController
             }
 
             $debugger = $email->printDebugger(['headers', 'subject']);
-            return $this->jsonError('Gagal mengirim email uji coba: ' . strip_tags($debugger), 500);
+            log_message('warning', 'SMTP test gagal ke {email}: {detail}', ['email' => $testEmail, 'detail' => strip_tags($debugger)]);
+            return $this->jsonError('Gagal mengirim email uji coba. Periksa konfigurasi SMTP dan log server.', 500);
         } catch (\Throwable $e) {
-            return $this->jsonError('Terjadi kesalahan pengujian SMTP: ' . $e->getMessage(), 500);
+            log_message('error', 'SettingManagerController::testSmtp gagal: {message}', ['message' => $e->getMessage()]);
+            return $this->jsonError('Terjadi kesalahan saat menguji koneksi SMTP.', 500);
         }
     }
 
     // ==========================================
-    // USER MANAGER METHODS (/manage-user)
+    // USER MANAGER METHODS (/api/manage-user/*)
     // ==========================================
-
-    public function userManager()
-    {
-        $roles = $this->manager->getRoles(true);
-        $stats = $this->users->getUserStats();
-        return $this->renderView('Apps/pages/data/user_manager', [
-            'title' => 'Kelola Pengguna',
-            'roles' => $roles,
-            'stats' => $stats,
-        ]);
-    }
 
     public function getUserDatatableApi()
     {
@@ -845,6 +833,7 @@ class SettingManagerController extends BaseController
         }
 
         $created = $this->users->getUserDetail((int) $result['user_id']);
+        $this->recordAudit('user.create', 'auth_users', (string) $result['user_id'], null, $created);
         return $this->jsonSuccess($result['message'] ?? 'Pengguna berhasil dibuat', $created, 201);
     }
 
@@ -864,6 +853,7 @@ class SettingManagerController extends BaseController
         }
 
         $updated = $this->users->getUserDetail($id);
+        $this->recordAudit('user.update', 'auth_users', (string) $id, null, $updated);
         return $this->jsonSuccess($result['message'] ?? 'Data pengguna berhasil diperbarui', $updated);
     }
 
@@ -877,8 +867,8 @@ class SettingManagerController extends BaseController
             return $this->jsonError('ID pengguna wajib valid', 422, ['id' => 'ID pengguna wajib valid']);
         }
 
-        if (strlen($newPassword) < 6) {
-            return $this->jsonError('Password minimal 6 karakter', 422, ['password' => 'Password minimal 6 karakter']);
+        if (strlen($newPassword) < 8) {
+            return $this->jsonError('Kata sandi baru minimal harus terdiri dari 8 karakter.', 422, ['password' => 'Kata sandi baru minimal harus terdiri dari 8 karakter.']);
         }
 
         $result = $this->users->resetPassword($id, $newPassword);
@@ -886,6 +876,7 @@ class SettingManagerController extends BaseController
             return $this->jsonError($result['message'] ?? 'Gagal mereset password', 500);
         }
 
+        $this->recordAudit('user.password.reset', 'auth_users', (string) $id, null, ['user_id' => $id]);
         return $this->jsonSuccess($result['message'] ?? 'Password pengguna berhasil direset');
     }
 
@@ -904,6 +895,7 @@ class SettingManagerController extends BaseController
             return $this->jsonError($result['message'] ?? 'Gagal mengubah status pengguna', 500);
         }
 
+        $this->recordAudit('user.status.toggle', 'auth_users', (string) $id, null, ['user_id' => $id, 'active' => $result['active']]);
         return $this->jsonSuccess($result['message'], [
             'id'     => $id,
             'active' => $result['active'],
@@ -925,6 +917,7 @@ class SettingManagerController extends BaseController
             return $this->jsonError($result['message'] ?? 'Gagal menghapus pengguna', 400);
         }
 
+        $this->recordAudit('user.delete', 'auth_users', (string) $id, null, ['user_id' => $id]);
         return $this->jsonSuccess($result['message'] ?? 'Pengguna berhasil dihapus', ['id' => $id]);
     }
 
@@ -953,6 +946,11 @@ class SettingManagerController extends BaseController
             'security.default_role_code' => 'security',
             'env.flag' => 'env',
         ];
+    }
+
+    private function recordAudit(string $event, string $targetType, ?string $targetId = null, $beforeData = null, $afterData = null): void
+    {
+        (new \App\Models\Apps\AuditLogModel())->record($event, $targetType, $targetId, $beforeData, $afterData);
     }
 
     private function jsonSuccess(string $message, $data = [], int $code = 200)

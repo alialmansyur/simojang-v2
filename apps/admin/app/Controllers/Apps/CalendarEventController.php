@@ -10,15 +10,6 @@ class CalendarEventController extends BaseController
     private const SIMANJA_EVENTS_URL = 'https://kanreg3.id/simanja-api/public/dashboard/events';
     private const SIMANJA_KPI_URL    = 'https://kanreg3.id/simanja-api/public/dashboard/kpi';
 
-    public function index()
-    {
-        $data = [
-            'title'  => 'Kalender Kegiatan',
-            'seslog' => session()->get(),
-        ];
-        return $this->renderView('Apps/pages/calendar-event', $data);
-    }
-
     public function getEvents()
     {
         $rawEvents = $this->fetchFromSimanja(self::SIMANJA_EVENTS_URL);

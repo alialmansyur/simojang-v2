@@ -33,8 +33,6 @@ class Filters extends BaseFilters
         'forcehttps'    => ForceHTTPS::class,
         'pagecache'     => PageCache::class,
         'performance'   => PerformanceMetrics::class,
-        'auth'          => \App\Filters\Auth::class,
-        'guest'         => \App\Filters\GuestFilter::class,
         'jwtauth'       => \App\Filters\JwtAuthFilter::class,
         'rbac'          => \App\Filters\RbacFilter::class,
         'serviceaccess' => \App\Filters\ServiceAccessFilter::class,
@@ -81,7 +79,8 @@ class Filters extends BaseFilters
         ],
         'after' => [
             // 'honeypot',
-            // 'secureheaders',
+            'secureheaders',
+            'cors',
         ],
     ];
 

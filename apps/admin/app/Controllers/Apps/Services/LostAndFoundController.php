@@ -22,12 +22,7 @@ class LostAndFoundController extends BaseController
         $this->dataTables = new DataTablesLib();        
     }
 
-    public function index()
-    {
-        return $this->renderView('Apps/pages/services/lost_and_found/main', [
-            'seslog' => session()->get(),
-        ]);
-    }     
+
 
     public function storeData()
     {
@@ -75,53 +70,28 @@ class LostAndFoundController extends BaseController
         // Handle Image Upload
         $gambar = $this->request->getFile('gambar');
         if ($gambar && $gambar->isValid() && !$gambar->hasMoved()) {
-            // Validate size & type manually or through CI rules
-            $ruleImage = [
-                'gambar' => [
-                    'rules' => 'max_size[gambar,2048]|is_image[gambar]|mime_in[gambar,image/jpg,image/jpeg,image/png,image/webp]',
-                    'errors' => [
-                        'max_size' => 'Ukuran gambar maksimal 2MB.',
-                        'is_image' => 'File yang diupload bukan gambar.',
-                        'mime_in' => 'Ekstensi gambar harus jpg, jpeg, png, atau webp.'
-                    ]
-                ]
-            ];
-
-            if (!$this->validate($ruleImage)) {
-                return $this->response->setJSON([
-                    'status'  => 'error',
-                    'message' => $this->validator->getError('gambar'),
-                ]);
-            }
-
-            // Convert and save as .webp
-            $newName = $gambar->getRandomName();
-            $newNameWebp = pathinfo($newName, PATHINFO_FILENAME) . '.webp';
-            $uploadPath = FCPATH . 'apps/assets/uploads/lost_and_found/';
-            
-            if (!is_dir($uploadPath)) {
-                mkdir($uploadPath, 0777, true);
-            }
-
-            // Move original file temporarily
-            $gambar->move($uploadPath, $newName);
-            
-            // Convert to webp using Config\Services::image()
+            $storage = new \App\Services\Storage\FileStorageService();
             try {
-                $image = \Config\Services::image()
-                    ->withFile($uploadPath . $newName)
-                    ->convert(IMAGETYPE_WEBP)
-                    ->save($uploadPath . $newNameWebp);
+                $stored = $storage->storeUploadedFile($gambar, 'lost_and_found');
+                $dataInsert['gambar'] = $stored['url'];
+            } catch (\Throwable $e) {
+                return $this->apiException(
+                    $e,
+                    $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal mengunggah foto barang.',
+                    $e instanceof \RuntimeException ? 422 : 500,
+                    'LostAndFoundController::store'
+                );
+            }
 
-                // If original is not webp, delete original
-                if (strtolower($gambar->getClientExtension()) !== 'webp') {
-                    unlink($uploadPath . $newName);
+            if (!empty($key)) {
+                $builder = db_connect()->table('txn_barang_hilang')->where('uid', (string) $key);
+                if (ctype_digit((string) $key)) {
+                    $builder->orWhere('id', (int) $key);
                 }
-
-                $dataInsert['gambar'] = 'apps/assets/uploads/lost_and_found/' . $newNameWebp;
-            } catch (\CodeIgniter\Images\Exceptions\ImageException $e) {
-                // If conversion fails, use original
-                $dataInsert['gambar'] = 'apps/assets/uploads/lost_and_found/' . $newName;
+                $existingRow = $builder->get()->getRowArray();
+                if ($existingRow && !empty($existingRow['gambar'])) {
+                    $storage->delete((string) $existingRow['gambar'], 'lost_and_found');
+                }
             }
         }
 
@@ -147,6 +117,15 @@ class LostAndFoundController extends BaseController
                 'message' => 'Kunci data tidak valid',
             ]);
         }
+        $builder = db_connect()->table('txn_barang_hilang')->where('uid', $key);
+        if (ctype_digit($key)) {
+            $builder->orWhere('id', (int) $key);
+        }
+        $existingRow = $builder->get()->getRowArray();
+        if ($existingRow && !empty($existingRow['gambar'])) {
+            (new \App\Services\Storage\FileStorageService())->delete((string) $existingRow['gambar'], 'lost_and_found');
+        }
+
         $this->apps->removeData($key, 'txn_barang_hilang');
         return $this->response->setJSON([
             'status'  => true,

@@ -22,13 +22,6 @@ class AnggaranData extends BaseController
         $this->apps = new AppsModel();
     }
 
-    public function index()
-    {
-        return $this->renderView('Apps/pages/services/anggaran/main', [
-            'seslog' => session()->get(),
-        ]);
-    }
-
     public function getData()
     {
         $result = $this->anggaranModel->getRealisasiDataTable(
@@ -709,11 +702,8 @@ class AnggaranData extends BaseController
         return date('m/Y', $time);
     }
 
-    private function respondError(string $message)
+    private function respondError(string $message, int $code = 400)
     {
-        return $this->response->setJSON([
-            'status' => 'error',
-            'message' => $message,
-        ]);
+        return $this->apiError($message, $code);
     }
 }

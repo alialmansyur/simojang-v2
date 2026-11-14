@@ -46,7 +46,6 @@ class PNBPPdfService
             case 'sp':
             case 'st':
             case 'surat_jalan':
-            case 'faktur':
             default:
                 return [
                     'format'        => 'A4-P',
@@ -100,6 +99,14 @@ class PNBPPdfService
                 if (str_starts_with($rawPath, 'data:image')) {
                     $sigBase64 = $rawPath;
                 } else {
+                $cleanRel = ltrim($rawPath, '/\\');
+                $resolvedSig = (new \App\Services\Storage\FileStorageService())->resolveAbsolutePath($cleanRel, 'signatures');
+                if ($resolvedSig !== null && is_file($resolvedSig)) {
+                    $rawSig = @file_get_contents($resolvedSig);
+                    if ($rawSig !== false && strlen($rawSig) > 0) {
+                        $sigBase64 = 'data:image/png;base64,' . base64_encode($rawSig);
+                    }
+                } else {
                     $cleanRel = ltrim($rawPath, '/\\');
                     $candidates = [
                         $rawPath,
@@ -117,6 +124,7 @@ class PNBPPdfService
                             }
                         }
                     }
+                }
                 }
             }
             $s['signature_base64'] = $sigBase64;
@@ -222,14 +230,12 @@ class PNBPPdfService
 
         $docType = $docData['doc_type'] ?? 'sp';
         $year = date('Y', strtotime($docData['doc_date'] ?? date('Y-m-d')));
-        $uploadDir = WRITEPATH . 'uploads/pnbp/' . $year . '/' . $docType;
-        if (!is_dir($uploadDir)) {
-            @mkdir($uploadDir, 0777, true);
-        }
+        $storage = new \App\Services\Storage\FileStorageService();
+        $uploadDir = $storage->ensureDirectory('private/pnbp/' . $year . '/' . $docType);
 
         $fileName = $docType . '_' . $docData['uid'] . '.pdf';
-        $fullPath = $uploadDir . '/' . $fileName;
-        $savedFilePath = 'uploads/pnbp/' . $year . '/' . $docType . '/' . $fileName;
+        $fullPath = $uploadDir . DIRECTORY_SEPARATOR . $fileName;
+        $savedFilePath = 'private/pnbp/' . $year . '/' . $docType . '/' . $fileName;
         $cleanFilename = strtoupper($docType) . '_' . preg_replace('/[^a-zA-Z0-9_-]/', '_', $docData['title']) . '.pdf';
 
         // Cek apakah file PDF sudah ada di disk dan masih valid (belum ada update data terbaru)

@@ -26,11 +26,7 @@ class IKMController extends BaseController
         $sess = session()->get();
     }
 
-    public function index(){
-        return $this->renderView('Apps/pages/services/ikm/main', [
-            'seslog' => session()->get(),
-        ]);
-    }     
+
 
     public function storeData(){
         $sess       = session()->get();

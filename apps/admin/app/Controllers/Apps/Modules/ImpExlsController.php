@@ -30,38 +30,30 @@ class ImpExlsController extends BaseController
         $remaks = $this->request->getPost('remarks') ?? '';
         $docCategory = $this->request->getPost('doc_category') ?? '';
 
-        $this->uploader->validateFile($file);
-        $uploadDir = ROOTPATH . 'public/uploads/excel/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+        try {
+            $this->uploader->validateFile($file);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid.', 422, 'ImpExlsController::importData');
         }
 
-        $originalName = $file->getClientName();
-        $ext = $file->getClientExtension();
-        $savedName = date('Ymd_His') . '_' . random_string('alnum', 8) . '_' . $sess['username'] . '.' . $ext;
-        $localPath = $uploadDir . $savedName;
+        $ext = strtolower((string) ($file->getClientExtension() ?: $file->guessExtension() ?: 'xlsx'));
+        $safeUsername = preg_replace('/[^A-Za-z0-9_-]/', '', (string) ($sess['username'] ?? 'system'));
+        $savedName = date('Ymd_His') . '_' . random_string('alnum', 8) . '_' . ($safeUsername !== '' ? $safeUsername : 'user') . '.' . $ext;
 
         try {
-            if ($file && $file->isValid() && !$file->hasMoved()) {
-                $file->move($uploadDir, $savedName);
-            }
-        } catch (\Exception $e) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => $e->getMessage()
+            $storage = new \App\Services\Storage\FileStorageService();
+            $stored  = $storage->storeUploadedFile($file, 'excel', [
+                'customName' => $savedName,
             ]);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, 'Gagal menyimpan berkas Excel ke server.', 500, 'ImpExlsController::importData');
         }
 
-        if (!file_exists($localPath)) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'File tidak tersimpan pada path tidak ditemukan.'
-            ]);
-        }
-
-        $fileSize = filesize($localPath);
-        $mimeType = $file->getClientMimeType();
-        $checksum = hash_file('sha256', $localPath);
+        $absPath   = $stored['abs_path'];
+        $localPath = $stored['relative_path'];
+        $fileSize  = $stored['size'];
+        $mimeType  = $stored['mime_type'];
+        $checksum  = $stored['checksum'];
         $ipAddress = $this->request->getIPAddress();
         $userAgent = $this->request->getUserAgent() ? $this->request->getUserAgent()->getAgentString() : null;
 
@@ -87,7 +79,7 @@ class ImpExlsController extends BaseController
         ];
 
         $logID = $this->apps->storeData($logData, 'txn_activity_upload_logs');
-        $rows = $this->uploader->parseExcel($localPath);
+        $rows = $this->uploader->parseExcel($absPath);
 
         if (!is_array($rows) || count($rows) < 1) {
             return $this->response->setJSON([

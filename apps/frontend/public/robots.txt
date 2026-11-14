@@ -1,0 +1,8 @@
+# Robots.txt for SIMOJANG - Kantor Regional III BKN Bandung
+User-agent: *
+Disallow: /api/
+Disallow: /authprocess
+Disallow: /auth/
+Disallow: /fetch/
+Disallow: /store/
+Disallow: /kill/

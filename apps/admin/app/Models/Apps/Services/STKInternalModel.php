@@ -153,11 +153,44 @@ class STKInternalModel extends Model
 
         $builder = $this->db->table("($rawSql) AS recap");
 
-        // ?? MODE FILTER: 'pegawai' mode shows all employees without BUP exclusion
-        if ($mode === 'bup') {
+        // MODE FILTER
+        $modeKey = strtolower(trim((string) $mode));
+        if ($modeKey === 'bup') {
             $builder->where('status_bup', 'Menjelang BUP');
-        } elseif ($mode === 'telah_bup') {
+        } elseif ($modeKey === 'telah_bup') {
             $builder->where('status_bup', 'Sudah BUP');
+        } elseif ($modeKey === 'aktif') {
+            $builder->where('is_status', 1);
+        } elseif ($modeKey === 'nonaktif') {
+            $builder->groupStart()
+                ->where('is_status', 0)
+                ->orWhere('is_status IS NULL', null, false)
+            ->groupEnd();
+        } elseif ($modeKey === 'pns') {
+            $builder->groupStart()
+                ->where('status_pegawai', 'PNS')
+                ->orWhere('status_pegawai_id', '1')
+                ->orWhere('status_pegawai_id', 'PNS')
+            ->groupEnd();
+        } elseif ($modeKey === 'pppk') {
+            $builder->groupStart()
+                ->where('status_pegawai', 'PPPK')
+                ->orWhere('status_pegawai_id', '2')
+                ->orWhere('status_pegawai_id', 'PPPK')
+            ->groupEnd();
+        } elseif ($modeKey === 'pppk_pw' || $modeKey === 'pppk pw' || $modeKey === 'pppk-pw') {
+            $builder->groupStart()
+                ->where('status_pegawai', 'PPPK PW')
+                ->orWhere('status_pegawai_id', '3')
+                ->orLike('status_pegawai', 'PARUH WAKTU')
+                ->orLike('status_pegawai', 'PPPK PW')
+            ->groupEnd();
+        } elseif ($modeKey === 'magang') {
+            $builder->groupStart()
+                ->where('status_pegawai', 'MAGANG')
+                ->orWhere('status_pegawai_id', '5')
+                ->orLike('status_pegawai', 'MAGANG')
+            ->groupEnd();
         }
 
         return $builder;

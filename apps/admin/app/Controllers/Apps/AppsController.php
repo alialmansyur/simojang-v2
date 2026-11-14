@@ -5,6 +5,7 @@ namespace App\Controllers\Apps;
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
 use App\Models\Apps\AppsModel;
+use App\Models\Apps\MenuModel;
 
 class AppsController extends BaseController
 {
@@ -71,70 +72,32 @@ class AppsController extends BaseController
             ->setFileName($fileName);
     }
 
-    public function dashboard()
+    /**
+     * Endpoint API JSON untuk menyajikan navigasi dinamis berbasis DB dan RBAC
+     */
+    public function getUserMenus()
     {
-        $data = array(
-            'title'     => 'My Task',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/taskme', $data);
+        $userId = (int) (session()->get('userid') ?? ($this->request->user['user_id'] ?? 0));
+        if ($userId <= 0) {
+            return $this->response->setStatusCode(401)->setJSON([
+                'status'  => 'error',
+                'message' => 'Unauthorized. Sesi login tidak ditemukan.',
+            ]);
+        }
+
+        $menuModel = new MenuModel();
+        $navTree = $menuModel->getFullNavigationForUser($userId);
+        $roleId = $menuModel->getRoleIdByUserId($userId);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'code'   => 200,
+            'data'   => [
+                'user_id'   => $userId,
+                'role'      => session()->get('role') ?? 'USR',
+                'role_id'   => $roleId,
+                'menu_tree' => $navTree,
+            ],
+        ]);
     }
-
-    public function timkerja()
-    {
-        $this->apps->checkAndInitInstansi('Taspen Jakarta Selatan');
-
-        $data = array(
-            'title'     => 'Tim Kerja',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/teamwork', $data);
-    }
-
-    public function timkerjalayanan($param){
-        $data = array(
-            'title'     => 'Detail Layanan',
-            'seslog'    => session()->get(),
-            'layanan_key' => $param,
-        );
-        return $this->renderView('Apps/pages/teamworkService', $data);
-    }
-
-    public function explore()
-    {
-        $data = array(
-            'title'     => 'Explore Task',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/taskexplore', $data);
-    }
-
-    public function resume()
-    {
-        $data = array(
-            'title'     => 'Resume Task',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/taskresume', $data);
-    }
-
-    public function history()
-    {
-        $data = array(
-            'title'     => 'History Task',
-            'seslog'    => session()->get()
-        );
-        return $this->renderView('Apps/pages/taskhistory', $data);
-    }
-
-    public function profil()
-    {
-        $data = array(
-            'title'     => 'Profil Pegawai',
-            'seslog'    => session()->get(),
-            'profil'    => $this->apps->getInfoProfil(session()->get('username'))
-        );
-        return $this->renderView('Apps/PresensiProfil', $data);
-    }
-
 }

@@ -8,17 +8,20 @@ class AddAreaToDataAssets extends Migration
 {
     public function up()
     {
-        $fields = [
-            'area' => [
-                'type'       => 'ENUM',
-                'constraint' => ['Kantor Regional III BKN', 'UPT Bandung', 'UPT Serang'],
-                'default'    => 'Kantor Regional III BKN',
-                'null'       => false,
-                'after'      => 'lokasi',
-            ],
-        ];
+        $db = \Config\Database::connect();
+        if (!$db->fieldExists('area', 'data_assets')) {
+            $fields = [
+                'area' => [
+                    'type'       => 'ENUM',
+                    'constraint' => ['Kantor Regional III BKN', 'UPT Bandung', 'UPT Serang'],
+                    'default'    => 'Kantor Regional III BKN',
+                    'null'       => false,
+                    'after'      => 'lokasi',
+                ],
+            ];
 
-        $this->forge->addColumn('data_assets', $fields);
+            $this->forge->addColumn('data_assets', $fields);
+        }
     }
 
     public function down()

@@ -4,6 +4,7 @@ namespace App\Controllers\Apps\Services;
 
 use App\Controllers\BaseController;
 use App\Libraries\DataTablesLib;
+use App\Libraries\ExcelUploader;
 use App\Models\Apps\AppsModel;
 use App\Models\Apps\Services\PembinaanDisiplinBudayaCitraModel;
 use App\Models\Apps\Services\PembinaanKompetensiKarierModel;
@@ -22,6 +23,7 @@ class PembinaanASNController extends BaseController
     {
         $this->appsModel = new AppsModel();
         $this->dataTables = new DataTablesLib();
+        $this->uploader = new ExcelUploader();
         $this->kinerjaModel = new PembinaanKinerjaModel();
         $this->disiplinModel = new PembinaanDisiplinBudayaCitraModel();
         $this->kompetensiModel = new PembinaanKompetensiKarierModel();
@@ -43,25 +45,6 @@ class PembinaanASNController extends BaseController
         sort($months);
 
         return $months;
-    }
-
-    private function renderPlaceholder(string $serviceName)
-    {
-        return $this->renderView('Apps/pages/services/pembinaanmanajemenasn/main', [
-            'title' => $serviceName,
-            'seslog' => session()->get(),
-            'service_name' => $serviceName,
-        ]);
-    }
-
-    public function kinerja()
-    {
-        $this->layananId = $this->appsModel->getLayananIdByUrl('apps-pembinaan-kinerja', 14);
-
-        return $this->renderView('Apps/pages/services/pembinaankinerja/main', [
-            'title' => 'Pembinaan Kinerja dan Penghargaan',
-            'seslog' => session()->get(),
-        ]);
     }
 
     public function getKinerjaOptions()
@@ -139,21 +122,34 @@ class PembinaanASNController extends BaseController
         }
 
         $capaian = (float) $this->request->getPost('capaian_percent');
+        $kategoriId = (int) $this->request->getPost('kategori_id');
+        $periodDate = trim((string) $this->request->getPost('period_date')) ?: date('Y-m-d');
         $statusId = $this->kinerjaModel->resolveStatusId($capaian);
+        $kegiatanEnum = $this->kinerjaModel->resolveKegiatanEnum(
+            $kategoriId,
+            $this->request->getPost('kegiatan_code') ?: $this->request->getPost('kegiatan')
+        );
+        $aplikasiEnum = $this->kinerjaModel->resolveAplikasiEnum(
+            $kegiatanEnum,
+            $this->request->getPost('aplikasi_code') ?: $this->request->getPost('aplikasi')
+        );
+        $kategoriCapaianEnum = $this->kinerjaModel->resolveKategoriCapaianEnum($capaian);
         $now = date('Y-m-d H:i:s');
 
         $payload = [
             'layanan_id' => $this->layananId,
             'instansi_id' => trim((string) $this->request->getPost('instansi')),
-            'kategori_id' => (int) $this->request->getPost('kategori_id'),
+            'kategori_id' => $kategoriId,
             'status_id' => $statusId,
             'period_year' => (int) $this->request->getPost('period_year'),
-            'period_date' => $this->request->getPost('period_date'),
+            'period_date' => $periodDate,
+            'tanggal_data' => $periodDate,
             'capaian_percent' => $capaian,
             'pendampingan_date' => $this->request->getPost('pendampingan_date') ?: null,
             'catatan' => $this->request->getPost('catatan') ?: null,
-            'kegiatan' => $this->request->getPost('kegiatan_code') ?: null,
-            'aplikasi' => $this->request->getPost('aplikasi_code') ?: null,
+            'kegiatan' => $kegiatanEnum,
+            'aplikasi' => $aplikasiEnum,
+            'kategori' => $kategoriCapaianEnum,
             'capaian_persen' => $capaian,
             'updated_by' => $sess['username'] ?? null,
             'updated_at' => $now,
@@ -215,6 +211,7 @@ class PembinaanASNController extends BaseController
         return $this->response->setJSON([
             'status' => 'success',
             'kategori' => $this->disiplinModel->getKategoriOptions(true),
+            'pegawai' => $this->disiplinModel->getPegawaiOptions(),
             'years' => $this->disiplinModel->getPeriodYears(),
         ]);
     }
@@ -227,14 +224,14 @@ class PembinaanASNController extends BaseController
         $jenis = strtoupper(trim((string) ($this->request->getPost('jenis_layanan') ?? 'ALL')));
         $months = $this->normalizeMonthsFromPost('period_months');
 
-        $builder = $this->disiplinModel->getBuilder('recap', [
+        $builder = $this->disiplinModel->getBuilder('list', [
             'kategori_id' => $kategori,
             'period_year' => $tahun,
             'jenis_layanan' => $jenis,
             'period_months' => $months,
         ]);
 
-        $columns = $this->disiplinModel->getColumns('recap');
+        $columns = $this->disiplinModel->getColumns('list');
         $result = $this->dataTables->render($builder, $columns);
 
         return $this->response->setJSON($result);
@@ -335,7 +332,19 @@ class PembinaanASNController extends BaseController
         $judul = trim((string) ($this->request->getPost('judul_kegiatan') ?? ''));
         $noSurat = trim((string) ($this->request->getPost('no_surat_kegiatan') ?? ''));
         $pegawaiIdsRaw = $this->request->getPost('pegawai_ids') ?? [];
-        $pegawaiIds = array_values(array_unique(array_filter(array_map('intval', (array) $pegawaiIdsRaw), static fn($id) => $id > 0)));
+        if (is_string($pegawaiIdsRaw)) {
+            $pegawaiIdsRaw = explode(',', $pegawaiIdsRaw);
+        }
+        $pegawaiIds = [];
+        foreach ((array) $pegawaiIdsRaw as $rawId) {
+            foreach (explode(',', (string) $rawId) as $part) {
+                $val = (int) trim($part);
+                if ($val > 0) {
+                    $pegawaiIds[] = $val;
+                }
+            }
+        }
+        $pegawaiIds = array_values(array_unique($pegawaiIds));
 
         if ($jenis === 'KONSULTASI' && !in_array($sourceKonsultasi, ['SURAT_MASUK', 'ZOOM', 'PPT'], true)) {
             return $this->response->setJSON([
@@ -528,16 +537,6 @@ class PembinaanASNController extends BaseController
         ]);
     }
 
-    public function kompetensiKarier()
-    {
-        $this->layananId = $this->appsModel->getLayananIdByUrl('apps-pembinaan-kompetensi-karier', 16);
-
-        return $this->renderView('Apps/pages/services/pembinaankompetensikarier/main', [
-            'title' => 'Pembinaan Pengembangan Kompetensi dan Karier',
-            'seslog' => session()->get(),
-        ]);
-    }
-
     public function getKompetensiOptions()
     {
         return $this->response->setJSON([
@@ -550,6 +549,7 @@ class PembinaanASNController extends BaseController
     {
 
         $tahun = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $category = trim((string) ($this->request->getPost('category') ?? $this->request->getPost('metode') ?? ''));
         $months = $this->normalizeMonthsFromPost('period_months');
         if (empty($months)) {
             $single = (int) ($this->request->getPost('period_month') ?? 0);
@@ -560,6 +560,7 @@ class PembinaanASNController extends BaseController
 
         $builder = $this->kompetensiModel->getBuilder('recap', [
             'period_year' => $tahun,
+            'category' => $category,
             'period_months' => $months,
         ]);
 
@@ -671,13 +672,245 @@ class PembinaanASNController extends BaseController
         ]);
     }
 
-    public function disiplinBudayaCitra()
+    public function importKinerjaBatch()
     {
-        $this->layananId = $this->appsModel->getLayananIdByUrl('apps-pembinaan-disiplin-budaya-citra', 15);
+        $session = session()->get();
+        $file = $this->request->getFile('file');
 
-        return $this->renderView('Apps/pages/services/pembinaandisiplinbudayacitra/main', [
-            'title' => 'Pembinaan Disiplin, Budaya Kerja, dan Citra Institusi',
-            'seslog' => session()->get(),
-        ]);
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Berkas Excel wajib diunggah.',
+            ]);
+        }
+
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows = $this->uploader->parseExcel($localPath);
+
+            if (!is_array($rows) || count($rows) < 2) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Berkas Excel kosong atau format tidak sesuai.',
+                ]);
+            }
+
+            $imported = 0;
+            $now = date('Y-m-d H:i:s');
+            $user = $session['username'] ?? 'system';
+
+            foreach (array_slice($rows, 1) as $row) {
+                if (empty($row[0])) continue;
+
+                $instansiId = $this->appsModel->getInstansiID($row[0]);
+                if (!$instansiId) {
+                    $instansiId = is_numeric($row[0]) ? (int) $row[0] : 6100;
+                }
+
+                $kategoriId = !empty($row[1]) ? (int) $row[1] : 1;
+                $periodYear = !empty($row[2]) ? (int) $row[2] : (int) date('Y');
+                $periodDate = !empty($row[3]) ? ExcelUploader::excelDate($row[3]) : date('Y-m-d');
+                $capaian = !empty($row[4]) ? (float) $row[4] : 0.0;
+                $statusId = $this->kinerjaModel->resolveStatusId($capaian);
+                $kegiatanEnum = $this->kinerjaModel->resolveKegiatanEnum($kategoriId);
+                $aplikasiEnum = $this->kinerjaModel->resolveAplikasiEnum($kegiatanEnum);
+                $kategoriCapaianEnum = $this->kinerjaModel->resolveKategoriCapaianEnum($capaian);
+                $catatan = !empty($row[5]) ? trim((string) $row[5]) : null;
+
+                $this->appsModel->storeData([
+                    'layanan_id' => 14,
+                    'instansi_id' => $instansiId,
+                    'kategori_id' => $kategoriId,
+                    'status_id' => $statusId,
+                    'period_year' => $periodYear,
+                    'period_date' => $periodDate,
+                    'tanggal_data' => $periodDate,
+                    'kegiatan' => $kegiatanEnum,
+                    'aplikasi' => $aplikasiEnum,
+                    'kategori' => $kategoriCapaianEnum,
+                    'capaian_percent' => $capaian,
+                    'capaian_persen' => $capaian,
+                    'catatan' => $catatan,
+                    'created_by' => $user,
+                    'updated_by' => $user,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], 'txn_pembinaan_kinerja');
+
+                $imported++;
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => "Berhasil mengimpor {$imported} data pembinaan kinerja.",
+                'total_imported' => $imported,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal membaca berkas Excel pembinaan kinerja.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'PembinaanASNController::importKinerjaBatch'
+            );
+        }
+    }
+
+    public function importKompetensiBatch()
+    {
+        $session = session()->get();
+        $file = $this->request->getFile('file');
+
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Berkas Excel wajib diunggah.',
+            ]);
+        }
+
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows = $this->uploader->parseExcel($localPath);
+
+            if (!is_array($rows) || count($rows) < 2) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Berkas Excel kosong atau format tidak sesuai.',
+                ]);
+            }
+
+            $imported = 0;
+            $now = date('Y-m-d H:i:s');
+            $user = $session['username'] ?? 'system';
+
+            foreach (array_slice($rows, 1) as $row) {
+                if (empty($row[0])) continue;
+
+                $periodYear = !empty($row[0]) ? (int) $row[0] : (int) date('Y');
+                $tanggal = !empty($row[1]) ? ExcelUploader::excelDate($row[1]) : date('Y-m-d');
+                $judul = !empty($row[2]) ? trim((string) $row[2]) : 'Pelatihan / Bimtek ASN';
+                $materi = !empty($row[3]) ? trim((string) $row[3]) : 'Materi Pembinaan Kompetensi';
+                $totalPartisipan = !empty($row[4]) ? (int) $row[4] : 0;
+                $metode = !empty($row[5]) ? trim((string) $row[5]) : 'Klasikal';
+                $lokasi = !empty($row[6]) ? trim((string) $row[6]) : null;
+                $penyelenggara = !empty($row[7]) ? trim((string) $row[7]) : null;
+                $evidenLink = !empty($row[8]) ? trim((string) $row[8]) : null;
+                $catatan = !empty($row[9]) ? trim((string) $row[9]) : null;
+
+                $this->appsModel->storeData([
+                    'layanan_id' => 15,
+                    'period_year' => $periodYear,
+                    'tanggal_kegiatan' => $tanggal,
+                    'judul_kegiatan' => $judul,
+                    'materi' => $materi,
+                    'total_partisipan' => $totalPartisipan,
+                    'metode' => $metode,
+                    'lokasi' => $lokasi,
+                    'penyelenggara' => $penyelenggara,
+                    'eviden_link' => $evidenLink,
+                    'catatan' => $catatan,
+                    'created_by' => $user,
+                    'updated_by' => $user,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], 'txn_pembinaan_kompetensi_karier');
+
+                $imported++;
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => "Berhasil mengimpor {$imported} agenda pengembangan kompetensi.",
+                'total_imported' => $imported,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal membaca berkas Excel pembinaan kompetensi.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'PembinaanASNController::importKompetensiBatch'
+            );
+        }
+    }
+
+    public function importDisiplinBatch()
+    {
+        $session = session()->get();
+        $file = $this->request->getFile('file');
+
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status' => 'error',
+                'message' => 'Berkas Excel wajib diunggah.',
+            ]);
+        }
+
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows = $this->uploader->parseExcel($localPath);
+
+            if (!is_array($rows) || count($rows) < 2) {
+                return $this->response->setJSON([
+                    'status' => 'error',
+                    'message' => 'Berkas Excel kosong atau format tidak sesuai.',
+                ]);
+            }
+
+            $imported = 0;
+            $now = date('Y-m-d H:i:s');
+            $user = $session['username'] ?? 'system';
+
+            foreach (array_slice($rows, 1) as $row) {
+                if (empty($row[0])) continue;
+
+                $instansiId = $this->appsModel->getInstansiID($row[0]);
+                if (!$instansiId) {
+                    $instansiId = is_numeric($row[0]) ? (int) $row[0] : 6100;
+                }
+
+                $kategoriId = !empty($row[1]) ? (int) $row[1] : 1;
+                $periodYear = !empty($row[2]) ? (int) $row[2] : (int) date('Y');
+                $periodDate = !empty($row[3]) ? ExcelUploader::excelDate($row[3]) : date('Y-m-d');
+                $source = !empty($row[4]) ? strtoupper(trim((string) $row[4])) : 'SURAT_MASUK';
+                $tempat = !empty($row[5]) ? trim((string) $row[5]) : null;
+                $judul = !empty($row[6]) ? trim((string) $row[6]) : 'Pembinaan Disiplin ASN';
+                $noSurat = !empty($row[7]) ? trim((string) $row[7]) : '-';
+                $catatan = !empty($row[8]) ? trim((string) $row[8]) : null;
+
+                $this->appsModel->storeData([
+                    'layanan_id' => 16,
+                    'instansi_id' => $instansiId,
+                    'kategori_id' => $kategoriId,
+                    'period_year' => $periodYear,
+                    'period_date' => $periodDate,
+                    'source_konsultasi' => $source,
+                    'tempat_kegiatan' => $tempat,
+                    'judul_kegiatan' => $judul,
+                    'no_surat_kegiatan' => $noSurat,
+                    'catatan' => $catatan,
+                    'created_by' => $user,
+                    'updated_by' => $user,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ], 'txn_pembinaan_disiplin_budaya_citra');
+
+                $imported++;
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => "Berhasil mengimpor {$imported} data pembinaan disiplin & budaya kerja.",
+                'total_imported' => $imported,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException(
+                $e,
+                $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal membaca berkas Excel pembinaan disiplin.',
+                $e instanceof \RuntimeException ? 422 : 500,
+                'PembinaanASNController::importDisiplinBatch'
+            );
+        }
     }
 }

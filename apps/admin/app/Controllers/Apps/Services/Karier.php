@@ -26,24 +26,16 @@ class Karier extends BaseController
         $sess = session()->get();
     } 
 
-    public function index(){ 
-        return $this->renderView('Apps/pages/services/karier/main', [
-            'seslog' => session()->get(),
-        ]);           
-    }
+
 
     public function getData(){
         $sess = session()->get();
         $bulan = $this->request->getPost('bulan');
+        $category = trim((string) ($this->request->getPost('category') ?? ''));
+        $periodYear = (int) ($this->request->getPost('period_year') ?? 0);
 
         if (!is_array($bulan)) {
             $bulan = [];
-        }
-
-        if (count($bulan) > 6) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 6 bulan diperbolehkan'
-            ])->setStatusCode(400);
         }
 
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
@@ -51,7 +43,9 @@ class Karier extends BaseController
         }));
 
         $builder = $this->kariermodel->getBuilder('recap-karier', [
-            'bulan' => $bulan
+            'bulan'       => $bulan,
+            'category'    => $category,
+            'period_year' => $periodYear,
         ]);
 
         $columns = [
@@ -59,6 +53,9 @@ class Karier extends BaseController
             ['data' => 'uid', 'search' => false, 'order' => false],
             ['data' => 'instansi_nama', 'search' => 'd.nama', 'order' => 'd.nama'],
             ['data' => 'instansi_id', 'search' => false, 'order' => false],
+            ['data' => 'wilayah', 'search' => false, 'order' => false],
+            ['data' => 'kanreg', 'search' => false, 'order' => false],
+            ['data' => 'logo', 'search' => false, 'order' => false],
             ['data' => 'tanggal', 'search' => 'a.tanggal', 'order' => 'a.tanggal'],
             ['data' => 'jenis_penilaian', 'search' => 'a.jenis_penilaian', 'order' => 'a.jenis_penilaian'],
             ['data' => 'total_peserta', 'search' => false, 'order' => 'a.total_peserta'],
@@ -69,6 +66,7 @@ class Karier extends BaseController
             ['data' => 'tidak_hadir', 'search' => false, 'order' => 'a.tidak_hadir'],
             ['data' => 'created_by', 'search' => 'a.created_by', 'order' => 'a.created_by'],
             ['data' => 'created_at', 'search' => 'a.created_at', 'order' => 'a.created_at'],
+            ['data' => 'updated_at', 'search' => false, 'order' => 'a.updated_at'],
             ['data' => 'scema_group', 'search' => false, 'order' => false],
         ];
 
@@ -79,14 +77,11 @@ class Karier extends BaseController
     public function getSummary()
     {
         $bulan = $this->request->getPost('bulan');
+        $category = trim((string) ($this->request->getPost('category') ?? ''));
+        $periodYear = (int) ($this->request->getPost('period_year') ?? 0);
+
         if (!is_array($bulan)) {
             $bulan = [];
-        }
-
-        if (count($bulan) > 6) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 6 bulan diperbolehkan'
-            ])->setStatusCode(400);
         }
 
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
@@ -95,12 +90,16 @@ class Karier extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'summary' => $this->kariermodel->getSummary($bulan),
+            'summary' => $this->kariermodel->getSummary($bulan, [
+                'category'    => $category,
+                'period_year' => $periodYear,
+            ]),
         ]);
     } 
 
     public function storeData(){
         $sess = session()->get();
+        $key  = $this->request->getPost('key');
         $instansi   = $this->request->getPost('instansi');
         $tanggal    = $this->request->getPost('tanggal');
         $jenis_penilaian = $this->request->getPost('jenis_penilaian');
@@ -118,8 +117,50 @@ class Karier extends BaseController
             ]);
         } 
 
-        $scema_group = bin2hex(random_bytes(8));
+        // Update single record
+        if (!empty($key)) {
+            $updateData = [
+                'instansi_id'     => is_array($instansi) ? $instansi[0] : $instansi,
+                'tanggal'         => is_array($tanggal) ? $tanggal[0] : $tanggal,
+                'jenis_penilaian' => is_array($jenis_penilaian) ? $jenis_penilaian[0] : $jenis_penilaian,
+                'total_peserta'   => (int) (is_array($total_peserta) ? $total_peserta[0] : $total_peserta),
+                'memenuhi'        => (int) (is_array($memenuhi) ? $memenuhi[0] : $memenuhi),
+                'tidak_memenuhi'  => (int) (is_array($tidak_memenuhi) ? $tidak_memenuhi[0] : $tidak_memenuhi),
+                'lulus'           => (int) (is_array($lulus) ? $lulus[0] : $lulus),
+                'tidak_lulus'     => (int) (is_array($tidak_lulus) ? $tidak_lulus[0] : $tidak_lulus),
+                'tidak_hadir'     => (int) (is_array($tidak_hadir) ? $tidak_hadir[0] : $tidak_hadir),
+                'updated_at'      => date('Y-m-d H:i:s'),
+            ];
 
+            if (!empty($sess['username'])) {
+                $updateData['created_by'] = $sess['username'];
+            }
+
+            if (is_numeric($key)) {
+                $this->apps->updateData($updateData, $key, 'txn_karier');
+            } else {
+                $this->apps->updateDataByField('uid', $key, $updateData, 'txn_karier');
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => 'Data penilaian karier berhasil diperbarui.'
+            ]);
+        }
+
+        if (!is_array($instansi)) {
+            $instansi = [$instansi];
+            $tanggal = [$tanggal];
+            $jenis_penilaian = [$jenis_penilaian];
+            $total_peserta = [$total_peserta];
+            $memenuhi = [$memenuhi];
+            $tidak_memenuhi = [$tidak_memenuhi];
+            $lulus = [$lulus];
+            $tidak_lulus = [$tidak_lulus];
+            $tidak_hadir = [$tidak_hadir];
+        }
+
+        $scema_group = bin2hex(random_bytes(8));
         $dataBatch = [];
         foreach ($instansi as $i => $n) {
             if (empty($n) || (empty($tanggal[$i])) || (empty($jenis_penilaian[$i]))) {
@@ -135,12 +176,12 @@ class Karier extends BaseController
                 'instansi_id'   => $n,
                 'tanggal'       => $tanggal[$i],
                 'jenis_penilaian' => $jenis_penilaian[$i],
-                'total_peserta' => $total_peserta[$i] ?: 0,
-                'memenuhi'      => $memenuhi[$i] ?: 0,
-                'tidak_memenuhi'=> $tidak_memenuhi[$i] ?: 0,
-                'lulus'         => $lulus[$i] ?: 0,
-                'tidak_lulus'   => $tidak_lulus[$i] ?: 0,
-                'tidak_hadir'   => $tidak_hadir[$i] ?: 0,
+                'total_peserta' => (int) ($total_peserta[$i] ?: 0),
+                'memenuhi'      => (int) ($memenuhi[$i] ?: 0),
+                'tidak_memenuhi'=> (int) ($tidak_memenuhi[$i] ?: 0),
+                'lulus'         => (int) ($lulus[$i] ?: 0),
+                'tidak_lulus'   => (int) ($tidak_lulus[$i] ?: 0),
+                'tidak_hadir'   => (int) ($tidak_hadir[$i] ?: 0),
                 'created_by'    => $sess['username'] ?? 'system',
             ];
         }
@@ -149,7 +190,7 @@ class Karier extends BaseController
             $this->apps->insertBatchData($dataBatch, 'txn_karier');
             $this->apps->storeData(
                 [
-                    'layanan_id' => 99, // Adjust as necessary
+                    'layanan_id' => 40,
                     'tanggal'    => date('Y-m-d'),
                     'created_by' => $sess['username'] ?? 'system'
                 ],
@@ -159,7 +200,7 @@ class Karier extends BaseController
 
         return $this->response->setJSON([
             'status' => 'success',
-            'message' => 'Data berhasil disimpan.'
+            'message' => 'Data penilaian karier berhasil disimpan.'
         ]);
     }
 
@@ -172,8 +213,11 @@ class Karier extends BaseController
             ]);
         }
 
-        // We use removeDataByField assuming key is uid.
-        $this->apps->removeDataByField('uid', $key, 'txn_karier');
+        if (is_numeric($key)) {
+            $this->apps->removeData((int) $key, 'txn_karier');
+        } else {
+            $this->apps->removeDataByField('uid', $key, 'txn_karier');
+        }
         return $this->response->setJSON([
             'status'  => true,
             'message' => 'Data Berhasil di hapus',
@@ -184,17 +228,16 @@ class Karier extends BaseController
         $session = session()->get();
         $file    = $this->request->getFile('file');
 
-        $this->uploader->validateFile($file);
- 
-        $localPath  = $file->getTempName();
-
-        $rows = $this->uploader->parseExcel($localPath);
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows      = $this->uploader->parseExcel($localPath);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid atau gagal dibaca.', 422, 'Karier::importData');
+        }
 
         if (!is_array($rows) || count($rows) < 2) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Data kosong atau format salah.',
-            ]);
+            return $this->apiError('Data kosong atau format salah.', 422);
         }
 
         $scema_group = bin2hex(random_bytes(8));
@@ -238,7 +281,7 @@ class Karier extends BaseController
             $this->apps->insertBatchData($dataBatch, 'txn_karier');
             $this->apps->storeData(
                 [
-                    'layanan_id' => 99, 
+                    'layanan_id' => 40, 
                     'tanggal'    => date('Y-m-d'),
                     'created_by' => $session['username'] ?? 'system'
                 ],

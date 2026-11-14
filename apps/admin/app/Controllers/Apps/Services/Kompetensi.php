@@ -25,23 +25,15 @@ class Kompetensi extends BaseController
         $this->dataTables = new DataTablesLib();
     } 
 
-    public function index(){ 
-        return $this->renderView('Apps/pages/services/kompetensi/main', [
-            'seslog' => session()->get(),
-        ]);           
-    }
+
 
     public function getData(){
         $bulan = $this->request->getPost('bulan');
+        $category = trim((string) ($this->request->getPost('category') ?? ''));
+        $periodYear = (int) ($this->request->getPost('period_year') ?? 0);
 
         if (!is_array($bulan)) {
             $bulan = [];
-        }
-
-        if (count($bulan) > 6) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 6 bulan diperbolehkan'
-            ])->setStatusCode(400);
         }
 
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
@@ -49,7 +41,9 @@ class Kompetensi extends BaseController
         }));
 
         $builder = $this->kompetensimodel->getBuilder('recap-kompetensi', [
-            'bulan' => $bulan
+            'bulan'       => $bulan,
+            'category'    => $category,
+            'period_year' => $periodYear,
         ]);
 
         $columns = [
@@ -57,12 +51,16 @@ class Kompetensi extends BaseController
             ['data' => 'uid', 'search' => false, 'order' => false],
             ['data' => 'instansi_nama', 'search' => 'd.nama', 'order' => 'd.nama'],
             ['data' => 'instansi_id', 'search' => false, 'order' => false],
+            ['data' => 'wilayah', 'search' => false, 'order' => false],
+            ['data' => 'kanreg', 'search' => false, 'order' => false],
+            ['data' => 'logo', 'search' => false, 'order' => false],
             ['data' => 'tanggal', 'search' => 'a.tanggal', 'order' => 'a.tanggal'],
             ['data' => 'metode', 'search' => 'a.metode', 'order' => 'a.metode'],
             ['data' => 'total_peserta', 'search' => false, 'order' => 'a.total_peserta'],
             ['data' => 'created_by', 'search' => 'a.created_by', 'order' => 'a.created_by'],
+            ['data' => 'updated_by', 'search' => false, 'order' => false],
             ['data' => 'created_at', 'search' => 'a.created_at', 'order' => 'a.created_at'],
-            ['data' => 'scema_group', 'search' => false, 'order' => false],
+            ['data' => 'updated_at', 'search' => false, 'order' => 'a.updated_at'],
         ];
 
         $result = $this->dataTables->render($builder, $columns);
@@ -72,14 +70,11 @@ class Kompetensi extends BaseController
     public function getSummary()
     {
         $bulan = $this->request->getPost('bulan');
+        $category = trim((string) ($this->request->getPost('category') ?? ''));
+        $periodYear = (int) ($this->request->getPost('period_year') ?? 0);
+
         if (!is_array($bulan)) {
             $bulan = [];
-        }
-
-        if (count($bulan) > 6) {
-            return $this->response->setJSON([
-                'error' => 'Maksimal 6 bulan diperbolehkan'
-            ])->setStatusCode(400);
         }
 
         $bulan = array_values(array_filter(array_map('intval', $bulan), static function ($item) {
@@ -88,12 +83,16 @@ class Kompetensi extends BaseController
 
         return $this->response->setJSON([
             'status' => true,
-            'summary' => $this->kompetensimodel->getSummary($bulan),
+            'summary' => $this->kompetensimodel->getSummary($bulan, [
+                'category'    => $category,
+                'period_year' => $periodYear,
+            ]),
         ]);
     } 
 
     public function storeData(){
         $sess = session()->get();
+        $key  = $this->request->getPost('key');
         $instansi   = $this->request->getPost('instansi');
         $tanggal    = $this->request->getPost('tanggal');
         $metode     = $this->request->getPost('metode');
@@ -106,7 +105,35 @@ class Kompetensi extends BaseController
             ]);
         } 
 
-        $scema_group = bin2hex(random_bytes(8));
+        // Update single record
+        if (!empty($key)) {
+            $updateData = [
+                'instansi_id'   => is_array($instansi) ? $instansi[0] : $instansi,
+                'tanggal'       => is_array($tanggal) ? $tanggal[0] : $tanggal,
+                'metode'        => is_array($metode) ? $metode[0] : $metode,
+                'total_peserta' => (int) (is_array($total_peserta) ? $total_peserta[0] : $total_peserta),
+                'updated_by'    => $sess['username'] ?? 'system',
+                'updated_at'    => date('Y-m-d H:i:s'),
+            ];
+
+            if (is_numeric($key)) {
+                $this->apps->updateData($updateData, $key, 'txn_kompetensi');
+            } else {
+                $this->apps->updateDataByField('uid', $key, $updateData, 'txn_kompetensi');
+            }
+
+            return $this->response->setJSON([
+                'status' => 'success',
+                'message' => 'Data penilaian kompetensi berhasil diperbarui.'
+            ]);
+        }
+
+        if (!is_array($instansi)) {
+            $instansi = [$instansi];
+            $tanggal = [$tanggal];
+            $metode = [$metode];
+            $total_peserta = [$total_peserta];
+        }
 
         $dataBatch = [];
         foreach ($instansi as $i => $n) {
@@ -119,11 +146,10 @@ class Kompetensi extends BaseController
 
             $dataBatch[] = [
                 'uid'           => bin2hex(random_bytes(16)),
-                'scema_group'   => $scema_group,
                 'instansi_id'   => $n,
                 'tanggal'       => $tanggal[$i],
                 'metode'        => $metode[$i],
-                'total_peserta' => $total_peserta[$i] ?: 0,
+                'total_peserta' => (int) ($total_peserta[$i] ?? 0),
                 'created_by'    => $sess['username'] ?? 'system',
             ];
         }
@@ -132,7 +158,7 @@ class Kompetensi extends BaseController
             $this->apps->insertBatchData($dataBatch, 'txn_kompetensi');
             $this->apps->storeData(
                 [
-                    'layanan_id' => 100,
+                    'layanan_id' => 39,
                     'tanggal'    => date('Y-m-d'),
                     'created_by' => $sess['username'] ?? 'system'
                 ],
@@ -142,7 +168,7 @@ class Kompetensi extends BaseController
 
         return $this->response->setJSON([
             'status' => 'success',
-            'message' => 'Data berhasil disimpan.'
+            'message' => 'Data penilaian kompetensi berhasil disimpan.'
         ]);
     }
 
@@ -155,7 +181,11 @@ class Kompetensi extends BaseController
             ]);
         }
 
-        $this->apps->removeDataByField('uid', $key, 'txn_kompetensi');
+        if (is_numeric($key)) {
+            $this->apps->removeData((int) $key, 'txn_kompetensi');
+        } else {
+            $this->apps->removeDataByField('uid', $key, 'txn_kompetensi');
+        }
         return $this->response->setJSON([
             'status'  => true,
             'message' => 'Data Berhasil di hapus',
@@ -166,20 +196,18 @@ class Kompetensi extends BaseController
         $session = session()->get();
         $file    = $this->request->getFile('file');
 
-        $this->uploader->validateFile($file);
- 
-        $localPath  = $file->getTempName();
-
-        $rows = $this->uploader->parseExcel($localPath);
-
-        if (!is_array($rows) || count($rows) < 2) {
-            return $this->response->setJSON([
-                'status' => 'error',
-                'message' => 'Data kosong atau format salah.',
-            ]);
+        try {
+            $this->uploader->validateFile($file);
+            $localPath = $file->getTempName();
+            $rows      = $this->uploader->parseExcel($localPath);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e instanceof \RuntimeException ? $e->getMessage() : 'Berkas Excel tidak valid atau gagal dibaca.', 422, 'Kompetensi::importData');
         }
 
-        $scema_group = bin2hex(random_bytes(8));
+        if (!is_array($rows) || count($rows) < 2) {
+            return $this->apiError('Data kosong atau format salah.', 422);
+        }
+
         $dataBatch = [];
         
         foreach (array_slice($rows, 1) as $index => $row) {
@@ -197,7 +225,6 @@ class Kompetensi extends BaseController
             
             $dataBatch[] = [
                 'uid'           => bin2hex(random_bytes(16)),
-                'scema_group'   => $scema_group,
                 'instansi_id'   => $instansiID,
                 'tanggal'       => ExcelUploader::excelDate($row[1]),
                 'metode'        => $row[2],
@@ -210,7 +237,7 @@ class Kompetensi extends BaseController
             $this->apps->insertBatchData($dataBatch, 'txn_kompetensi');
             $this->apps->storeData(
                 [
-                    'layanan_id' => 100, 
+                    'layanan_id' => 39, 
                     'tanggal'    => date('Y-m-d'),
                     'created_by' => $session['username'] ?? 'system'
                 ],

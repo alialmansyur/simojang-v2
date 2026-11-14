@@ -208,16 +208,24 @@ class AppsModel extends Model
     public function getInstansi($search = null)
     {
         $builder = $this->db->table('data_instansi');
-        $builder->select('kodeins, nama');
+        $builder->select('kodeins, nama, kanreg, wilayah');
         $builder->whereIn('kanreg', [0, 3]);
 
         if (!empty($search)) {
-            $builder->like('nama', $search);
+            $builder->groupStart()
+                ->like('nama', $search)
+                ->orLike('kodeins', $search)
+            ->groupEnd();
+            return $builder
+                ->orderBy('nama', 'ASC')
+                ->limit(60)
+                ->get()
+                ->getResultArray();
         }
 
         return $builder
             ->orderBy('nama', 'ASC')
-            ->limit(20)
+            ->limit(300)
             ->get()
             ->getResultArray();
     }
@@ -414,13 +422,31 @@ class AppsModel extends Model
             return false;
         }
 
-        return (bool) $this->db->table('data_support_service_events')
+        $existing = $this->db->table('data_support_service_events')
+            ->select('nama')
+            ->where('id', $id)
+            ->where('layanan_id', $layananId)
+            ->get()
+            ->getRowArray();
+
+        $oldNama = trim((string) ($existing['nama'] ?? ''));
+
+        $ok = (bool) $this->db->table('data_support_service_events')
             ->where('id', $id)
             ->where('layanan_id', $layananId)
             ->update([
                 'nama'       => $nama,
                 'updated_by' => $user,
             ]);
+
+        if ($ok && $oldNama !== '' && $oldNama !== $nama) {
+            $this->db->table('txn_activity_upload_logs')
+                ->where('layanan_id', $layananId)
+                ->where('doc_category', $oldNama)
+                ->update(['doc_category' => $nama]);
+        }
+
+        return $ok;
     }
 
     public function deleteServiceEvent(int $id, int $layananId): bool

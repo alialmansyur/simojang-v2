@@ -152,6 +152,7 @@ class CATModel extends Model
         $jenis_periode_id = $params['jenis_periode_id'] ?? null;
         $jenis_tes_id     = $params['jenis_tes_id'] ?? null;
         $period           = $params['period'] ?? null;
+        $seleksi_id       = $params['seleksi_id'] ?? null;
 
         $builder = $this->db->table('txn_cat_tilok a')
             ->select('
@@ -203,6 +204,13 @@ class CATModel extends Model
             }
         }
 
+        if (!empty($seleksi_id)) {
+            $builder->groupStart()
+                ->where('a.seleksi_id', (int)$seleksi_id)
+                ->orWhere('a.id IN (SELECT DISTINCT tilok_id FROM txn_cat_hasil WHERE seleksi_id = ' . (int)$seleksi_id . ')')
+                ->groupEnd();
+        }
+
         $builder->orderBy('last_rekap_updated', 'DESC');
         $builder->orderBy('last_rekap_date', 'DESC');
         $builder->orderBy('a.created_at', 'DESC');
@@ -214,6 +222,7 @@ class CATModel extends Model
         $id          = $params['id'] ?? null;
         $bulan       = $params['bulan'] ?? [];
         $instansi_id = $params['instansi_id'] ?? [];
+        $seleksi_id  = $params['seleksi_id'] ?? null;
 
         $builder = $this->db->table('txn_cat_hasil a')
             ->select('
@@ -222,22 +231,41 @@ class CATModel extends Model
                 c.nama AS jenis_tes,
                 s.nama_seleksi,
                 a.*,
-                d.nama AS instansi_nama
+                d.nama AS instansi_nama,
+                d.logo AS instansi_logo,
+                d.kodeins AS instansi_kodeins
             ')
             ->join('txn_cat_tilok b', 'b.id = a.tilok_id', 'left')
             ->join('txn_cat_seleksi s', 's.id = a.seleksi_id', 'left')
             ->join('data_support_jenis_tes c', 'c.id = a.jenis_tes_id', 'left')
             ->join('data_instansi d', 'd.kodeins = a.instansi_id', 'left')
             ->orderBy('a.period_date', 'DESC')
-            ->orderBy('a.sesi', 'ASC')
-            ->orderBy('a.created_at', 'DESC')
-            ->where('b.uid', $id);
+            ->orderBy('CAST(a.sesi AS UNSIGNED)', 'DESC', false)
+            ->orderBy('a.sesi', 'DESC')
+            ->orderBy('a.created_at', 'DESC');
+        if (is_numeric($id)) {
+            $builder->groupStart()->where('b.id', (int)$id)->orWhere('b.uid', $id)->groupEnd();
+        } else {
+            $builder->where('b.uid', $id);
+        }
 
         if (!empty($bulan)) {
             $builder->whereIn('MONTH(a.period_date)', $bulan);
         }
 
+        if (!empty($seleksi_id)) {
+            $builder->where('a.seleksi_id', (int)$seleksi_id);
+        }
+
         $tanggal = $params['tanggal'] ?? null;
+        $tgl_mulai = $params['tgl_mulai'] ?? null;
+        $tgl_selesai = $params['tgl_selesai'] ?? null;
+        if (!empty($tgl_mulai)) {
+            $builder->where('a.period_date >=', $tgl_mulai);
+        }
+        if (!empty($tgl_selesai)) {
+            $builder->where('a.period_date <=', $tgl_selesai);
+        }
         if (!empty($tanggal)) {
             $builder->where('a.period_date', $tanggal);
         }
@@ -247,10 +275,6 @@ class CATModel extends Model
             $builder->where('a.sesi', $sesi);
         }
 
-        $seleksi_id = $params['seleksi_id'] ?? null;
-        if (!empty($seleksi_id)) {
-            $builder->where('a.seleksi_id', $seleksi_id);
-        }
         if (!empty($instansi_id)) {
             $builder->whereIn('a.instansi_id', $instansi_id);
         }
@@ -262,8 +286,12 @@ class CATModel extends Model
     {
         $builder = $this->db->table('txn_cat_hasil a')
             ->select('MAX(COALESCE(a.updated_at, a.created_at)) AS last_update')
-            ->join('txn_cat_tilok b', 'b.id = a.tilok_id', 'left')
-            ->where('b.uid', $tilokUid);
+            ->join('txn_cat_tilok b', 'b.id = a.tilok_id', 'left');
+        if (is_numeric($tilokUid)) {
+            $builder->groupStart()->where('b.id', (int)$tilokUid)->orWhere('b.uid', $tilokUid)->groupEnd();
+        } else {
+            $builder->where('b.uid', $tilokUid);
+        }
 
         if (!empty($instansiId)) {
             $builder->whereIn('a.instansi_id', (array)$instansiId);
@@ -327,7 +355,7 @@ class CATModel extends Model
         return $row ?: null;
     }
 
-    public function getSummaryDetail(string $uid, array $bulan = []): array
+    public function getSummaryDetail(string $uid, array $bulan = [], $seleksi_id = null, $instansi_id = [], ?string $tgl_mulai = null, ?string $tgl_selesai = null): array
     {
         $builder = $this->db->table('txn_cat_hasil a');
         $builder->select("
@@ -335,14 +363,39 @@ class CATModel extends Model
             COUNT(DISTINCT a.instansi_id) AS total_instansi,
             SUM(COALESCE(a.hadir, 0)) AS total_hadir,
             SUM(COALESCE(a.tidak_hadir, 0)) AS total_tidak_hadir,
+            SUM(COALESCE(a.reschedule, 0)) AS total_reschedule,
             SUM(COALESCE(a.hadir, 0) + COALESCE(a.tidak_hadir, 0)) AS total_peserta,
+            MIN(a.nilai_min) AS min_nilai,
+            MAX(a.nilai_max) AS max_nilai,
             MAX(COALESCE(a.updated_at, a.created_at)) AS last_update
         ", false);
         $builder->join('txn_cat_tilok b', 'b.id = a.tilok_id', 'inner');
-        $builder->where('b.uid', $uid);
+        if (is_numeric($uid)) {
+            $builder->groupStart()->where('b.id', (int)$uid)->orWhere('b.uid', $uid)->groupEnd();
+        } else {
+            $builder->where('b.uid', $uid);
+        }
 
         if (!empty($bulan)) {
             $builder->whereIn('MONTH(a.period_date)', $bulan);
+        }
+
+        if (!empty($seleksi_id)) {
+            $builder->where('a.seleksi_id', (int)$seleksi_id);
+        }
+
+        if (!empty($instansi_id)) {
+            $instansiList = is_array($instansi_id) ? array_values(array_filter($instansi_id)) : [$instansi_id];
+            if (!empty($instansiList)) {
+                $builder->whereIn('a.instansi_id', $instansiList);
+            }
+        }
+
+        if (!empty($tgl_mulai)) {
+            $builder->where('a.period_date >=', $tgl_mulai);
+        }
+        if (!empty($tgl_selesai)) {
+            $builder->where('a.period_date <=', $tgl_selesai);
         }
 
         return $builder->get()->getRowArray() ?? [
@@ -350,13 +403,29 @@ class CATModel extends Model
             'total_instansi' => 0,
             'total_hadir' => 0,
             'total_tidak_hadir' => 0,
+            'total_reschedule' => 0,
             'total_peserta' => 0,
+            'min_nilai' => null,
+            'max_nilai' => null,
             'last_update' => null,
         ];
     }
 
-    public function getInstansiTilokGrouped(string $tilokUid, array $bulan = []): array
+    public function getInstansiTilokGrouped(string $tilokUid, array $bulan = [], $seleksi_id = null): array
     {
+        $hasilJoin = 'a.tilok_id = b.id AND a.instansi_id = ti.instansi_id';
+        if (!empty($bulan)) {
+            $cleanMonths = array_values(array_filter(array_map('intval', $bulan), static function ($m) {
+                return $m >= 1 && $m <= 12;
+            }));
+            if (!empty($cleanMonths)) {
+                $hasilJoin .= ' AND MONTH(a.period_date) IN (' . implode(',', $cleanMonths) . ')';
+            }
+        }
+        if (!empty($seleksi_id)) {
+            $hasilJoin .= ' AND a.seleksi_id = ' . (int)$seleksi_id;
+        }
+
         $builder = $this->db->table('txn_cat_tilok_instansi ti');
         $builder->select("
             ti.instansi_id,
@@ -376,12 +445,12 @@ class CATModel extends Model
             MAX(COALESCE(a.updated_at, a.created_at)) AS last_update
         ", false);
         $builder->join('txn_cat_tilok b', 'b.id = ti.tilok_id', 'inner');
-        $builder->join('txn_cat_hasil a', 'a.tilok_id = b.id AND a.instansi_id = ti.instansi_id', 'left');
+        $builder->join('txn_cat_hasil a', $hasilJoin, 'left', false);
         $builder->join('data_instansi d', 'd.kodeins = ti.instansi_id', 'left');
-        $builder->where('b.uid', $tilokUid);
-
-        if (!empty($bulan)) {
-            $builder->whereIn('MONTH(a.period_date)', $bulan);
+        if (is_numeric($tilokUid)) {
+            $builder->groupStart()->where('b.id', (int)$tilokUid)->orWhere('b.uid', $tilokUid)->groupEnd();
+        } else {
+            $builder->where('b.uid', $tilokUid);
         }
 
         $builder->groupBy('ti.instansi_id, d.nama, d.logo');
@@ -533,5 +602,193 @@ class CATModel extends Model
             return $this->db->table('txn_cat_tilok')->where('id', $key)->delete();
         }
         return $this->db->table('txn_cat_tilok')->where('uid', $key)->delete();
+    }
+
+    /**
+     * Resolve display name for a NIP from data_pegawai or auth_users.
+     */
+    private function resolvePegawaiNameByNip(string $nip): ?string
+    {
+        if ($this->db->tableExists('data_pegawai')) {
+            $pegawai = $this->db->table('data_pegawai')
+                ->select('nama')
+                ->where('nip', $nip)
+                ->limit(1)
+                ->get()
+                ->getRowArray();
+            if (!empty($pegawai['nama'])) {
+                return trim((string) $pegawai['nama']);
+            }
+        }
+
+        if ($this->db->tableExists('auth_users')) {
+            $user = $this->db->table('auth_users')
+                ->select('fullname')
+                ->where('username', $nip)
+                ->limit(1)
+                ->get()
+                ->getRowArray();
+            if (!empty($user['fullname'])) {
+                return trim((string) $user['fullname']);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check whether a NIP is registered and active in cfg_cat_pengelola.
+     */
+    public function isCatPengelolaNip(string $nip): bool
+    {
+        $nip = trim($nip);
+        if ($nip === '' || !$this->db->tableExists('cfg_cat_pengelola')) {
+            return false;
+        }
+
+        $row = $this->db->table('cfg_cat_pengelola')
+            ->select('id')
+            ->where('nip', $nip)
+            ->where('is_active', 1)
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        return !empty($row);
+    }
+
+    /**
+     * List all active registered CAT Pengelola NIPs joined with employee names.
+     */
+    public function getCatPengelolaList(): array
+    {
+        if (!$this->db->tableExists('cfg_cat_pengelola')) {
+            return [];
+        }
+
+        return $this->db->table('cfg_cat_pengelola cp')
+            ->select("
+                cp.id,
+                cp.nip,
+                COALESCE(NULLIF(cp.nama, ''), NULLIF(dp.nama, ''), NULLIF(au.fullname, ''), '-') AS nama,
+                cp.keterangan,
+                cp.is_active,
+                cp.created_by,
+                cp.created_at,
+                cp.updated_at
+            ")
+            ->join('data_pegawai dp', 'dp.nip = cp.nip', 'left')
+            ->join('auth_users au', 'au.username = cp.nip', 'left')
+            ->where('cp.is_active', 1)
+            ->orderBy('cp.id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    /**
+     * Register or reactivate a CAT Pengelola NIP in cfg_cat_pengelola.
+     */
+    public function addCatPengelolaNip(string $nip, ?string $nama = null, ?string $keterangan = null, ?string $actorNip = null): array
+    {
+        $nip = trim($nip);
+        if (!preg_match('/^[0-9A-Za-z._-]{3,30}$/', $nip)) {
+            return ['ok' => false, 'code' => 422, 'message' => 'Format NIP tidak valid (3-30 karakter alfanumerik).'];
+        }
+
+        if (!$this->db->tableExists('cfg_cat_pengelola')) {
+            return ['ok' => false, 'code' => 500, 'message' => 'Tabel cfg_cat_pengelola belum tersedia.'];
+        }
+
+        $resolvedNama = trim((string) $nama);
+        if ($resolvedNama === '') {
+            $resolvedNama = (string) ($this->resolvePegawaiNameByNip($nip) ?? '');
+        }
+        $resolvedNama = $resolvedNama !== '' ? $resolvedNama : null;
+        $resolvedKet  = trim((string) $keterangan) !== '' ? trim((string) $keterangan) : 'Pengelola Resmi CAT';
+        $now          = date('Y-m-d H:i:s');
+
+        $existing = $this->db->table('cfg_cat_pengelola')
+            ->where('nip', $nip)
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        if ($existing) {
+            if ((int) ($existing['is_active'] ?? 0) === 1) {
+                return ['ok' => false, 'code' => 409, 'message' => 'NIP sudah terdaftar sebagai Pengelola CAT.'];
+            }
+
+            $ok = $this->db->table('cfg_cat_pengelola')
+                ->where('id', $existing['id'])
+                ->update([
+                    'nama'       => $resolvedNama ?? ($existing['nama'] ?? null),
+                    'keterangan' => $resolvedKet,
+                    'is_active'  => 1,
+                    'updated_at' => $now,
+                ]);
+
+            return $ok
+                ? ['ok' => true, 'code' => 200, 'message' => 'NIP Pengelola berhasil diaktifkan kembali.']
+                : ['ok' => false, 'code' => 500, 'message' => 'Gagal mengaktifkan kembali NIP Pengelola.'];
+        }
+
+        $ok = $this->db->table('cfg_cat_pengelola')->insert([
+            'nip'        => $nip,
+            'nama'       => $resolvedNama,
+            'keterangan' => $resolvedKet,
+            'is_active'  => 1,
+            'created_by' => $actorNip !== null && trim($actorNip) !== '' ? trim($actorNip) : null,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        return $ok
+            ? ['ok' => true, 'code' => 200, 'message' => 'NIP Pengelola berhasil didaftarkan.']
+            : ['ok' => false, 'code' => 500, 'message' => 'Gagal mendaftarkan NIP Pengelola.'];
+    }
+
+    /**
+     * Deactivate a CAT Pengelola NIP while preventing lockout of the last active entry.
+     */
+    public function removeCatPengelolaNip(string $nip): array
+    {
+        $nip = trim($nip);
+        if ($nip === '') {
+            return ['ok' => false, 'code' => 422, 'message' => 'NIP wajib diisi.'];
+        }
+
+        if (!$this->db->tableExists('cfg_cat_pengelola')) {
+            return ['ok' => false, 'code' => 500, 'message' => 'Tabel cfg_cat_pengelola belum tersedia.'];
+        }
+
+        $existing = $this->db->table('cfg_cat_pengelola')
+            ->where('nip', $nip)
+            ->where('is_active', 1)
+            ->limit(1)
+            ->get()
+            ->getRowArray();
+
+        if (!$existing) {
+            return ['ok' => false, 'code' => 404, 'message' => 'NIP Pengelola tidak ditemukan atau sudah nonaktif.'];
+        }
+
+        $activeCount = (int) $this->db->table('cfg_cat_pengelola')
+            ->where('is_active', 1)
+            ->countAllResults();
+
+        if ($activeCount <= 1) {
+            return ['ok' => false, 'code' => 422, 'message' => 'Minimal harus ada 1 NIP Pengelola CAT yang aktif.'];
+        }
+
+        $ok = $this->db->table('cfg_cat_pengelola')
+            ->where('id', $existing['id'])
+            ->update([
+                'is_active'  => 0,
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+        return $ok
+            ? ['ok' => true, 'code' => 200, 'message' => 'NIP Pengelola berhasil dihapus dari daftar aktif.']
+            : ['ok' => false, 'code' => 500, 'message' => 'Gagal menghapus NIP Pengelola.'];
     }
 }

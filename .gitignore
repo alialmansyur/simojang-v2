@@ -1,16 +1,69 @@
-/data/
+# SIMOJANG Production Deploy Gitignore
+
+# AI context, Prompts & Scratch Notes
+/ai-context/
+/brief/
+/dok/
 /docs/
+/data/
+prompt.md
+*.py
+*.bak
+*.tmp
+*.pdf
+*.xlsx
 *.sql
 
-# Ignored config and environment files
+# Whitelist public template files needed in production
+!apps/frontend/public/templates/**
+
+# Backup directories
+/backup/
+/backup_server/
+/backup_cat_detail/
+**/vendor_backup/
+
+# Frontend dependencies and production build outputs
+**/node_modules/
+apps/frontend/dist/
+apps/frontend/dist-ssr/
+apps/frontend/*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment and sensitive config files
 .env
 .env.*
 *.env
 **/.env
 **/.env.*
+!**/.env.example
+
+# Config files (whitelist frontend source code)
 config.js
 **/config.js
+!apps/frontend/src/modules/navigation/config.js
 
-# Temporary test scripts
-test_auth_suite.php
-**/test_auth_suite.php
+# CodeIgniter 4 Writable Directory
+apps/admin/writable/cache/*
+!apps/admin/writable/cache/.gitkeep
+!apps/admin/writable/cache/index.html
+apps/admin/writable/logs/*
+!apps/admin/writable/logs/.gitkeep
+!apps/admin/writable/logs/index.html
+apps/admin/writable/session/*
+!apps/admin/writable/session/.gitkeep
+!apps/admin/writable/session/index.html
+apps/admin/writable/uploads/*
+!apps/admin/writable/uploads/.gitkeep
+!apps/admin/writable/uploads/index.html
+!apps/admin/writable/uploads/.gitignore
+
+# IDE & OS files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

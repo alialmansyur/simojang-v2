@@ -18,14 +18,18 @@ class ActivityGalleryModel extends Model
         parent::__construct($db, $validation);
     }
 
-    public function getAllData($search = null, $timkerja_id = null, $bulan = null)
+    /**
+     * Build shared filtered query for gallery records.
+     */
+    private function buildFilteredQuery($search = null, $timkerja_id = null, $bulan = null, $months = null, bool $withJoins = true)
     {
-        $builder = $this->db->table($this->table . ' a')
-                        ->select('a.*, b.nama as team_name, c.nama_layanan')
-                        ->join('data_timkerja b', 'a.timkerja_id = b.id', 'left')
-                        ->join('data_timkerja_layanan c', 'a.layanan_id = c.id', 'left')
-                        ->orderBy('a.tanggal_kegiatan', 'DESC')
-                        ->orderBy('a.id', 'DESC');
+        $builder = $this->db->table($this->table . ' a');
+
+        if ($withJoins) {
+            $builder->select('a.*, b.nama as team_name, c.nama_layanan')
+                    ->join('data_timkerja b', 'a.timkerja_id = b.id', 'left')
+                    ->join('data_timkerja_layanan c', 'a.layanan_id = c.id', 'left');
+        }
 
         if (!empty($search)) {
             $builder->groupStart()
@@ -43,7 +47,81 @@ class ActivityGalleryModel extends Model
             $builder->like('a.tanggal_kegiatan', $bulan, 'after');
         }
 
-        return $builder->get()->getResultArray();
+        if (!empty($months)) {
+            $monthList = is_array($months)
+                ? $months
+                : array_filter(array_map('trim', explode(',', (string) $months)));
+            $validMonths = [];
+            foreach ($monthList as $m) {
+                $num = (int) $m;
+                if ($num >= 1 && $num <= 12) {
+                    $validMonths[] = $num;
+                }
+            }
+            if (!empty($validMonths)) {
+                $builder->whereIn('MONTH(a.tanggal_kegiatan)', $validMonths);
+            }
+        }
+
+        return $builder;
+    }
+
+    public function getAllData($search = null, $timkerja_id = null, $bulan = null, $months = null)
+    {
+        return $this->buildFilteredQuery($search, $timkerja_id, $bulan, $months, true)
+                    ->orderBy('a.tanggal_kegiatan', 'DESC')
+                    ->orderBy('a.id', 'DESC')
+                    ->get()
+                    ->getResultArray();
+    }
+
+    public function getPaginatedData($search = null, $timkerja_id = null, $bulan = null, $months = null, int $page = 1, int $perPage = 12): array
+    {
+        $total = (int) $this->buildFilteredQuery($search, $timkerja_id, $bulan, $months, false)
+                            ->countAllResults();
+
+        $totalPages = max(1, (int) ceil($total / $perPage));
+        $safePage = min(max(1, $page), $totalPages);
+        $offset = ($safePage - 1) * $perPage;
+
+        $rows = $this->buildFilteredQuery($search, $timkerja_id, $bulan, $months, true)
+                     ->orderBy('a.tanggal_kegiatan', 'DESC')
+                     ->orderBy('a.id', 'DESC')
+                     ->limit($perPage, $offset)
+                     ->get()
+                     ->getResultArray();
+
+        return [
+            'rows'        => $rows,
+            'total'       => $total,
+            'page'        => $safePage,
+            'per_page'    => $perPage,
+            'total_pages' => $totalPages,
+        ];
+    }
+
+    public function getCategorySummary($search = null, $bulan = null, $months = null): array
+    {
+        $rows = $this->buildFilteredQuery($search, null, $bulan, $months, false)
+                     ->select('a.timkerja_id, COUNT(a.id) as total')
+                     ->groupBy('a.timkerja_id')
+                     ->get()
+                     ->getResultArray();
+
+        $totalAll = 0;
+        $teamCounts = [];
+        foreach ($rows as $row) {
+            $count = (int) ($row['total'] ?? 0);
+            $totalAll += $count;
+            if (!empty($row['timkerja_id'])) {
+                $teamCounts[(string) $row['timkerja_id']] = $count;
+            }
+        }
+
+        return [
+            'total_all'   => $totalAll,
+            'team_counts' => $teamCounts,
+        ];
     }
 
     public function getTimKerja()

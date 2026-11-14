@@ -18,6 +18,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         switch ($type) {
             case 'recap':
                 return $this->getDataRecap($params);
+            case 'list':
+                return $this->getDataList($params);
             default:
                 throw new \Exception("Unknown builder type: {$type}");
         }
@@ -25,6 +27,37 @@ class PembinaanDisiplinBudayaCitraModel extends Model
 
     public function getColumns($type, $params = null)
     {
+        if ($type === 'list') {
+            return [
+                'id',
+                'instansi_id',
+                'instansi_name',
+                'wilayah',
+                'kanreg',
+                'logo',
+                'kategori_id',
+                'kategori_nama',
+                'kategori_code',
+                'jenis_layanan',
+                'period_year',
+                'period_date',
+                'period_date_label',
+                'source_konsultasi',
+                'tempat_kegiatan',
+                'judul_kegiatan',
+                'no_surat_kegiatan',
+                'catatan',
+                'total_pegawai',
+                'pegawai_ids',
+                'pegawai_names',
+                'created_by',
+                'updated_by',
+                'created_at',
+                'updated_at',
+                'updated_at_label',
+            ];
+        }
+
         if ($type === 'recap') {
             return [
                 'id',
@@ -35,6 +68,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 'total_riwayat',
                 'last_period_date',
                 'last_period_label',
+                'created_by',
+                'created_at',
                 'updated_at',
                 'updated_at_label',
             ];
@@ -62,6 +97,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 COUNT(a.id) AS total_riwayat,
                 MAX(a.period_date) AS last_period_date,
                 DATE_FORMAT(MAX(a.period_date), '%d %M %Y') AS last_period_label,
+                MAX(a.created_by) AS created_by,
+                MAX(a.created_at) AS created_at,
                 MAX(a.updated_at) AS updated_at,
                 DATE_FORMAT(MAX(a.updated_at), '%d %M %Y %H:%i:%s') AS updated_at_label
             ")
@@ -85,6 +122,81 @@ class PembinaanDisiplinBudayaCitraModel extends Model
             ->orderBy('updated_at', 'DESC');
     }
 
+    /**
+     * Daftar flat agenda (satu baris = satu kegiatan pembinaan).
+     * Dipakai oleh tabel utama agar setiap baris memiliki `id` transaksi yang
+     * valid sehingga aksi Ubah / Hapus targeting record yang benar.
+     */
+    public function getDataList(array $params = [])
+    {
+        $kategoriId = (int) ($params['kategori_id'] ?? 0);
+        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
+        $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
+
+        $sql = "
+            SELECT
+                a.id,
+                a.instansi_id,
+                b.nama AS instansi_name,
+                b.wilayah AS wilayah,
+                b.kanreg AS kanreg,
+                b.logo AS logo,
+                a.kategori_id,
+                c.nama AS kategori_nama,
+                c.code AS kategori_code,
+                c.jenis_layanan,
+                a.period_year,
+                a.period_date,
+                DATE_FORMAT(a.period_date, '%d %M %Y') AS period_date_label,
+                a.source_konsultasi,
+                a.tempat_kegiatan,
+                a.judul_kegiatan,
+                a.no_surat_kegiatan,
+                a.catatan,
+                a.created_by,
+                a.updated_by,
+                a.created_at,
+                a.updated_at,
+                DATE_FORMAT(a.updated_at, '%d %M %Y %H:%i:%s') AS updated_at_label,
+                (
+                    SELECT COUNT(*)
+                    FROM txn_pembinaan_disiplin_budaya_citra_pegawai p
+                    WHERE p.txn_id = a.id
+                ) AS total_pegawai,
+                (
+                    SELECT GROUP_CONCAT(COALESCE(p.pegawai_id, 0) ORDER BY p.id ASC SEPARATOR ',')
+                    FROM txn_pembinaan_disiplin_budaya_citra_pegawai p
+                    WHERE p.txn_id = a.id
+                ) AS pegawai_ids,
+                (
+                    SELECT GROUP_CONCAT(COALESCE(p.pegawai_nama, p.pegawai_nip, '-') ORDER BY p.id ASC SEPARATOR '||')
+                    FROM txn_pembinaan_disiplin_budaya_citra_pegawai p
+                    WHERE p.txn_id = a.id
+                ) AS pegawai_names
+            FROM txn_pembinaan_disiplin_budaya_citra a
+            LEFT JOIN data_instansi b ON b.kodeins = a.instansi_id
+            LEFT JOIN data_support_pembinaan_disiplin_kategori c ON c.id = a.kategori_id
+        ";
+
+        $builder = $this->db->table("({$sql}) recap")
+            ->where('period_year', $periodYear)
+            ->orderBy('updated_at', 'DESC');
+
+        if (!empty($periodMonths)) {
+            $builder->whereIn('MONTH(period_date)', $periodMonths, false);
+        }
+
+        if ($kategoriId > 0) {
+            $builder->where('kategori_id', $kategoriId);
+        }
+        if ($jenis !== 'ALL') {
+            $builder->where('jenis_layanan', $jenis);
+        }
+
+        return $builder;
+    }
+
     public function getDetailByInstansi(array $params = []): array
     {
         $instansiId = trim((string) ($params['instansi_id'] ?? ''));
@@ -102,6 +214,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 a.id,
                 a.instansi_id,
                 b.nama AS instansi_name,
+                b.wilayah AS wilayah,
+                b.kanreg AS kanreg,
                 c.nama AS kategori_nama,
                 c.jenis_layanan,
                 a.period_year,
@@ -112,6 +226,9 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 a.judul_kegiatan,
                 a.no_surat_kegiatan,
                 a.catatan,
+                a.created_by,
+                a.updated_by,
+                a.created_at,
                 a.updated_at,
                 DATE_FORMAT(a.updated_at, '%d %M %Y %H:%i:%s') AS updated_at_label
             ")
@@ -149,7 +266,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         $pegawaiRows = $this->db->table('txn_pembinaan_disiplin_budaya_citra_pegawai')
             ->select("
                 txn_id,
-                GROUP_CONCAT(COALESCE(pegawai_id, 0) ORDER BY id ASC SEPARATOR '||') AS pegawai_ids,
+                COUNT(*) AS total_pegawai,
+                GROUP_CONCAT(COALESCE(pegawai_id, 0) ORDER BY id ASC SEPARATOR ',') AS pegawai_ids,
                 GROUP_CONCAT(COALESCE(pegawai_nama, pegawai_nip, '-') ORDER BY id ASC SEPARATOR '||') AS pegawai_names
             ")
             ->whereIn('txn_id', $txnIds)
@@ -160,6 +278,7 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         $pegawaiMap = [];
         foreach ($pegawaiRows as $row) {
             $pegawaiMap[(int) ($row['txn_id'] ?? 0)] = [
+                'total_pegawai' => (int) ($row['total_pegawai'] ?? 0),
                 'pegawai_ids' => $row['pegawai_ids'] ?? '',
                 'pegawai_names' => $row['pegawai_names'] ?? '',
             ];
@@ -167,12 +286,23 @@ class PembinaanDisiplinBudayaCitraModel extends Model
 
         foreach ($rows as &$row) {
             $id = (int) ($row['id'] ?? 0);
+            $row['total_pegawai'] = $pegawaiMap[$id]['total_pegawai'] ?? 0;
             $row['pegawai_ids'] = $pegawaiMap[$id]['pegawai_ids'] ?? '';
             $row['pegawai_names'] = $pegawaiMap[$id]['pegawai_names'] ?? '';
         }
         unset($row);
 
         return $rows;
+    }
+
+    public function getPegawaiOptions(): array
+    {
+        return $this->db->table('data_pegawai')
+            ->select('id, nip, nama')
+            ->where('COALESCE(is_status, 1) =', 1)
+            ->orderBy('nama', 'ASC')
+            ->get()
+            ->getResultArray();
     }
 
     public function getKategoriOptions(bool $onlyActive = true): array
@@ -216,6 +346,7 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         $builder = $this->db->table('txn_pembinaan_disiplin_budaya_citra a')
             ->select("
                 COUNT(a.id) AS total_riwayat,
+                COUNT(DISTINCT a.instansi_id) AS total_instansi,
                 SUM(CASE WHEN c.jenis_layanan = 'KONSULTASI' THEN 1 ELSE 0 END) AS total_konsultasi,
                 SUM(CASE WHEN c.jenis_layanan = 'ASISTENSI' THEN 1 ELSE 0 END) AS total_asistensi,
                 SUM(CASE WHEN c.jenis_layanan = 'REGULASI' THEN 1 ELSE 0 END) AS total_regulasi,
@@ -241,7 +372,9 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         $row = $builder->get()->getRowArray() ?? [];
 
         return [
+            'total_data' => (int) ($row['total_riwayat'] ?? 0),
             'total_riwayat' => (int) ($row['total_riwayat'] ?? 0),
+            'total_instansi' => (int) ($row['total_instansi'] ?? 0),
             'total_konsultasi' => (int) ($row['total_konsultasi'] ?? 0),
             'total_asistensi' => (int) ($row['total_asistensi'] ?? 0),
             'total_regulasi' => (int) ($row['total_regulasi'] ?? 0),

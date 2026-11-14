@@ -583,6 +583,10 @@ class SettingManagerModel extends Model
                 l.nama_layanan,
                 l.url,
                 l.is_show,
+                COALESCE(l.is_maintenance, 0) AS is_maintenance,
+                l.maintenance_msg,
+                l.maintenance_updated_at,
+                l.maintenance_updated_by,
                 CASE
                     WHEN SUM(CASE WHEN sa.is_active = 1 AND sa.nip = '' THEN 1 ELSE 0 END) > 0 THEN 'everyone'
                     WHEN SUM(CASE WHEN sa.is_active = 0 AND sa.nip = '' THEN 1 ELSE 0 END) > 0 THEN 'assigned'
@@ -606,6 +610,10 @@ class SettingManagerModel extends Model
                 l.nama_layanan,
                 l.url,
                 l.is_show,
+                COALESCE(l.is_maintenance, 0) AS is_maintenance,
+                l.maintenance_msg,
+                l.maintenance_updated_at,
+                l.maintenance_updated_by,
                 CASE
                     WHEN SUM(CASE WHEN sa.is_active = 1 AND sa.nip = '' THEN 1 ELSE 0 END) > 0 THEN 'everyone'
                     WHEN SUM(CASE WHEN sa.is_active = 0 AND sa.nip = '' THEN 1 ELSE 0 END) > 0 THEN 'assigned'
@@ -621,6 +629,81 @@ class SettingManagerModel extends Model
             ->getRowArray();
 
         return $row ?: null;
+    }
+
+    public function toggleServiceMaintenance(int $serviceId, int $isMaintenance, ?string $maintenanceMsg = null): bool
+    {
+        $userId = (int) (session()->get('userid') ?? 0);
+        $data = [
+            'is_maintenance'         => $isMaintenance ? 1 : 0,
+            'maintenance_updated_at' => date('Y-m-d H:i:s'),
+            'maintenance_updated_by' => $userId > 0 ? $userId : null,
+        ];
+
+        if ($maintenanceMsg !== null) {
+            $data['maintenance_msg'] = trim($maintenanceMsg) !== '' ? trim($maintenanceMsg) : null;
+        }
+
+        return (bool) $this->db->table('data_timkerja_layanan')
+            ->where('id', $serviceId)
+            ->update($data);
+    }
+
+    public function getAllServicesMaintenanceStatus(): array
+    {
+        $rows = $this->db->table('data_timkerja_layanan')
+            ->select('id, nama_layanan, url, is_show, COALESCE(is_maintenance, 0) AS is_maintenance, maintenance_msg, maintenance_updated_at')
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+
+        $descriptiveSlugMap = [
+            'kp' => 'kenaikan-pangkat',
+            'pg' => 'pencantuman-gelar',
+            'tapnip' => 'penetapan-nip',
+            'pmk' => 'peninjauan-masa-kerja',
+            'pi' => 'pindah-instansi',
+            'merit' => 'sistem-merit',
+            'nspk' => 'indeks-nspk',
+            'wasdal' => 'wasdal-netralitas',
+            'mt' => 'manajemen-talenta',
+            'pembinaan-kinerja' => 'pembinaan-kinerja',
+            'pembinaan-kompetensi-karier' => 'pengembangan-kompetensi',
+            'pembinaan-disiplin-budaya-citra' => 'disiplin-budaya-citra',
+            'kompetensi' => 'penilaian-kompetensi',
+            'karier' => 'penilaian-karier',
+            'cat' => 'fasilitasi-cat',
+            'statistik' => 'statistik-pegawai',
+            'statistik-asn' => 'statistik-pegawai',
+            'pdm' => 'peremajaan-data',
+            'dispa' => 'disparitas-data',
+            'disparitas' => 'disparitas-data',
+            'integrasi' => 'integrasi-siasn',
+            'takah' => 'arsip-takah',
+            'dms' => 'arsip-dms',
+            'pnbp' => 'pnbp-cat',
+            'pnbp-dokumen' => 'pnbp-cat',
+            'dokumen-pnbp' => 'pnbp-cat',
+            'aset' => 'manage-assets',
+            'proyek' => 'manage-project',
+            'lost-and-found' => 'lost-and-found',
+            'ikk' => 'ikk',
+        ];
+
+        foreach ($rows as &$r) {
+            $rawUrl = trim((string) ($r['url'] ?? ''));
+            $slug = str_replace(['apps-', 'apps_'], '', strtolower($rawUrl));
+            if (empty($slug)) {
+                $slug = 'layanan-' . $r['id'];
+            }
+            $slug = $descriptiveSlugMap[$slug] ?? $slug;
+            $r['slug'] = $slug;
+            $r['path'] = '/layanan/' . $slug;
+            $r['is_maintenance'] = (int) $r['is_maintenance'];
+        }
+        unset($r);
+
+        return $rows;
     }
 
     public function getServiceAssignments(int $layananId): array

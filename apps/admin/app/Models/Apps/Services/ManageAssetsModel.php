@@ -87,6 +87,15 @@ class ManageAssetsModel extends Model
         return $builder->get()->getResultArray();
     }
 
+    public function getCategoryByName($name)
+    {
+        return $this->db->table('data_asset_categories')
+            ->where('LOWER(TRIM(name))', strtolower(trim($name)))
+            ->where('deleted_at IS NULL')
+            ->get()
+            ->getRowArray();
+    }
+
     public function getCategoryByUid($uid)
     {
         return $this->db->table('data_asset_categories')
@@ -152,12 +161,16 @@ class ManageAssetsModel extends Model
     public function getDataDetail($categoryUid = null)
     {
         $builder = $this->db->table('data_assets a')
-            ->select('a.id, a.uid, a.category_id, a.kode, a.subcode, a.uraian, a.satuan, a.qty, a.foto, a.kondisi, a.area, a.lokasi, a.tahun_perolehan, a.nilai_perolehan, a.keterangan, a.created_at, a.updated_at')
+            ->select('a.id, a.uid, a.category_id, b.name AS category_name, b.uid AS category_uid, a.kode, a.subcode, a.uraian, a.satuan, a.qty, a.foto, a.kondisi, a.area, a.lokasi, a.tahun_perolehan, a.nilai_perolehan, a.keterangan, a.created_at, a.updated_at')
             ->join('data_asset_categories b', 'b.id = a.category_id', 'left')
             ->where('a.deleted_at IS NULL');
 
-        if ($categoryUid) {
-            $builder->where('b.uid', $categoryUid);
+        if (!empty($categoryUid) && $categoryUid !== 'all') {
+            $builder->groupStart()
+                ->where('b.uid', $categoryUid)
+                ->orWhere('b.id', $categoryUid)
+                ->orWhere('a.category_id', $categoryUid)
+                ->groupEnd();
         }
 
         $builder->orderBy('a.created_at', 'DESC');
@@ -171,21 +184,33 @@ class ManageAssetsModel extends Model
                 COUNT(1) AS total_data,
                 COALESCE(SUM(a.qty), 0) AS total_qty,
                 COALESCE(SUM(a.qty * a.nilai_perolehan), 0) AS total_nilai,
+                SUM(CASE WHEN a.kondisi = \'Baik\' THEN 1 ELSE 0 END) AS kondisi_baik,
+                SUM(CASE WHEN a.kondisi = \'Rusak Ringan\' THEN 1 ELSE 0 END) AS rusak_ringan,
+                SUM(CASE WHEN a.kondisi = \'Rusak Berat\' THEN 1 ELSE 0 END) AS rusak_berat,
                 MAX(a.created_at) AS last_update
             ')
             ->join('data_asset_categories b', 'b.id = a.category_id', 'left')
             ->where('a.deleted_at IS NULL');
 
-        if ($categoryUid) {
-            $builder->where('b.uid', $categoryUid);
+        if (!empty($categoryUid) && $categoryUid !== 'all') {
+            $builder->groupStart()
+                ->where('b.uid', $categoryUid)
+                ->orWhere('b.id', $categoryUid)
+                ->orWhere('a.category_id', $categoryUid)
+                ->groupEnd();
         }
 
         $row = $builder->get()->getRowArray();
         return [
-            'total_data'  => (int) ($row['total_data'] ?? 0),
-            'total_qty'   => (float) ($row['total_qty'] ?? 0),
-            'total_nilai' => (float) ($row['total_nilai'] ?? 0),
-            'last_update' => $row['last_update'] ?? null,
+            'total_data'            => (int) ($row['total_data'] ?? 0),
+            'total_unit'            => (int) ($row['total_data'] ?? 0),
+            'total_qty'             => (float) ($row['total_qty'] ?? 0),
+            'total_nilai'           => (float) ($row['total_nilai'] ?? 0),
+            'nilai_perolehan_total' => (float) ($row['total_nilai'] ?? 0),
+            'kondisi_baik'          => (int) ($row['kondisi_baik'] ?? 0),
+            'rusak_ringan'          => (int) ($row['rusak_ringan'] ?? 0),
+            'rusak_berat'           => (int) ($row['rusak_berat'] ?? 0),
+            'last_update'           => $row['last_update'] ?? null,
         ];
     }
 
@@ -218,9 +243,11 @@ class ManageAssetsModel extends Model
 
     public function getDetailById($id)
     {
-        return $this->db->table($this->table)
-            ->where('id', $id)
-            ->where('deleted_at IS NULL')
+        return $this->db->table('data_assets a')
+            ->select('a.*, b.name AS category_name, b.uid AS category_uid')
+            ->join('data_asset_categories b', 'b.id = a.category_id', 'left')
+            ->where('a.id', $id)
+            ->where('a.deleted_at IS NULL')
             ->get()
             ->getRowArray();
     }

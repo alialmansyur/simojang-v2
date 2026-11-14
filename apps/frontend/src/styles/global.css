@@ -1,0 +1,691 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --color-primary: #123B73;
+  --color-primary-soft: #EAF2FC;
+  --color-primary-hover: #0E2E5B;
+  
+  --color-action: #175CD3;
+  --color-action-hover: #1249A8;
+  --color-action-soft: #EAF2FC;
+
+  --color-page: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-border-neutral: #EAECF0;
+  --color-borderNeutral: #EAECF0;
+
+  --color-status-success: #067647;
+  --color-status-success-soft: #ECFDF3;
+  --color-status-warning: #B54708;
+  --color-status-warning-soft: #FFFAEB;
+  --color-status-danger: #B42318;
+  --color-status-danger-soft: #FEF3F2;
+}
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  color-scheme: light;
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Global Color Guide Tokens */
+  --color-primary: #123B73;
+  --color-primary-soft: #EAF2FC;
+  --color-action: #175CD3;
+  --color-action-hover: #1249A8;
+  --color-page: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-border-neutral: #EAECF0;
+  --color-borderNeutral: #EAECF0;
+
+  --color-status-success: #067647;
+  --color-status-success-soft: #ECFDF3;
+  --color-status-warning: #B54708;
+  --color-status-warning-soft: #FFFAEB;
+  --color-status-danger: #B42318;
+  --color-status-danger-soft: #FEF3F2;
+
+  background:
+    radial-gradient(circle at top left, rgba(18, 59, 115, 0.05), transparent 30%),
+    radial-gradient(circle at top right, rgba(23, 92, 211, 0.05), transparent 25%),
+    #F7F9FC;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: #101828;
+  background-color: var(--color-page, #F7F9FC);
+}
+
+.dark:root,
+.dark {
+  color-scheme: dark;
+  --color-primary: #1E4F94;
+  --color-primary-soft: #14233D;
+  --color-action: #2E73EA;
+  --color-action-hover: #175CD3;
+  --color-page: #0B111E;
+  --color-surface: #151F30;
+  --color-border-neutral: #1E293B;
+  --color-borderNeutral: #1E293B;
+
+  --color-status-success: #75E0A7;
+  --color-status-success-soft: rgba(6, 118, 71, 0.2);
+  --color-status-warning: #FEC84B;
+  --color-status-warning-soft: rgba(181, 71, 8, 0.2);
+  --color-status-danger: #FDA29B;
+  --color-status-danger-soft: rgba(180, 35, 24, 0.2);
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.custom-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+.custom-scroll {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+.app-panel-shell,
+.master-card-shell {
+  border-radius: 1.75rem;
+  border: 1px solid #EAECF0;
+  background: #FFFFFF;
+  box-shadow: none;
+}
+
+.app-panel-header {
+  border-top-left-radius: 1.75rem;
+  border-top-right-radius: 1.75rem;
+}
+
+.app-panel-body {
+  border-bottom-left-radius: 1.75rem;
+  border-bottom-right-radius: 1.75rem;
+}
+
+.app-panel-icon {
+  border-radius: 1.25rem;
+}
+
+.dark .app-panel-shell,
+.dark .master-card-shell {
+  border-color: #1E293B;
+  background: #151F30;
+  box-shadow: none;
+}
+
+.neo-card {
+  background: #FFFFFF;
+  border: 1px solid #EAECF0;
+  border-radius: 2rem;
+  box-shadow: none;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.dark .neo-card {
+  background: #151F30;
+  border-color: #1E293B;
+  box-shadow: none;
+}
+
+/* Zero card/panel/section shadows in main page / main content */
+main .app-panel-shell,
+main .master-card-shell,
+main .neo-card,
+main .card,
+main .panel,
+main section[class*="rounded-"],
+main div[class*="rounded-"][class*="border"] {
+  box-shadow: none !important;
+}
+
+/* Master Action and Primary Button Utilities */
+.btn-action,
+.master-primary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  background: #175CD3;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-action:hover,
+.master-primary-btn:hover {
+  background: #1249A8;
+}
+
+.btn-action:active:not(:disabled),
+.master-primary-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn-primary-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 1rem;
+  background: #123B73;
+  color: white;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.15s ease-in-out;
+}
+
+.btn-primary-brand:hover {
+  background: #0E2E5B;
+}
+
+.master-primary-icon {
+  border-radius: 1rem;
+  background: rgba(18, 59, 115, 0.1);
+  color: #123B73;
+}
+
+.dark .master-primary-icon {
+  background: rgba(30, 79, 148, 0.3);
+  color: #93C5FD;
+}
+
+.master-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 1.5rem;
+  background: #123B73;
+  color: white;
+  font-weight: 800;
+  box-shadow: 0 1px 2px 0 rgba(18, 59, 115, 0.2);
+}
+
+/* Common Status Badges */
+.badge-success {
+  background-color: #ECFDF3;
+  color: #067647;
+  border: 1px solid #A6F4C5;
+}
+
+.badge-warning {
+  background-color: #FFFAEB;
+  color: #B54708;
+  border: 1px solid #FEDF89;
+}
+
+.badge-danger {
+  background-color: #FEF3F2;
+  color: #B42318;
+  border: 1px solid #FECDCA;
+}
+
+.badge-primary-soft {
+  background-color: #EAF2FC;
+  color: #123B73;
+  border: 1px solid rgba(23, 92, 211, 0.2);
+}
+
+/* ==========================================================================
+   1. UNIVERSAL CURSOR POINTER & INTERACTIVE ACTION SYSTEM (GLOBAL)
+   Membuat semua tombol, aksi, link, dan kontrol interaktif menjadi cursor pointer.
+   ========================================================================== */
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]),
+a[href],
+select:not(:disabled),
+summary,
+input[type="button"]:not(:disabled),
+input[type="submit"]:not(:disabled),
+input[type="reset"]:not(:disabled),
+input[type="checkbox"]:not(:disabled),
+input[type="radio"]:not(:disabled),
+label[for],
+label:has(input:not(:disabled)),
+label:has(select:not(:disabled)),
+.cursor-pointer,
+[role="tab"],
+[role="menuitem"],
+[data-action] {
+  cursor: pointer !important;
+}
+
+button:disabled,
+[role="button"][aria-disabled="true"],
+input:disabled,
+select:disabled,
+textarea:disabled,
+.cursor-not-allowed {
+  cursor: not-allowed !important;
+}
+
+/* Subtle micro-interaction touch feel for buttons */
+button:not(:disabled):active,
+[role="button"]:not([aria-disabled="true"]):active {
+  transition: transform 0.1s ease-out;
+}
+
+/* ==========================================================================
+   2. GLOBAL MODAL ANIMATIONS & BACKDROP EFFECTS
+   Animasi seragam & otomatis untuk seluruh modal/dialog di seluruh project
+   ========================================================================== */
+@keyframes modalBackdropFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes modalContentPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes uiFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+@keyframes uiZoomIn95 {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.modal-backdrop-animated,
+:where(.fixed.inset-0.justify-center:not([data-motion-modal])) {
+  animation: modalBackdropFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.modal-dialog-animated,
+:where(.fixed.inset-0.justify-center:not([data-motion-modal]) > div) {
+  animation: modalContentPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: transform, opacity;
+}
+
+/* Polyfill ringan untuk utility animate-in yang dipakai di tooltip/dropdown/panel */
+.animate-in.fade-in {
+  animation: uiFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-in.zoom-in-95 {
+  animation: uiZoomIn95 0.18s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop-animated,
+  .modal-dialog-animated,
+  :where(.fixed.inset-0.justify-center:not([data-motion-modal])),
+  :where(.fixed.inset-0.justify-center:not([data-motion-modal]) > div),
+  .animate-in.fade-in,
+  .animate-in.zoom-in-95 {
+    animation: none !important;
+  }
+}
+
+/* ==========================================================================
+   3. TYPOGRAPHY WEIGHT & CONTRAST ENHANCEMENTS FOR MAIN CONTENT (GLOBAL)
+   Meningkatkan ketebalan teks (font-weight), title, label, table, & tombol
+   agar solid, tajam, dan tidak terlalu tipis di seluruh area main content.
+   ========================================================================== */
+main {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-weight: 500;
+}
+
+/* Base text in main content: boost from thin/normal to solid weight */
+main p,
+main li,
+main td,
+main dt,
+main dd {
+  font-weight: 500;
+}
+
+/* Titles and Headings: bold & robust */
+main h1,
+main h2,
+main h3,
+main h4,
+main h5,
+main h6,
+main [class*="text-3xl"],
+main [class*="text-2xl"],
+main [class*="text-xl"] {
+  font-weight: 800 !important;
+  letter-spacing: -0.015em;
+}
+
+main [class*="text-lg"] {
+  font-weight: 700 !important;
+}
+
+/* Subtitle, descriptions, and muted text contrast & weight */
+main p[class*="text-sm"],
+main p[class*="text-xs"],
+main span[class*="text-sm"],
+main .text-slate-500,
+main .text-slate-400 {
+  font-weight: 500;
+}
+
+/* Labels and Form Controls */
+main label,
+main .form-label,
+[role="dialog"] label {
+  font-weight: 600;
+}
+
+main label span,
+main span[class*="tracking-"],
+main span[class*="uppercase"] {
+  font-weight: 700 !important;
+}
+
+main select,
+main input[type="text"],
+main input[type="search"],
+main input[type="password"],
+main input[type="email"],
+main input[type="number"],
+main textarea {
+  font-weight: 600;
+}
+
+/* Universal Select & Option Contrast Protection (Zero White-on-White) */
+select option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+.dark select option,
+html.dark select option {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+}
+
+/* Buttons in main content */
+main button,
+main [role="button"],
+[role="dialog"] button {
+  font-weight: 700;
+}
+
+/* Tables: Headers and Cells */
+main table th,
+.app-panel-shell table th,
+.master-card-shell table th {
+  font-weight: 700 !important;
+  color: #334155 !important; /* slate-700 */
+  letter-spacing: 0.05em;
+}
+
+.dark main table th,
+.dark .app-panel-shell table th,
+.dark .master-card-shell table th {
+  color: #cbd5e1 !important; /* slate-300 */
+}
+
+main table td {
+  font-weight: 500;
+}
+
+main table td .font-medium,
+main table td .font-semibold {
+  font-weight: 600 !important;
+}
+
+/* Accordion and tree labels */
+main [aria-expanded],
+main summary {
+  font-weight: 700;
+}
+
+/* Modal text enhancements (works whether inside or outside main) */
+[role="dialog"] h2,
+[role="dialog"] h3,
+[role="dialog"] .modal-title {
+  font-weight: 800 !important;
+}
+
+[role="dialog"] p,
+[role="dialog"] .modal-description {
+  font-weight: 500;
+}
+
+/* Question Card Swipe Transitions */
+@keyframes questionSwipeInRight {
+  from {
+    opacity: 0;
+    transform: translate3d(52px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes questionSwipeOutLeft {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(-52px, 0, 0);
+  }
+}
+
+@keyframes questionSwipeInLeft {
+  from {
+    opacity: 0;
+    transform: translate3d(-52px, 0, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes questionSwipeOutRight {
+  from {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    opacity: 0;
+    transform: translate3d(52px, 0, 0);
+  }
+}
+
+.animate-swipe-in-right {
+  animation: questionSwipeInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-swipe-out-left {
+  animation: questionSwipeOutLeft 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+.animate-swipe-in-left {
+  animation: questionSwipeInLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-swipe-out-right {
+  animation: questionSwipeOutRight 0.18s cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+/* Form Input Error Shake Animation */
+@keyframes inputShake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  15%, 45%, 75% {
+    transform: translateX(-6px);
+  }
+  30%, 60%, 90% {
+    transform: translateX(6px);
+  }
+}
+
+.animate-shake {
+  animation: inputShake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+/* ==========================================================================
+   4. UNIVERSAL SINGLE FONT STANDARD: PLUS JAKARTA SANS
+   Menghilangkan multiple font. Seluruh komponen (sidebar, topbar, main content,
+   KPI cards, dialog, buttons, table) murni mengadopsi font Plus Jakarta Sans.
+   ========================================================================== */
+*,
+*::before,
+*::after,
+html,
+body,
+button,
+input,
+optgroup,
+select,
+textarea,
+table,
+th,
+td,
+code,
+pre,
+kbd,
+samp {
+  font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+}
+
+/* ==========================================================================
+   4B. PDF DOCUMENT PRINT OVERRIDE (ARIAL, 12PX, PURE BLACK)
+   Meng-override rule universal Plus Jakarta Sans & table header slate agar
+   seluruh dokumen pratinjau/PDF A4 (.document-a4-page) murni Arial 12px hitam.
+   ========================================================================== */
+.document-a4-page,
+.document-a4-page *,
+main .document-a4-page table th,
+main .document-a4-page table td,
+.dark .document-a4-page,
+.dark .document-a4-page *,
+.dark main .document-a4-page table th,
+.dark main .document-a4-page table td,
+.app-panel-shell .document-a4-page table th,
+.master-card-shell .document-a4-page table th,
+.document-a4-page thead,
+.document-a4-page thead *,
+.document-a4-page tbody,
+.document-a4-page tbody *,
+.document-a4-page tfoot,
+.document-a4-page tfoot * {
+  font-family: Arial, Helvetica, sans-serif !important;
+  font-size: 12px !important;
+  color: #000000 !important;
+  letter-spacing: normal !important;
+}
+
+main .document-a4-page table td {
+  font-weight: 400;
+}
+
+/* ==========================================================================
+   5. ULTRA-CLEAN HIDDEN SCROLLBAR FOR DATA TABLES
+   Scrollbar disembunyikan secara default agar tampilan bersih (clean), dan
+   hanya muncul lembut saat pengguna melakukan scroll atau hover di area tabel.
+   ========================================================================== */
+.clean-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  transition: scrollbar-color 0.25s ease-in-out;
+}
+
+.clean-scrollbar:hover,
+.clean-scrollbar:focus-within,
+.clean-scrollbar:active {
+  scrollbar-color: rgba(203, 213, 225, 0.8) transparent;
+}
+
+.clean-scrollbar::-webkit-scrollbar {
+  height: 5px;
+  width: 5px;
+}
+
+.clean-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.clean-scrollbar::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+  transition: background 0.25s ease-in-out;
+}
+
+.clean-scrollbar:hover::-webkit-scrollbar-thumb,
+.clean-scrollbar:focus-within::-webkit-scrollbar-thumb,
+.clean-scrollbar:active::-webkit-scrollbar-thumb {
+  background: rgba(203, 213, 225, 0.8);
+}
+
+.dark .clean-scrollbar:hover::-webkit-scrollbar-thumb,
+.dark .clean-scrollbar:focus-within::-webkit-scrollbar-thumb,
+.dark .clean-scrollbar:active::-webkit-scrollbar-thumb {
+  background: rgba(51, 65, 85, 0.8);
+}
+
+/* ==========================================================================
+   6. PRINT STYLES FOR OFFICIAL BKN REPORTS
+   ========================================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
+  /* Sembunyikan elemen navigasi aplikasi, sidebar, dan header saat mencetak */
+  header,
+  nav,
+  aside,
+  .no-print {
+    display: none !important;
+  }
+
+  #laporan-print-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+}
+
+

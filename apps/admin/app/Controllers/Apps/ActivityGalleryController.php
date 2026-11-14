@@ -16,20 +16,37 @@ class ActivityGalleryController extends BaseController
         helper(['form', 'url', 'filesystem']);
     }
 
-    public function index()
+    private function isApiOrAjaxRequest(): bool
     {
-        $data = [
-            'title'    => 'Galeri Kegiatan',
-            'seslog'   => session()->get(),
-            'timkerja' => $this->galleryModel->getTimKerja(),
-        ];
-        return $this->renderView('Apps/pages/activity-gallery', $data);
+        return $this->request->isAJAX()
+            || $this->request->hasHeader('Authorization')
+            || str_contains($this->request->getHeaderLine('Accept'), 'application/json');
+    }
+
+    private function forbiddenResponse(): ResponseInterface
+    {
+        return $this->response->setStatusCode(403)->setJSON([
+            'status'  => 'error',
+            'message' => 'Forbidden',
+        ]);
+    }
+
+    public function getTimKerja()
+    {
+        if (!$this->isApiOrAjaxRequest()) {
+            return $this->forbiddenResponse();
+        }
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data'   => $this->galleryModel->getTimKerja(),
+        ]);
     }
 
     public function getLayanan()
     {
-        if (!$this->request->isAJAX()) {
-            return $this->response->setStatusCode(403)->setBody('Forbidden');
+        if (!$this->isApiOrAjaxRequest()) {
+            return $this->forbiddenResponse();
         }
 
         $timkerjaId = $this->request->getPost('timkerja_id');
@@ -42,26 +59,32 @@ class ActivityGalleryController extends BaseController
         return $this->response->setJSON(['status' => 'success', 'data' => $layanan]);
     }
 
-    public function getData()
+    private function formatGalleryRows(array $rows): array
     {
-        if (!$this->request->isAJAX()) {
-            return $this->response->setStatusCode(403)->setBody('Forbidden');
-        }
-
-        $search = $this->request->getPost('search');
-        $timkerja = $this->request->getPost('timkerja');
-        $bulan = $this->request->getPost('bulan');
-
-        $data = $this->galleryModel->getAllData($search, $timkerja, $bulan);
-
-        // Format data for JSON response
+        $monthLabels = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+        $storage = new \App\Services\Storage\FileStorageService();
         $formatted = [];
-        foreach ($data as $row) {
+
+        foreach ($rows as $row) {
             $date = new \DateTime($row['tanggal_kegiatan']);
-            // Indonesian month formatting
-            $months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            $monthName = $months[(int)$date->format('n') - 1];
+            $monthName = $monthLabels[(int) $date->format('n') - 1];
             $formattedDate = $date->format('d') . ' ' . $monthName . ' ' . $date->format('Y');
+
+            $fileName = ltrim(str_replace('\\', '/', trim((string) ($row['file_name'] ?? ''))), '/');
+            $rawDir = str_replace('\\', '/', trim((string) ($row['file_path'] ?? ''), "/\\ \t\n\r"));
+            $rawDir = preg_replace('#^(?:\./)+#', '', $rawDir);
+            $rawDir = preg_replace('#^public/#', '', $rawDir);
+
+            if ($fileName === '') {
+                $imgPath = '';
+            } else {
+                $dir = $rawDir !== '' ? $rawDir : 'media/gallery';
+                $rawFull = str_ends_with($dir, '/' . $fileName) || $dir === $fileName
+                    ? ltrim($dir, '/')
+                    : ltrim($dir . '/' . $fileName, '/');
+                $publicUrl = $storage->toPublicUrl($rawFull, 'gallery');
+                $imgPath = ltrim((string) $publicUrl, '/');
+            }
 
             $formatted[] = [
                 'id'             => $row['id'],
@@ -74,17 +97,60 @@ class ActivityGalleryController extends BaseController
                 'date'           => $row['tanggal_kegiatan'],
                 'date_formatted' => $formattedDate,
                 'desc'           => $row['deskripsi'],
-                'img'            => base_url($row['file_path'] . '/' . $row['file_name'])
+                'img'            => $imgPath !== '' ? base_url($imgPath) : '',
+                'img_path'       => $imgPath,
+                'file_path'      => $rawDir !== '' ? $rawDir : 'media/gallery',
+                'file_name'      => $fileName,
             ];
         }
 
-        return $this->response->setJSON(['status' => 'success', 'data' => $formatted]);
+        return $formatted;
+    }
+
+    public function getData()
+    {
+        if (!$this->isApiOrAjaxRequest()) {
+            return $this->forbiddenResponse();
+        }
+
+        $search = $this->request->getPost('search');
+        $timkerja = $this->request->getPost('timkerja');
+        $bulan = $this->request->getPost('bulan');
+        $months = $this->request->getPost('months');
+        $perPageRaw = $this->request->getPost('per_page');
+
+        if ($perPageRaw !== null && $perPageRaw !== '') {
+            $perPage = min(100, max(1, (int) $perPageRaw));
+            $page = max(1, (int) ($this->request->getPost('page') ?? 1));
+
+            $paged = $this->galleryModel->getPaginatedData($search, $timkerja, $bulan, $months, $page, $perPage);
+            $summary = $this->galleryModel->getCategorySummary($search, $bulan, $months);
+
+            return $this->response->setJSON([
+                'status'     => 'success',
+                'data'       => $this->formatGalleryRows($paged['rows']),
+                'pagination' => [
+                    'total'       => $paged['total'],
+                    'page'        => $paged['page'],
+                    'per_page'    => $paged['per_page'],
+                    'total_pages' => $paged['total_pages'],
+                ],
+                'summary'    => $summary,
+            ]);
+        }
+
+        $data = $this->galleryModel->getAllData($search, $timkerja, $bulan, $months);
+
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data'   => $this->formatGalleryRows($data),
+        ]);
     }
 
     public function store()
     {
-        if (!$this->request->isAJAX()) {
-            return $this->response->setStatusCode(403)->setBody('Forbidden');
+        if (!$this->isApiOrAjaxRequest()) {
+            return $this->forbiddenResponse();
         }
 
         $id = $this->request->getPost('id');
@@ -125,45 +191,32 @@ class ActivityGalleryController extends BaseController
 
         $file = $this->request->getFile('foto');
         if ($file && $file->isValid() && !$file->hasMoved()) {
-            // Convert to webp and save
-            $uploadPath = FCPATH . 'apps/assets/uploads/gallery/';
-            if (!is_dir($uploadPath)) {
-                mkdir($uploadPath, 0755, true);
-            }
-
-            $originalName = $file->getClientName();
-            $fileSize = $file->getSize();
-            $newName = $file->getRandomName(); // e.g. 12345.jpg
-            $newNameWithoutExt = pathinfo($newName, PATHINFO_FILENAME);
-            $webpName = $newNameWithoutExt . '.webp';
-
-            // Convert to WEBP
+            $storage = new \App\Services\Storage\FileStorageService();
             try {
-                $image = \Config\Services::image()
-                            ->withFile($file->getTempName())
-                            ->convert(IMAGETYPE_WEBP)
-                            ->save($uploadPath . $webpName, 80); // 80% quality
-                
-                // Set file metadata for DB
-                $dbData['file_name'] = $webpName;
-                $dbData['file_original_name'] = $originalName;
-                $dbData['file_size'] = filesize($uploadPath . $webpName); // new webp size
-                $dbData['file_ext'] = '.webp';
-                $dbData['file_path'] = 'apps/assets/uploads/gallery';
+                $stored = $storage->storeUploadedFile($file, 'gallery');
 
-                // Delete old file if updating
+                $dbData['file_name']          = $stored['file_name'];
+                $dbData['file_original_name'] = $stored['original_name'];
+                $dbData['file_size']          = $stored['size'];
+                $dbData['file_ext']           = '.' . $stored['ext'];
+                $dbData['file_path']          = $stored['dir_path'];
+
                 if (!empty($id)) {
                     $oldData = $this->galleryModel->find($id);
                     if ($oldData && !empty($oldData['file_name'])) {
-                        $oldPath = FCPATH . $oldData['file_path'] . '/' . $oldData['file_name'];
-                        if (file_exists($oldPath)) {
-                            unlink($oldPath);
-                        }
+                        $oldTarget = !empty($oldData['file_path'])
+                            ? rtrim((string) $oldData['file_path'], '/') . '/' . ltrim((string) $oldData['file_name'], '/')
+                            : (string) $oldData['file_name'];
+                        $storage->delete($oldTarget, 'gallery');
                     }
                 }
-
-            } catch (\Exception $e) {
-                return $this->response->setJSON(['status' => 'error', 'message' => 'Gagal mengonversi gambar ke WebP: ' . $e->getMessage()]);
+            } catch (\Throwable $e) {
+                return $this->apiException(
+                    $e,
+                    $e instanceof \RuntimeException ? $e->getMessage() : 'Gagal mengunggah dokumentasi kegiatan.',
+                    $e instanceof \RuntimeException ? 422 : 500,
+                    'ActivityGalleryController::save'
+                );
             }
         }
 
@@ -181,8 +234,8 @@ class ActivityGalleryController extends BaseController
 
     public function delete()
     {
-        if (!$this->request->isAJAX()) {
-            return $this->response->setStatusCode(403)->setBody('Forbidden');
+        if (!$this->isApiOrAjaxRequest()) {
+            return $this->forbiddenResponse();
         }
 
         $id = $this->request->getPost('id');
@@ -190,10 +243,10 @@ class ActivityGalleryController extends BaseController
         
         if ($oldData) {
             if (!empty($oldData['file_name'])) {
-                $oldPath = FCPATH . $oldData['file_path'] . '/' . $oldData['file_name'];
-                if (file_exists($oldPath)) {
-                    unlink($oldPath);
-                }
+                $oldTarget = !empty($oldData['file_path'])
+                    ? rtrim((string) $oldData['file_path'], '/') . '/' . ltrim((string) $oldData['file_name'], '/')
+                    : (string) $oldData['file_name'];
+                (new \App\Services\Storage\FileStorageService())->delete($oldTarget, 'gallery');
             }
             $this->galleryModel->delete($id);
             return $this->response->setJSON(['status' => 'success', 'message' => 'Dokumentasi berhasil dihapus.']);
