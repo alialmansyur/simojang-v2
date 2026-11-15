@@ -1,4 +1,4 @@
-FROM php:8.2-fpm
+FROM php:8.4-fpm
 
 RUN apt-get update && apt-get install -y \
     unzip \
@@ -62,5 +62,5 @@ RUN mkdir -p /var/www/html/public/apps/assets \
     && mkdir -p /var/www/html/writable/uploads/private/signatures \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 /var/www/html \
-    && chmod -R 775 /var/www/html/writable
+    && chmod -R 777 /var/www/html/writable
 

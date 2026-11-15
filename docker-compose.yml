@@ -24,7 +24,7 @@ services:
     volumes:
       - simojang_v2_writable:/var/www/html/writable:ro
     depends_on:
-      app:
+      app_v2:
         condition: service_started
     networks:
       - appnet
@@ -37,7 +37,7 @@ services:
       retries: 3
       start_period: 15s
 
-  app:
+  app_v2:
     build:
       context: .
       dockerfile: Dockerfile
