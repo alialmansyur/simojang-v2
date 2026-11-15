@@ -2,7 +2,8 @@ name: simojang-v2
 
 networks:
   appnet:
-    driver: bridge
+    external: true
+    name: simojang_appnet
 
 volumes:
   simojang_v2_writable:
