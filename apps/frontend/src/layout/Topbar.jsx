@@ -20,6 +20,7 @@ export function Topbar({ onToggleSidebar }) {
   const [openNotif, setOpenNotif] = useState(false)
   const [openUserMenu, setOpenUserMenu] = useState(false)
   const [changePasswordOpen, setChangePasswordOpen] = useState(false)
+  const [isDefaultPrompt, setIsDefaultPrompt] = useState(false)
   const [currentUser, setCurrentUser] = useState(() => buildUserSummary())
   const [theme, setTheme] = useState(() => localStorage.getItem('tapg-theme') || 'light')
   const [notifications, setNotifications] = useState([])
@@ -32,6 +33,16 @@ export function Topbar({ onToggleSidebar }) {
     const syncUser = () => setCurrentUser(buildUserSummary())
     syncUser()
     return subscribeAuthChange(syncUser)
+  }, [])
+
+  useEffect(() => {
+    // Munculkan modal popup password hanya sekali setiap pertama login jika password = username
+    const promptKey = 'simojang_prompt_default_password'
+    if (sessionStorage.getItem(promptKey) === 'true') {
+      sessionStorage.removeItem(promptKey)
+      setIsDefaultPrompt(true)
+      setChangePasswordOpen(true)
+    }
   }, [])
 
   useEffect(() => {
@@ -417,10 +428,19 @@ export function Topbar({ onToggleSidebar }) {
         </div>
       </div>
 
-      {/* Global Change Password Modal triggered from Topbar Dropdown */}
+      {/* Global Change Password Modal triggered from Topbar Dropdown or First Login with Default Password */}
       <ChangePasswordModal
         isOpen={changePasswordOpen}
-        onClose={() => setChangePasswordOpen(false)}
+        isDefaultPassword={isDefaultPrompt}
+        onClose={() => {
+          setChangePasswordOpen(false)
+          setIsDefaultPrompt(false)
+        }}
+        onSuccess={() => {
+          setChangePasswordOpen(false)
+          setIsDefaultPrompt(false)
+          sessionStorage.removeItem('simojang_prompt_default_password')
+        }}
       />
     </header>
   )

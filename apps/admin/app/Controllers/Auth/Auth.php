@@ -220,6 +220,7 @@ class Auth extends ResourceController
             'locationiq' => $loc,
             'expires_in' => $tokenTtl,
             'remember_login' => $rememberLogin ? 1 : 0,
+            'default_password' => ($password === $userdata['username']),
         ]);
     }
 

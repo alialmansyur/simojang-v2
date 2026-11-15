@@ -688,4 +688,29 @@ main .document-a4-page table td {
   }
 }
 
+/* ==========================================================================
+   7. EVENT RUNNING TEXT (MARQUEE TICKER)
+   ========================================================================== */
+@keyframes tickerSlide {
+  0% {
+    transform: translate3d(0, 0, 0);
+  }
+  100% {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.ticker-track {
+  display: inline-flex;
+  white-space: nowrap;
+  animation: tickerSlide 40s linear infinite;
+  will-change: transform;
+}
+
+/* Pause running text animation on hover */
+.ticker-container:hover .ticker-track {
+  animation-play-state: paused;
+}
+
+
 

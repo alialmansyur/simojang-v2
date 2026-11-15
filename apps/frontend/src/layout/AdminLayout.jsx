@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import { Wrench, AlertTriangle } from 'lucide-react'
 import { Sidebar } from './Sidebar'
 import { Topbar } from './Topbar'
+import { EventRunningTicker } from '../components/shared/EventRunningTicker'
 import { getAuthSession } from '../services/auth'
 import { fetchMaintenanceServices } from '../services/api/settingsApi'
 import { ServiceMaintenanceView } from '../components/shared/services/ServiceMaintenanceView'
@@ -105,6 +106,7 @@ export function AdminLayout({
       ) : null}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Topbar title={title} onToggleSidebar={handleToggleSidebar} />
+        <EventRunningTicker />
         <main className={`flex-1 overflow-y-auto ${canvasClassName} custom-scroll p-6 sm:p-8 lg:p-10 transition-colors`}>
           <div className="max-w-[1600px] mx-auto w-full">
             {activeMaintenance ? (

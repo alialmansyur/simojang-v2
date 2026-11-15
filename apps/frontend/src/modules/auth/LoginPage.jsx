@@ -87,9 +87,22 @@ export default function LoginPage() {
       })
 
       if (res?.token) {
+        // Cek apakah user login dengan password bawaan (password sama dengan username)
+        const isDefaultPassword =
+          Boolean(res?.default_password) ||
+          password.trim() === username.trim() ||
+          password.trim().toLowerCase() === username.trim().toLowerCase()
+
+        if (isDefaultPassword) {
+          sessionStorage.setItem('simojang_prompt_default_password', 'true')
+        } else {
+          sessionStorage.removeItem('simojang_prompt_default_password')
+        }
+
         const session = {
           token: res.token,
           remember_login: rememberMe,
+          must_change_password: isDefaultPassword,
           expires_at: res.expires_in
             ? new Date(Date.now() + Math.min(Number(res.expires_in), 3600) * 1000).toISOString()
             : new Date(Date.now() + 3600 * 1000).toISOString(),
@@ -97,6 +110,7 @@ export default function LoginPage() {
             username: username.trim(),
             roles: [res.role || 'pegawai'],
             role: res.role || 'pegawai',
+            must_change_password: isDefaultPassword,
           },
         }
 

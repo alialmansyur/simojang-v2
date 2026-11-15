@@ -77,7 +77,7 @@ function PasswordInput({
 /**
  * Reusable modal popup untuk mengubah kata sandi pengguna mengikuti desain modal SIMOJANG.
  */
-export function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
+export function ChangePasswordModal({ isOpen, onClose, onSuccess, isDefaultPassword = false }) {
   const [form, setForm] = useState(INITIAL_FORM)
   const [errors, setErrors] = useState({})
   const [generalError, setGeneralError] = useState('')
@@ -180,7 +180,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess }) {
       onClose={handleRequestClose}
       size="sm"
       title="Ubah Kata Sandi"
-      description="Perbarui kata sandi akun SIMOJANG Anda secara berkala untuk menjaga keamanan akses."
+      description="Masukkan kata sandi baru untuk akun Anda."
       footer={
         <>
           <button

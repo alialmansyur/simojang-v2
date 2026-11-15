@@ -152,7 +152,16 @@ export default function ManageAssetsPage() {
       kondisiBadge = 'bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800/40'
     }
 
-    const categoryLabel = item.category_name || item.kategori || '-'
+    const categoryLabel =
+      item.category_name ||
+      categories.find(
+        (c) =>
+          String(c.id) === String(item.category_id) ||
+          c.uid === item.category_uid ||
+          c.uid === item.category_id
+      )?.name ||
+      item.kategori ||
+      '-'
 
     return (
       <tr

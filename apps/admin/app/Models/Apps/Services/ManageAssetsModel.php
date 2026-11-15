@@ -54,6 +54,10 @@ class ManageAssetsModel extends Model
         switch ($type) {
             case 'detail':
                 return [
+                    ['data' => 'uid', 'search' => 'a.uid', 'order' => 'a.uid'],
+                    ['data' => 'category_id', 'search' => 'a.category_id', 'order' => 'a.category_id'],
+                    ['data' => 'category_uid', 'search' => 'b.uid', 'order' => 'b.uid'],
+                    ['data' => 'category_name', 'search' => 'b.name', 'order' => 'b.name'],
                     ['data' => 'foto', 'search' => null, 'order' => null],
                     ['data' => 'kode', 'search' => 'a.kode', 'order' => 'a.kode'],
                     ['data' => 'subcode', 'search' => 'a.subcode', 'order' => 'a.subcode'],
@@ -65,7 +69,9 @@ class ManageAssetsModel extends Model
                     ['data' => 'area', 'search' => 'a.area', 'order' => 'a.area'],
                     ['data' => 'lokasi', 'search' => 'a.lokasi', 'order' => 'a.lokasi'],
                     ['data' => 'tahun_perolehan', 'search' => 'a.tahun_perolehan', 'order' => 'a.tahun_perolehan'],
+                    ['data' => 'keterangan', 'search' => 'a.keterangan', 'order' => 'a.keterangan'],
                     ['data' => 'created_at', 'search' => 'a.created_at', 'order' => 'a.created_at'],
+                    ['data' => 'updated_at', 'search' => 'a.updated_at', 'order' => 'a.updated_at'],
                 ];
             default:
                 throw new \Exception("Unknown builder type: $type");
