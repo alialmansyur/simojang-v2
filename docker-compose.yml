@@ -1,9 +1,11 @@
+name: simojang-v2
+
 networks:
   appnet:
     driver: bridge
 
 volumes:
-  simojang_writable:
+  simojang_v2_writable:
 
 services:
   nginx:
@@ -13,13 +15,13 @@ services:
       args:
         - VITE_BASE_PATH=${VITE_BASE_PATH:-/}
         - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
-    container_name: simojang-nginx
+    container_name: simojang-v2-nginx
     restart: unless-stopped
     ports:
       - "${FE_PORT:-8401}:80"
       - "${BE_PORT:-8402}:8080"
     volumes:
-      - simojang_writable:/var/www/html/writable:ro
+      - simojang_v2_writable:/var/www/html/writable:ro
     depends_on:
       app:
         condition: service_started
@@ -38,7 +40,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: simojang-app
+    container_name: simojang-v2-app
     restart: unless-stopped
     env_file:
       - ./apps/admin/.env
@@ -46,7 +48,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./apps/admin/.env:/var/www/html/.env
-      - simojang_writable:/var/www/html/writable
+      - simojang_v2_writable:/var/www/html/writable
     environment:
       - TZ=Asia/Jakarta
       - CI_ENVIRONMENT=${CI_ENVIRONMENT:-production}
