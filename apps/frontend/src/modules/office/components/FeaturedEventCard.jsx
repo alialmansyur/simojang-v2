@@ -53,7 +53,7 @@ export default function FeaturedEventCard({ event, onOpenDetail }) {
       {/* Background Watermark Logo using public/logo.png */}
       <div className="absolute -right-6 -bottom-8 w-64 h-64 sm:w-80 sm:h-80 pointer-events-none select-none opacity-20 transition-opacity">
         <img
-          src="/logo.png"
+          src={`${import.meta.env.BASE_URL}logo.png`}
           alt=""
           aria-hidden="true"
           className="w-full h-full object-contain filter drop-shadow-md"

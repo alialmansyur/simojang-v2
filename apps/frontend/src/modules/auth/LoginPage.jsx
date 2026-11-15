@@ -159,7 +159,7 @@ export default function LoginPage() {
           {/* Brand Logo + Wordmark */}
           <div className="flex items-center gap-2.5 mb-8">
             <img
-              src="/logo.png"
+              src={`${import.meta.env.BASE_URL}logo.png`}
               alt="Logo BKN"
               className="h-8 w-auto object-contain"
             />

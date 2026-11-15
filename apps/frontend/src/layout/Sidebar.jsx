@@ -930,7 +930,7 @@ export function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClo
               title="SIMOJANG - BKN Kanreg III Bandung"
             >
               <img
-                src="/logo.png"
+                src={`${import.meta.env.BASE_URL}logo.png`}
                 alt="Logo BKN"
                 className="w-9 h-9 object-contain transition-transform duration-200 hover:scale-105"
               />
@@ -952,7 +952,7 @@ export function Sidebar({ collapsed, isMobile = false, mobileOpen = false, onClo
             <div className="flex items-center gap-3 pl-1.5 min-w-0">
               <div className="w-9 h-9 flex items-center justify-center flex-shrink-0">
                 <img
-                  src="/logo.png"
+                  src={`${import.meta.env.BASE_URL}logo.png`}
                   alt="Logo BKN"
                   className="w-9 h-9 object-contain"
                 />
