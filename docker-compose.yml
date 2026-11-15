@@ -11,13 +11,13 @@ services:
       context: .
       dockerfile: docker/nginx/Dockerfile
       args:
-        - VITE_BASE_PATH=/simojang/
-        - VITE_API_BASE_URL=/simojang-api
+        - VITE_BASE_PATH=${VITE_BASE_PATH:-/}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
     container_name: simojang-nginx
     restart: unless-stopped
     ports:
-      - "${FE_PORT:-8205}:80"
-      - "${BE_PORT:-8206}:8080"
+      - "${FE_PORT:-8401}:80"
+      - "${BE_PORT:-8402}:8080"
     volumes:
       - simojang_writable:/var/www/html/writable:ro
     depends_on:
@@ -45,6 +45,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
+      - ./apps/admin/.env:/var/www/html/.env
       - simojang_writable:/var/www/html/writable
     environment:
       - TZ=Asia/Jakarta
