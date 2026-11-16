@@ -406,24 +406,27 @@ export function DocumentPdfPreview({
         document.body
       )}
 
-      {/* HIDDEN CONTAINER OFSCREEN UNTUK CAPTURE HTML2CANVAS */}
-      {/* Menggunakan position fixed di (0,0) di balik body (z-index: -9999) agar html2canvas membaca bounds secara valid */}
-      <div
-        ref={hiddenContainerRef}
-        aria-hidden="true"
-        style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '794px', // 210mm di 96 DPI
-          zIndex: -9999,
-          pointerEvents: 'none',
-          backgroundColor: '#ffffff',
-          opacity: 1,
-        }}
-      >
-        {children}
-      </div>
+      {/* HIDDEN CONTAINER OFFSCREEN UNTUK CAPTURE HTML2CANVAS */}
+      {/* Di-portal ke document.body dan diletakkan jauh di luar viewport (left: -99999px) agar tidak pernah bocor ke latar belakang UI */}
+      {typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            ref={hiddenContainerRef}
+            aria-hidden="true"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: '-99999px',
+              width: isLandscape ? '1123px' : '794px', // 297mm atau 210mm di 96 DPI
+              zIndex: -99999,
+              pointerEvents: 'none',
+              backgroundColor: '#ffffff',
+            }}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </div>
   )
 }
