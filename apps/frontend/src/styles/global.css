@@ -413,14 +413,44 @@ main span[class*="uppercase"] {
   font-weight: 700 !important;
 }
 
-main select,
-main input[type="text"],
-main input[type="search"],
-main input[type="password"],
-main input[type="email"],
-main input[type="number"],
-main textarea {
-  font-weight: 600;
+/* Universal Textbox & Form Controls: Isian tebal, tegas, & mudah dibaca */
+select,
+input[type="text"],
+input[type="search"],
+input[type="password"],
+input[type="email"],
+input[type="number"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  font-weight: 600 !important;
+  color: #0f172a;
+}
+
+.dark select,
+.dark input[type="text"],
+.dark input[type="search"],
+.dark input[type="password"],
+.dark input[type="email"],
+.dark input[type="number"],
+.dark input[type="tel"],
+.dark input[type="url"],
+.dark textarea {
+  color: #f8fafc;
+}
+
+/* Bullet password dibuat lebih tegas dan proporsional */
+input[type="password"] {
+  letter-spacing: 0.08em;
+  font-weight: 700 !important;
+}
+
+/* Placeholder tetap rapi & normal agar kontras dengan isian pengguna */
+input::placeholder,
+textarea::placeholder {
+  font-weight: 400 !important;
+  color: #94a3b8;
+  letter-spacing: normal;
 }
 
 /* Universal Select & Option Contrast Protection (Zero White-on-White) */

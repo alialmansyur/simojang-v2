@@ -307,7 +307,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <label
                 htmlFor="login-username"
-                className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200"
+                className="block text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200"
               >
                 NIP / Nama Pengguna
               </label>
@@ -326,10 +326,10 @@ export default function LoginPage() {
                   }}
                   placeholder="Masukkan 18 digit NIP"
                   autoComplete="off"
-                  className={`w-full h-11 pl-10 pr-3.5 rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none transition-all ${
+                  className={`w-full h-12 pl-10 pr-3.5 rounded-xl border bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 font-semibold text-sm sm:text-base focus:outline-none transition-all ${
                     shakeInputs
                       ? 'border-[#B42318] ring-2 ring-[#B42318]/20 dark:border-rose-600'
-                      : 'border-slate-200 dark:border-slate-700 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
+                      : 'border-slate-300 dark:border-slate-600 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
                   }`}
                 />
               </div>
@@ -339,7 +339,7 @@ export default function LoginPage() {
             <div className="space-y-1.5">
               <label
                 htmlFor="login-password"
-                className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200"
+                className="block text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200"
               >
                 Kata Sandi
               </label>
@@ -358,10 +358,10 @@ export default function LoginPage() {
                   }}
                   placeholder="••••••••"
                   autoComplete="off"
-                  className={`w-full h-11 pl-10 pr-10 rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none transition-all ${
+                  className={`w-full h-12 pl-10 pr-10 rounded-xl border bg-white dark:bg-slate-900 text-slate-950 dark:text-white placeholder:text-slate-400 font-semibold text-sm sm:text-base tracking-wider focus:outline-none transition-all ${
                     shakeInputs
                       ? 'border-[#B42318] ring-2 ring-[#B42318]/20 dark:border-rose-600'
-                      : 'border-slate-200 dark:border-slate-700 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
+                      : 'border-slate-300 dark:border-slate-600 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
                   }`}
                 />
                 <button
@@ -400,7 +400,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-11 px-4 rounded-xl bg-[#175CD3] hover:bg-[#1249A8] active:scale-[0.99] text-white text-xs sm:text-sm font-bold shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
+              className="w-full h-12 px-4 rounded-xl bg-[#175CD3] hover:bg-[#1249A8] active:scale-[0.99] text-white text-sm sm:text-base font-bold shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
             >
               {isSubmitting ? (
                 <>
