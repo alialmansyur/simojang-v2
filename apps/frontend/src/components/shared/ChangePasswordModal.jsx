@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { CheckCircle2, Circle, Eye, EyeOff, KeyRound, Loader2, ShieldAlert } from 'lucide-react'
+import { CheckCircle2, Circle, Eye, EyeOff, KeyRound, ShieldAlert } from 'lucide-react'
+import { AppSpinner } from './AppSpinner'
 import { toast } from 'react-toastify'
 import { Modal } from '../ui/Modal'
 import { COMPONENT_STYLES } from '../../config/colorGuide'
@@ -197,7 +198,7 @@ export function ChangePasswordModal({ isOpen, onClose, onSuccess, isDefaultPassw
             onClick={handleSubmit}
             className="master-primary-btn inline-flex items-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold cursor-pointer disabled:opacity-50"
           >
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <KeyRound className="w-4 h-4" />}
+            {isSubmitting ? <AppSpinner size="sm" color="white" strokeWidth={3.5} /> : <KeyRound className="w-4 h-4" />}
             <span>{isSubmitting ? 'Menyimpan...' : 'Simpan Kata Sandi'}</span>
           </button>
         </>

@@ -1,4 +1,5 @@
 import { Children } from 'react'
+import { AppSpinner } from '../shared/AppSpinner'
 
 export function DataTable({
   headers,
@@ -18,7 +19,7 @@ export function DataTable({
     <div className="app-panel-shell overflow-hidden relative border border-[#EAECF0] dark:border-slate-800 bg-white dark:bg-slate-900 rounded-3xl">
       {isLoading && (
         <div className="absolute inset-0 bg-white/50 dark:bg-slate-900/50 z-10 flex items-center justify-center backdrop-blur-sm">
-          <div className="w-8 h-8 rounded-full border-4 border-[#175CD3]/20 border-t-[#175CD3] animate-spin"></div>
+          <AppSpinner size="lg" strokeWidth={4} />
         </div>
       )}
       <div className="overflow-x-auto">

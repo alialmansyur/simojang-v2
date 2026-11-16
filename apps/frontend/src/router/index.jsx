@@ -11,6 +11,7 @@ import {
 import { canAccessRoute } from '../modules/navigation/config'
 import { AppErrorBoundary } from '../components/AppErrorBoundary'
 import { AdminLayout } from '../layout/AdminLayout'
+import { AppPageLoader } from '../components/shared/AppSpinner'
 
 const SOFT_CANVAS_CLASS = 'bg-[#F2F5FA] dark:bg-[#090E1A]'
 
@@ -172,25 +173,12 @@ export function AppRouter() {
   const isAuth = authState.authenticated
 
   if (verifyingSession) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-full border-4 border-[#175CD3]/20 border-t-[#175CD3] animate-spin"></div>
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">Memverifikasi sesi Anda...</p>
-        </div>
-      </div>
-    )
+    return <AppPageLoader message="Memverifikasi sesi Anda..." />
   }
 
   return (
     <AppErrorBoundary>
-      <Suspense
-        fallback={
-          <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-900">
-            <div className="w-12 h-12 rounded-full border-4 border-[#175CD3]/20 border-t-[#175CD3] animate-spin"></div>
-          </div>
-        }
-      >
+      <Suspense fallback={<AppPageLoader message="Memuat halaman..." />}>
         <Routes>
           {/* Public Login Route - Redirects to /dashboard if already logged in */}
           <Route

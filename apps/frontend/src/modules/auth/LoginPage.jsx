@@ -7,7 +7,6 @@ import {
   Eye,
   EyeOff,
   AlertCircle,
-  RefreshCw,
   Info,
   Sunrise,
   Sun,
@@ -16,6 +15,7 @@ import {
 } from 'lucide-react'
 import { refreshAuthSession, saveAuthSession } from '../../services/auth'
 import { apiRequest, checkBackendHealth } from '../../services/api'
+import { AppSpinner } from '../../components/shared/AppSpinner'
 
 function getTimeGreetingMeta(date = new Date()) {
   const hour = date.getHours()
@@ -404,7 +404,7 @@ export default function LoginPage() {
             >
               {isSubmitting ? (
                 <>
-                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <AppSpinner size="sm" color="white" strokeWidth={3.5} />
                   <span>Memverifikasi...</span>
                 </>
               ) : (
