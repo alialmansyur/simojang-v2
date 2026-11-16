@@ -1,21 +1,9 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, EyeOff, AlertCircle, RefreshCw, Info } from 'lucide-react'
+import { User, Lock, Eye, EyeOff, AlertCircle, RefreshCw, Info } from 'lucide-react'
 import { refreshAuthSession, saveAuthSession } from '../../services/auth'
 import { apiRequest, checkBackendHealth } from '../../services/api'
-
-const cardVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.35,
-      ease: [0.16, 1, 0.3, 1],
-    },
-  },
-}
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -148,33 +136,36 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#F2F5FA] dark:bg-[#090E1A] flex flex-col items-center justify-center px-4 py-8 font-sans text-slate-900 dark:text-slate-100 antialiased">
-      <main className="w-full max-w-[430px]">
-        <motion.div
-          variants={cardVariants}
-          initial="hidden"
-          animate="visible"
-          className="bg-white dark:bg-slate-900 rounded-2xl sm:rounded-3xl p-8 sm:p-10 dark:ring-1 dark:ring-slate-800/80 transition-colors"
-        >
-          {/* Brand Logo + Wordmark */}
-          <div className="flex items-center gap-2.5 mb-8">
-            <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="Logo BKN"
-              className="h-8 w-auto object-contain"
-            />
-            <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white">
-              Simojang
+    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100">
+      {/* ========================================================
+          SISI KIRI: FORMULIR LOGIN (CLEAN & MINIMALIS)
+         ======================================================== */}
+      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 lg:p-16 min-h-[100dvh] lg:min-h-auto">
+        {/* Brand Logo & Name */}
+        <div className="flex items-center gap-3">
+          <img
+            src={`${import.meta.env.BASE_URL}logo.png`}
+            alt="Logo BKN"
+            className="h-9 w-auto object-contain"
+          />
+          <div>
+            <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white block leading-none">
+              SIMOJANG
+            </span>
+            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">
+              Kanreg III BKN
             </span>
           </div>
+        </div>
 
-          {/* Crisp Heading & Subtitle */}
+        {/* Center Container: Form */}
+        <div className="w-full max-w-[400px] mx-auto my-auto py-8">
           <div className="mb-7">
-            <h1 className="text-[28px] sm:text-[30px] font-bold tracking-tight text-slate-950 dark:text-white leading-tight">
-              Masuk
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
+              Masuk ke Akun
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
-              Selamat datang kembali! Masukkan detail akun Anda.
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1.5">
+              Masukkan NIP dan kata sandi Anda untuk melanjutkan.
             </p>
           </div>
 
@@ -189,17 +180,15 @@ export default function LoginPage() {
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 className="overflow-hidden mb-5"
               >
-                <div className="p-3.5 rounded-xl bg-[#FEF3F2] dark:bg-rose-950/35 border border-[#FECDCA]/80 dark:border-rose-900/70 text-xs sm:text-[13px] text-[#B42318] dark:text-[#FDA29B] flex items-start gap-2.5">
+                <div className="p-3.5 rounded-xl bg-[#FEF3F2] dark:bg-rose-950/35 border border-[#FECDCA]/80 dark:border-rose-900/70 text-xs text-[#B42318] dark:text-[#FDA29B] flex items-start gap-2.5">
                   <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
-                  <div className="flex-1">
-                    <p className="font-medium leading-relaxed">{error}</p>
-                  </div>
+                  <p className="font-medium leading-relaxed">{error}</p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Forgot Password Inline Notice */}
+          {/* Helpdesk Notice */}
           <AnimatePresence>
             {showResetInfo && (
               <motion.div
@@ -210,26 +199,30 @@ export default function LoginPage() {
                 transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
                 className="overflow-hidden mb-5"
               >
-                <div className="p-3.5 rounded-xl bg-action-soft/80 dark:bg-action/15 text-xs text-slate-700 dark:text-blue-200 flex items-start gap-2.5">
-                  <Info className="w-4 h-4 text-action dark:text-blue-300 flex-shrink-0 mt-0.5" />
+                <div className="p-3.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-900/60 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2.5">
+                  <Info className="w-4 h-4 text-[#175CD3] dark:text-blue-400 flex-shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
-                    Hubungi Helpdesk Tata Usaha atau Pengelola Sistem Kanreg III BKN untuk reset kata sandi.
+                    Untuk bantuan lupa kata sandi atau reset akun, silakan hubungi Helpdesk Tata Usaha Kanreg III BKN.
                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          {/* Clean Form */}
-          <form onSubmit={handleLogin} autoComplete="off" className="space-y-5">
+          {/* Form Inputs */}
+          <form onSubmit={handleLogin} autoComplete="off" className="space-y-4">
+            {/* Input NIP / Username */}
             <div className="space-y-1.5">
               <label
                 htmlFor="login-username"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200"
               >
-                NIP / Username
+                NIP / Nama Pengguna
               </label>
-              <div className={shakeInputs ? 'animate-shake' : ''}>
+              <div className={`relative ${shakeInputs ? 'animate-shake' : ''}`}>
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <User className="w-4 h-4" />
+                </div>
                 <input
                   id="login-username"
                   type="text"
@@ -241,23 +234,27 @@ export default function LoginPage() {
                   }}
                   placeholder="Masukkan 18 digit NIP"
                   autoComplete="off"
-                  className={`w-full h-11 px-3.5 rounded-xl border bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none transition-all ${
+                  className={`w-full h-11 pl-10 pr-3.5 rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none transition-all ${
                     shakeInputs
                       ? 'border-[#B42318] ring-2 ring-[#B42318]/20 dark:border-rose-600'
-                      : 'border-slate-300/90 dark:border-slate-700 focus:border-action focus:ring-4 focus:ring-action/10'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
                   }`}
                 />
               </div>
             </div>
 
+            {/* Input Password */}
             <div className="space-y-1.5">
               <label
                 htmlFor="login-password"
-                className="block text-sm font-medium text-slate-700 dark:text-slate-200"
+                className="block text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-200"
               >
                 Kata Sandi
               </label>
               <div className={`relative ${shakeInputs ? 'animate-shake' : ''}`}>
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </div>
                 <input
                   id="login-password"
                   type={showPassword ? 'text' : 'password'}
@@ -269,10 +266,10 @@ export default function LoginPage() {
                   }}
                   placeholder="••••••••"
                   autoComplete="off"
-                  className={`w-full h-11 pl-3.5 pr-10 rounded-xl border bg-white dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 text-sm focus:outline-none transition-all ${
+                  className={`w-full h-11 pl-10 pr-10 rounded-xl border bg-white dark:bg-slate-900 text-slate-900 dark:text-white placeholder:text-slate-400 text-xs sm:text-sm focus:outline-none transition-all ${
                     shakeInputs
                       ? 'border-[#B42318] ring-2 ring-[#B42318]/20 dark:border-rose-600'
-                      : 'border-slate-300/90 dark:border-slate-700 focus:border-action focus:ring-4 focus:ring-action/10'
+                      : 'border-slate-200 dark:border-slate-700 focus:border-[#175CD3] focus:ring-4 focus:ring-[#175CD3]/10'
                   }`}
                 />
                 <button
@@ -286,14 +283,14 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Remember + Forgot Password */}
-            <div className="flex items-center justify-between pt-0.5">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 cursor-pointer select-none">
+            {/* Remember & Forgot Password */}
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-600 dark:text-slate-300 cursor-pointer select-none">
                 <input
                   type="checkbox"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-action focus:ring-action/20 cursor-pointer"
+                  className="w-4 h-4 rounded border-slate-300 dark:border-slate-600 text-[#175CD3] focus:ring-[#175CD3]/20 cursor-pointer"
                 />
                 <span>Ingat saya</span>
               </label>
@@ -301,17 +298,17 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowResetInfo((prev) => !prev)}
-                className="text-sm font-semibold text-action dark:text-blue-400 hover:underline cursor-pointer"
+                className="text-xs sm:text-sm font-semibold text-[#175CD3] dark:text-blue-400 hover:underline cursor-pointer"
               >
-                Lupa kata sandi
+                Lupa kata sandi?
               </button>
             </div>
 
-            {/* Primary CTA */}
+            {/* Submit Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full h-11 px-4 rounded-xl bg-action hover:bg-action-hover active:scale-[0.99] text-white text-sm font-semibold transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="w-full h-11 px-4 rounded-xl bg-[#175CD3] hover:bg-[#1249A8] active:scale-[0.99] text-white text-xs sm:text-sm font-bold shadow-xs transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-2"
             >
               {isSubmitting ? (
                 <>
@@ -323,15 +320,43 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+        </div>
 
-          {/* Subtle Footer Status */}
-          <p className="mt-7 text-center text-sm text-slate-500 dark:text-slate-400">
-            {backendStatus === 'disconnected'
-              ? 'Layanan server sedang tidak terjangkau. Periksa koneksi Anda atau hubungi administrator.'
-              : 'Kanreg III BKN Bandung'}
+        {/* Footer */}
+        <div className="text-xs text-slate-400 dark:text-slate-500 text-center lg:text-left">
+          © 2026 Kantor Regional III BKN Bandung
+        </div>
+      </div>
+
+      {/* ========================================================
+          SISI KANAN: BRAND VISUAL & GEDUNG BKN ANCHORED DI BOTTOM
+         ======================================================== */}
+      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]">
+        {/* Soft Circular Glow Background */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
+
+        {/* Minimal Headline Text di Bagian Atas */}
+        <div className="relative z-10 p-12 lg:p-16 max-w-lg">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-semibold text-blue-100 tracking-wide mb-3">
+            Kantor Regional III BKN Bandung
+          </span>
+          <h2 className="text-3xl lg:text-4xl font-extrabold text-white tracking-tight leading-tight">
+            SIMOJANG
+          </h2>
+          <p className="text-sm text-blue-100/80 mt-2 font-normal leading-relaxed">
+            Sistem Informasi Monitoring Kinerja Layanan Kepegawaian.
           </p>
-        </motion.div>
-      </main>
+        </div>
+
+        {/* Ilustrasi Gedung BKN: Menempel Presisi di Bagian Paling Bawah */}
+        <div className="relative z-10 mt-auto w-full flex justify-center pointer-events-none select-none">
+          <img
+            src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
+            alt="Gedung Kanreg III BKN Bandung"
+            className="w-full max-w-2xl max-h-[62vh] object-contain object-bottom drop-shadow-2xl"
+          />
+        </div>
+      </div>
     </div>
   )
 }
