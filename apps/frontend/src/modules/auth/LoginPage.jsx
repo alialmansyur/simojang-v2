@@ -415,7 +415,7 @@ export default function LoginPage() {
             <img
               src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
               alt="Gedung Kanreg III BKN Bandung"
-              className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom drop-shadow-[0_20px_35px_rgba(0,0,0,0.35)]"
+              className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom filter brightness-[0.96] saturate-[0.82] contrast-[0.94] opacity-95"
             />
           </motion.div>
         </div>
