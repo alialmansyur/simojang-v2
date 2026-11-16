@@ -14,6 +14,7 @@ import { SidigiDeleteConfirmDialog } from './SidigiDeleteConfirmDialog'
 import { SidigiDetailDialog } from './SidigiDetailDialog'
 import { ServiceTablePagination } from '../ServiceTablePagination'
 import { ServiceFilterToolbar } from '../ServiceFilterToolbar'
+import { resolveAssetUrl } from '../../../../utils/url'
 
 export function SidigiCrudLayoutShell({
   serviceTitle = 'Layanan Sistem Informasi & Digitalisasi',
@@ -322,7 +323,7 @@ export function SidigiCrudLayoutShell({
 
           {activeTemplateUrl && (
             <a
-              href={activeTemplateUrl}
+              href={resolveAssetUrl(activeTemplateUrl)}
               download={activeTemplateUrl.split('/').pop() || templateName}
               className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold transition-all active:scale-95 cursor-pointer shadow-2xs shrink-0"
               title="Unduh Format Sampel Excel"

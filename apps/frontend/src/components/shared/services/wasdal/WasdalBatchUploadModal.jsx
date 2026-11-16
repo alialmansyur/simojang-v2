@@ -10,6 +10,7 @@ import {
   Loader2,
   FileText,
 } from 'lucide-react'
+import { resolveAssetUrl } from '../../../../utils/url'
 
 export function WasdalBatchUploadModal({
   isOpen,
@@ -184,7 +185,7 @@ export function WasdalBatchUploadModal({
             </div>
           </div>
           <a
-            href={templateUrl}
+            href={resolveAssetUrl(templateUrl)}
             download={templateName}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[#175CD3] dark:hover:text-blue-400 shadow-2xs transition-all shrink-0"
           >

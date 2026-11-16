@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import { UploadCloud, FileSpreadsheet, X, CheckCircle2, AlertTriangle, ArrowRight, RefreshCw, Download } from 'lucide-react'
 import { apiRequest } from '../../services/api'
+import { resolveAssetUrl } from '../../utils/url'
 
 export function ExcelUploadModal({
   isOpen,
@@ -159,7 +160,7 @@ export function ExcelUploadModal({
                   </div>
                 </div>
                 <a
-                  href={templateUrl && templateUrl !== '#' ? templateUrl : '/templates/general/template-general.xlsx'}
+                  href={resolveAssetUrl(templateUrl && templateUrl !== '#' ? templateUrl : '/templates/general/template-general.xlsx')}
                   download={`${serviceTitle.toLowerCase().replace(/\s+/g, '-')}-template.xlsx`}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[#175CD3] dark:hover:text-blue-400 shadow-2xs transition-all shrink-0 cursor-pointer"
                 >

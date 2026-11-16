@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { uploadServiceExcel } from '../../../services/api/modularServicesApi'
 import { SearchableSelect } from '../../ui/SearchableSelect'
+import { resolveAssetUrl } from '../../../utils/url'
 
 export function ServiceUploadDialog({
   isOpen,
@@ -256,7 +257,7 @@ export function ServiceUploadDialog({
               </div>
             </div>
             <a
-              href={sampleFile || '/templates/general/template-general.xlsx'}
+              href={resolveAssetUrl(sampleFile || '/templates/general/template-general.xlsx')}
               download={sampleFileName || (sampleFile ? sampleFile.split('/').pop() : 'template-import.xlsx')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[#175CD3] dark:hover:text-blue-400 shadow-2xs transition-all shrink-0 cursor-pointer"
             >
