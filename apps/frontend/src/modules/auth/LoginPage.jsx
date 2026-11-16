@@ -236,11 +236,11 @@ export default function LoginPage() {
             alt="Logo BKN"
             className="h-9 w-auto object-contain"
           />
-          <div>
-            <span className="text-xl font-bold tracking-tight text-slate-950 dark:text-white block leading-none">
+          <div className="flex flex-col justify-center">
+            <span className="text-xl font-black tracking-tight text-slate-950 dark:text-white block leading-none">
               SIMOJANG
             </span>
-            <span className="text-[11px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-1">
+            <span className="text-[10.5px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider block mt-0.5 leading-none">
               Kanreg III BKN
             </span>
           </div>
