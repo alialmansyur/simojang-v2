@@ -136,11 +136,11 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-[100dvh] flex flex-col lg:flex-row bg-white dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100">
+    <div className="min-h-[100dvh] grid grid-cols-1 lg:grid-cols-12 bg-white dark:bg-slate-950 font-sans antialiased text-slate-900 dark:text-slate-100">
       {/* ========================================================
-          SISI KIRI: FORMULIR LOGIN (CLEAN & MINIMALIS)
+          SISI KIRI: FORMULIR LOGIN (COL-5 / 41.7%)
          ======================================================== */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-between p-6 sm:p-12 lg:p-16 min-h-[100dvh] lg:min-h-auto">
+      <div className="lg:col-span-5 flex flex-col justify-between p-6 sm:p-10 lg:p-12 xl:p-14 min-h-[100dvh] lg:min-h-auto z-10 bg-white dark:bg-slate-950">
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
           <img
@@ -159,7 +159,7 @@ export default function LoginPage() {
         </div>
 
         {/* Center Container: Form */}
-        <div className="w-full max-w-[400px] mx-auto my-auto py-8">
+        <div className="w-full max-w-[380px] mx-auto my-auto py-8">
           <div className="mb-7">
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
               Masuk ke Akun
@@ -329,14 +329,14 @@ export default function LoginPage() {
       </div>
 
       {/* ========================================================
-          SISI KANAN: BRAND VISUAL & GEDUNG BKN ANCHORED DI BOTTOM
+          SISI KANAN: BRAND VISUAL & GEDUNG BKN ANCHORED DI BOTTOM (COL-7 / 58.3%)
          ======================================================== */}
-      <div className="hidden lg:flex lg:w-1/2 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]">
+      <div className="hidden lg:flex lg:col-span-7 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]">
         {/* Soft Circular Glow Background */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
 
         {/* Minimal Headline Text di Bagian Atas */}
-        <div className="relative z-10 p-12 lg:p-16 max-w-lg">
+        <div className="relative z-10 p-12 lg:p-16 max-w-xl">
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-semibold text-blue-100 tracking-wide mb-3">
             Kantor Regional III BKN Bandung
           </span>
@@ -353,7 +353,7 @@ export default function LoginPage() {
           <img
             src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
             alt="Gedung Kanreg III BKN Bandung"
-            className="w-full max-w-2xl max-h-[62vh] object-contain object-bottom drop-shadow-2xl"
+            className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom drop-shadow-2xl"
           />
         </div>
       </div>
