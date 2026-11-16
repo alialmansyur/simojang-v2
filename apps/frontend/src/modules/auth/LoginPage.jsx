@@ -1,6 +1,6 @@
 ﻿import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { User, Lock, Eye, EyeOff, AlertCircle, RefreshCw, Info } from 'lucide-react'
 import { refreshAuthSession, saveAuthSession } from '../../services/auth'
 import { apiRequest, checkBackendHealth } from '../../services/api'
@@ -21,6 +21,43 @@ export default function LoginPage() {
   const [backendStatus, setBackendStatus] = useState('checking')
   const [shakeInputs, setShakeInputs] = useState(false)
   const navigate = useNavigate()
+
+  // ========================================================
+  // PARALLAX EFFECT CONTROLLERS (60FPS HARDWARE-ACCELERATED)
+  // ========================================================
+  const mouseX = useMotionValue(0)
+  const mouseY = useMotionValue(0)
+
+  // Fluid physics-based springs
+  const springX = useSpring(mouseX, { stiffness: 45, damping: 25 })
+  const springY = useSpring(mouseY, { stiffness: 45, damping: 25 })
+
+  // Layer 1: Background Radial Glow (Depth Jauh / Berlawanan Arah)
+  const haloX = useTransform(springX, [-1, 1], [-35, 35])
+  const haloY = useTransform(springY, [-1, 1], [-25, 25])
+  const haloScale = useTransform(springY, [-1, 1], [0.96, 1.04])
+
+  // Layer 2: Headline Text (Floating Midground)
+  const textX = useTransform(springX, [-1, 1], [-12, 12])
+  const textY = useTransform(springY, [-1, 1], [-8, 8])
+
+  // Layer 3: Gedung BKN (Anchored at Bottom, Pivot Sway Horizontal & Tilt)
+  const buildingX = useTransform(springX, [-1, 1], [16, -16])
+  const buildingRotate = useTransform(springX, [-1, 1], [-0.65, 0.65])
+  const buildingScale = useTransform(springY, [-1, 1], [1.015, 0.99])
+
+  const handleMouseMove = (e) => {
+    const { innerWidth, innerHeight } = window
+    const normalizedX = (e.clientX / innerWidth) * 2 - 1
+    const normalizedY = (e.clientY / innerHeight) * 2 - 1
+    mouseX.set(normalizedX)
+    mouseY.set(normalizedY)
+  }
+
+  const handleMouseLeave = () => {
+    mouseX.set(0)
+    mouseY.set(0)
+  }
 
   const triggerShake = () => {
     setShakeInputs(true)
@@ -329,14 +366,30 @@ export default function LoginPage() {
       </div>
 
       {/* ========================================================
-          SISI KANAN: BRAND VISUAL & GEDUNG BKN ANCHORED DI BOTTOM (COL-7 / 58.3%)
+          SISI KANAN: BRAND VISUAL & GEDUNG BKN DENGAN PARALLAX DINAMIS (COL-7 / 58.3%)
          ======================================================== */}
-      <div className="hidden lg:flex lg:col-span-7 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]">
-        {/* Soft Circular Glow Background */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-blue-400/20 blur-3xl pointer-events-none" />
+      <div
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        className="hidden lg:flex lg:col-span-7 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]"
+      >
+        {/* Layer 1: Soft Circular Glow Halo (Parallax Deep Background) */}
+        <motion.div
+          style={{ x: haloX, y: haloY, scale: haloScale }}
+          className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-blue-300/20 blur-3xl pointer-events-none"
+        />
 
-        {/* Minimal Headline Text di Bagian Atas */}
-        <div className="relative z-10 p-12 lg:p-16 max-w-xl">
+        {/* Ambient Subtle Ring */}
+        <motion.div
+          style={{ x: haloX, y: haloY }}
+          className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[680px] rounded-full border border-white/10 pointer-events-none"
+        />
+
+        {/* Layer 2: Minimal Headline Text di Bagian Atas (Parallax Midground) */}
+        <motion.div
+          style={{ x: textX, y: textY }}
+          className="relative z-10 p-12 lg:p-16 max-w-xl pointer-events-none select-none"
+        >
           <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-xs font-semibold text-blue-100 tracking-wide mb-3">
             Kantor Regional III BKN Bandung
           </span>
@@ -346,15 +399,25 @@ export default function LoginPage() {
           <p className="text-sm text-blue-100/80 mt-2 font-normal leading-relaxed">
             Sistem Informasi Monitoring Kinerja Layanan Kepegawaian.
           </p>
-        </div>
+        </motion.div>
 
-        {/* Ilustrasi Gedung BKN: Menempel Presisi di Bagian Paling Bawah */}
-        <div className="relative z-10 mt-auto w-full flex justify-center pointer-events-none select-none">
-          <img
-            src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
-            alt="Gedung Kanreg III BKN Bandung"
-            className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom drop-shadow-2xl"
-          />
+        {/* Layer 3: Ilustrasi Gedung BKN: Menempel di Bagian Bawah dengan Pivot Parallax */}
+        <div className="relative z-10 mt-auto w-full flex justify-center pointer-events-none select-none overflow-hidden">
+          <motion.div
+            style={{
+              x: buildingX,
+              rotate: buildingRotate,
+              scale: buildingScale,
+              transformOrigin: 'bottom center',
+            }}
+            className="w-full flex justify-center"
+          >
+            <img
+              src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
+              alt="Gedung Kanreg III BKN Bandung"
+              className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom drop-shadow-[0_20px_35px_rgba(0,0,0,0.35)]"
+            />
+          </motion.div>
         </div>
       </div>
     </div>
