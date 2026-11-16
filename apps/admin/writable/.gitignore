@@ -1,3 +1,11 @@
 ﻿*
 !.gitignore
 !.gitkeep
+!uploads/
+!uploads/**/
+!uploads/public/**/*.webp
+!uploads/public/**/*.jpg
+!uploads/public/**/*.jpeg
+!uploads/public/**/*.png
+!uploads/public/**/*.gif
+!uploads/public/**/*.svg

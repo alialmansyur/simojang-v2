@@ -1,0 +1,11 @@
+*
+!.gitignore
+!public/
+!public/**/
+!public/**/*.webp
+!public/**/*.jpg
+!public/**/*.jpeg
+!public/**/*.png
+!public/**/*.gif
+!public/**/*.svg
+!private/

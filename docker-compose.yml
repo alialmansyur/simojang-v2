@@ -23,6 +23,7 @@ services:
       - "${BE_PORT:-8402}:8080"
     volumes:
       - simojang_v2_writable:/var/www/html/writable:ro
+      - ./apps/admin/writable/uploads:/var/www/html/writable/uploads:ro
     depends_on:
       app_v2:
         condition: service_started
@@ -50,6 +51,7 @@ services:
     volumes:
       - ./apps/admin/.env:/var/www/html/.env
       - simojang_v2_writable:/var/www/html/writable
+      - ./apps/admin/writable/uploads:/var/www/html/writable/uploads
     environment:
       - TZ=Asia/Jakarta
       - CI_ENVIRONMENT=${CI_ENVIRONMENT:-production}

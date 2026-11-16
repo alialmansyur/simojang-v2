@@ -60,6 +60,14 @@ apps/admin/writable/uploads/*
 !apps/admin/writable/uploads/.gitkeep
 !apps/admin/writable/uploads/index.html
 !apps/admin/writable/uploads/.gitignore
+!apps/admin/writable/uploads/public/
+!apps/admin/writable/uploads/public/**/
+!apps/admin/writable/uploads/public/**/*.webp
+!apps/admin/writable/uploads/public/**/*.jpg
+!apps/admin/writable/uploads/public/**/*.jpeg
+!apps/admin/writable/uploads/public/**/*.png
+!apps/admin/writable/uploads/public/**/*.gif
+!apps/admin/writable/uploads/public/**/*.svg
 
 # IDE & OS files
 .idea/
