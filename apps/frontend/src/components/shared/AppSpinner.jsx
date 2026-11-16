@@ -19,14 +19,14 @@ export function AppSpinner({
     '2xl': 'w-14 h-14',
   }
 
-  // Ketebalan tegas (bold/tebal) terstandarisasi
+  // Ketebalan seimbang & proporsional (clean medium-bold)
   const defaultStrokes = {
-    xs: 3.5,
-    sm: 3.5,
-    md: 3.6,
-    lg: 4.2,
-    xl: 4.5,
-    '2xl': 5,
+    xs: 2.2,
+    sm: 2.5,
+    md: 2.8,
+    lg: 3.0,
+    xl: 3.2,
+    '2xl': 3.6,
   }
 
   const colorMap = {
@@ -38,7 +38,7 @@ export function AppSpinner({
 
   const appliedSize = sizeMap[size] || (typeof size === 'string' && size.includes('w-') ? size : sizeMap.md)
   const appliedColor = colorMap[color] || colorMap.primary
-  const appliedStroke = strokeWidth ?? (defaultStrokes[size] || 3.6)
+  const appliedStroke = strokeWidth ?? (defaultStrokes[size] || 2.8)
 
   return (
     <svg
@@ -87,8 +87,8 @@ export function AppPageLoader({
       } flex items-center justify-center bg-slate-50 dark:bg-slate-900 transition-colors ${className}`}
     >
       <div className="flex flex-col items-center gap-4 text-center px-4 max-w-sm">
-        {/* Loader Tebal Standar Utama */}
-        <AppSpinner size="xl" strokeWidth={4.5} />
+        {/* Loader Standar Utama (Ketebalan Presisi & Elegan) */}
+        <AppSpinner size="xl" strokeWidth={3.2} />
 
         {message && (
           <div className="space-y-1">

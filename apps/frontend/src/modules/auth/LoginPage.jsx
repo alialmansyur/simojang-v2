@@ -404,7 +404,7 @@ export default function LoginPage() {
             >
               {isSubmitting ? (
                 <>
-                  <AppSpinner size="sm" color="white" strokeWidth={3.5} />
+                  <AppSpinner size="sm" color="white" strokeWidth={2.5} />
                   <span>Memverifikasi...</span>
                 </>
               ) : (
@@ -446,9 +446,9 @@ export default function LoginPage() {
           className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[680px] rounded-full border border-white/10 pointer-events-none"
         />
 
-        {/* Layer 2: Minimal Headline Text di Bagian Atas (Parallax Midground + Smooth Entrance) */}
+        {/* Layer 2: Minimal Headline Text di Bagian Atas (Parallax Midground + Smooth Entrance dari Bawah) */}
         <motion.div
-          initial={{ y: 25, opacity: 0 }}
+          initial={{ y: 35, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 1.2, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
           style={{ x: textX, y: textY }}
@@ -465,15 +465,15 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
-        {/* Layer 3: Ilustrasi Gedung BKN: Menempel di Bagian Bawah dengan Cinematic Rolling Camera Zoom & Parallax */}
+        {/* Layer 3: Ilustrasi Gedung BKN: Menempel di Bagian Bawah dengan Cinematic Rolling Camera Zoom (Bawah ke Atas) */}
         <div className="relative z-10 mt-auto w-full flex justify-center pointer-events-none select-none overflow-hidden">
-          {/* Cinematic Opening Camera Roll & Zoom */}
+          {/* Cinematic Opening Camera Roll & Zoom dari Bawah ke Atas */}
           <motion.div
-            initial={{ scale: 1.22, rotate: -2.8, y: 50, opacity: 0 }}
+            initial={{ scale: 1.18, rotate: -3.2, y: 160, opacity: 0 }}
             animate={{ scale: 1, rotate: 0, y: 0, opacity: 1 }}
             transition={{
-              duration: 1.6,
-              ease: [0.16, 1, 0.3, 1], // Smooth camera dolly curve
+              duration: 1.5,
+              ease: [0.16, 1, 0.3, 1], // Smooth cinematic camera crane/dolly curve
             }}
             style={{ transformOrigin: 'bottom center' }}
             className="w-full flex justify-center"
