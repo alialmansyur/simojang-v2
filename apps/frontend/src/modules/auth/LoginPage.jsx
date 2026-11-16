@@ -80,22 +80,22 @@ export default function LoginPage() {
   const mouseY = useMotionValue(0)
 
   // Fluid physics-based springs
-  const springX = useSpring(mouseX, { stiffness: 45, damping: 25 })
-  const springY = useSpring(mouseY, { stiffness: 45, damping: 25 })
+  const springX = useSpring(mouseX, { stiffness: 50, damping: 22 })
+  const springY = useSpring(mouseY, { stiffness: 50, damping: 22 })
 
   // Layer 1: Background Radial Glow (Depth Jauh / Berlawanan Arah)
-  const haloX = useTransform(springX, [-1, 1], [-35, 35])
-  const haloY = useTransform(springY, [-1, 1], [-25, 25])
-  const haloScale = useTransform(springY, [-1, 1], [0.96, 1.04])
+  const haloX = useTransform(springX, [-1, 1], [-45, 45])
+  const haloY = useTransform(springY, [-1, 1], [-30, 30])
+  const haloScale = useTransform(springY, [-1, 1], [0.94, 1.06])
 
   // Layer 2: Headline Text (Floating Midground)
-  const textX = useTransform(springX, [-1, 1], [-12, 12])
-  const textY = useTransform(springY, [-1, 1], [-8, 8])
+  const textX = useTransform(springX, [-1, 1], [-16, 16])
+  const textY = useTransform(springY, [-1, 1], [-10, 10])
 
   // Layer 3: Gedung BKN (Anchored at Bottom, Pivot Sway Horizontal & Tilt)
-  const buildingX = useTransform(springX, [-1, 1], [16, -16])
-  const buildingRotate = useTransform(springX, [-1, 1], [-0.65, 0.65])
-  const buildingScale = useTransform(springY, [-1, 1], [1.015, 0.99])
+  const buildingX = useTransform(springX, [-1, 1], [22, -22])
+  const buildingRotate = useTransform(springX, [-1, 1], [-1.2, 1.2])
+  const buildingScale = useTransform(springY, [-1, 1], [1.025, 0.985])
 
   const handleMouseMove = (e) => {
     const { innerWidth, innerHeight } = window
@@ -428,20 +428,29 @@ export default function LoginPage() {
         onMouseLeave={handleMouseLeave}
         className="hidden lg:flex lg:col-span-7 relative flex-col justify-between bg-gradient-to-b from-[#1250C4] via-[#0E42A8] to-[#0A3078] text-white overflow-hidden min-h-[100dvh]"
       >
-        {/* Layer 1: Soft Circular Glow Halo (Parallax Deep Background) */}
+        {/* Layer 1: Soft Circular Glow Halo (Parallax Deep Background + Zoom In Entrance) */}
         <motion.div
+          initial={{ scale: 0.75, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 1.8, ease: 'easeOut' }}
           style={{ x: haloX, y: haloY, scale: haloScale }}
           className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[550px] h-[550px] rounded-full bg-blue-300/20 blur-3xl pointer-events-none"
         />
 
         {/* Ambient Subtle Ring */}
         <motion.div
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 2.0, delay: 0.1, ease: 'easeOut' }}
           style={{ x: haloX, y: haloY }}
           className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[680px] h-[680px] rounded-full border border-white/10 pointer-events-none"
         />
 
-        {/* Layer 2: Minimal Headline Text di Bagian Atas (Parallax Midground) */}
+        {/* Layer 2: Minimal Headline Text di Bagian Atas (Parallax Midground + Smooth Entrance) */}
         <motion.div
+          initial={{ y: 25, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 1.2, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
           style={{ x: textX, y: textY }}
           className="relative z-10 p-12 lg:p-16 max-w-xl pointer-events-none select-none"
         >
@@ -456,22 +465,35 @@ export default function LoginPage() {
           </p>
         </motion.div>
 
-        {/* Layer 3: Ilustrasi Gedung BKN: Menempel di Bagian Bawah dengan Pivot Parallax */}
+        {/* Layer 3: Ilustrasi Gedung BKN: Menempel di Bagian Bawah dengan Cinematic Rolling Camera Zoom & Parallax */}
         <div className="relative z-10 mt-auto w-full flex justify-center pointer-events-none select-none overflow-hidden">
+          {/* Cinematic Opening Camera Roll & Zoom */}
           <motion.div
-            style={{
-              x: buildingX,
-              rotate: buildingRotate,
-              scale: buildingScale,
-              transformOrigin: 'bottom center',
+            initial={{ scale: 1.22, rotate: -2.8, y: 50, opacity: 0 }}
+            animate={{ scale: 1, rotate: 0, y: 0, opacity: 1 }}
+            transition={{
+              duration: 1.6,
+              ease: [0.16, 1, 0.3, 1], // Smooth camera dolly curve
             }}
+            style={{ transformOrigin: 'bottom center' }}
             className="w-full flex justify-center"
           >
-            <img
-              src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
-              alt="Gedung Kanreg III BKN Bandung"
-              className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom filter brightness-[0.96] saturate-[0.82] contrast-[0.94] opacity-95"
-            />
+            {/* Interactive Dynamic Mouse Parallax */}
+            <motion.div
+              style={{
+                x: buildingX,
+                rotate: buildingRotate,
+                scale: buildingScale,
+                transformOrigin: 'bottom center',
+              }}
+              className="w-full flex justify-center"
+            >
+              <img
+                src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
+                alt="Gedung Kanreg III BKN Bandung"
+                className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom filter brightness-[0.96] saturate-[0.82] contrast-[0.94] opacity-95"
+              />
+            </motion.div>
           </motion.div>
         </div>
       </div>
