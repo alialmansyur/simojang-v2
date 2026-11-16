@@ -56,4 +56,8 @@ services:
       - TZ=Asia/Jakarta
       - CI_ENVIRONMENT=${CI_ENVIRONMENT:-production}
     networks:
-      - appnet
+      appnet:
+        aliases:
+          - app
+          - app_v2
+          - simojang-app

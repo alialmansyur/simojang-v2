@@ -16,6 +16,8 @@ import {
 import { refreshAuthSession, saveAuthSession } from '../../services/auth'
 import { apiRequest, checkBackendHealth } from '../../services/api'
 import { AppSpinner } from '../../components/shared/AppSpinner'
+import bknIllustration from '../../assets/images/bkn-illustration.png'
+import bknLogo from '../../assets/images/logo.png'
 
 function getTimeGreetingMeta(date = new Date()) {
   const hour = date.getHours()
@@ -232,7 +234,7 @@ export default function LoginPage() {
         {/* Brand Logo & Name */}
         <div className="flex items-center gap-3">
           <img
-            src={`${import.meta.env.BASE_URL}logo.png`}
+            src={bknLogo}
             alt="Logo BKN"
             className="h-9 w-auto object-contain"
           />
@@ -489,7 +491,7 @@ export default function LoginPage() {
               className="w-full flex justify-center"
             >
               <img
-                src={`${import.meta.env.BASE_URL}bkn-illustration.png`}
+                src={bknIllustration}
                 alt="Gedung Kanreg III BKN Bandung"
                 className="w-full max-w-3xl max-h-[64vh] object-contain object-bottom filter brightness-[0.96] saturate-[0.82] contrast-[0.94] opacity-95"
               />
