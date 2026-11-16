@@ -1,9 +1,51 @@
-﻿import { useState, useEffect } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
-import { User, Lock, Eye, EyeOff, AlertCircle, RefreshCw, Info } from 'lucide-react'
+import {
+  User,
+  Lock,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  RefreshCw,
+  Info,
+  Sunrise,
+  Sun,
+  Sunset,
+  Moon,
+} from 'lucide-react'
 import { refreshAuthSession, saveAuthSession } from '../../services/auth'
 import { apiRequest, checkBackendHealth } from '../../services/api'
+
+function getTimeGreetingMeta(date = new Date()) {
+  const hour = date.getHours()
+  if (hour >= 4 && hour < 11) {
+    return {
+      label: 'Selamat Pagi',
+      icon: Sunrise,
+      iconClass: 'text-amber-500 dark:text-amber-400',
+    }
+  }
+  if (hour >= 11 && hour < 15) {
+    return {
+      label: 'Selamat Siang',
+      icon: Sun,
+      iconClass: 'text-amber-500 dark:text-amber-400',
+    }
+  }
+  if (hour >= 15 && hour < 18) {
+    return {
+      label: 'Selamat Sore',
+      icon: Sunset,
+      iconClass: 'text-orange-500 dark:text-orange-400',
+    }
+  }
+  return {
+    label: 'Selamat Malam',
+    icon: Moon,
+    iconClass: 'text-[#175CD3] dark:text-[#93C5FD]',
+  }
+}
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -21,6 +63,15 @@ export default function LoginPage() {
   const [backendStatus, setBackendStatus] = useState('checking')
   const [shakeInputs, setShakeInputs] = useState(false)
   const navigate = useNavigate()
+
+  // Sapaan Waktu Otomatis (Pagi, Siang, Sore, Malam)
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 30000)
+    return () => clearInterval(timer)
+  }, [])
+  const greetingMeta = useMemo(() => getTimeGreetingMeta(now), [now])
+  const GreetingIcon = greetingMeta.icon
 
   // ========================================================
   // PARALLAX EFFECT CONTROLLERS (60FPS HARDWARE-ACCELERATED)
@@ -198,6 +249,10 @@ export default function LoginPage() {
         {/* Center Container: Form */}
         <div className="w-full max-w-[380px] mx-auto my-auto py-8">
           <div className="mb-7">
+            <div className="inline-flex items-center gap-2 text-xs sm:text-sm font-semibold text-[#175CD3] dark:text-[#93C5FD] mb-2">
+              <GreetingIcon className={`w-4 h-4 shrink-0 ${greetingMeta.iconClass}`} />
+              <span>{greetingMeta.label}</span>
+            </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">
               Masuk ke Akun
             </h1>
