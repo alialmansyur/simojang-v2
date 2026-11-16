@@ -121,16 +121,16 @@ export function EventRunningTicker() {
     <div
       role="region"
       aria-label="Pengumuman Jadwal Agenda Kantor"
-      className="ticker-container relative w-full bg-[#FACC15] dark:bg-amber-400 text-slate-950 border-b border-amber-400/60 dark:border-amber-500/60 shadow-2xs flex items-center overflow-hidden z-20 select-none h-9 transition-all m-0 shrink-0"
+      className="ticker-container relative w-full bg-[#FACC15] dark:bg-amber-400 text-slate-950 border-b border-amber-400/60 dark:border-amber-500/60 shadow-2xs flex items-center overflow-hidden z-20 select-none h-11 sm:h-12 transition-all m-0 shrink-0"
     >
       {/* Ticker Content Track: Berjalan mulus secara alami tanpa blok tombol kiri */}
       <div className="flex-1 overflow-hidden relative flex items-center h-full">
         {loading ? (
-          <div className="px-5 text-xs font-medium text-slate-900/80">
+          <div className="px-5 text-xs sm:text-[13px] font-medium text-slate-900/80">
             Memuat agenda kantor...
           </div>
         ) : upcomingWeekEvents.length === 0 ? (
-          <div className="px-5 text-xs font-medium text-slate-900">
+          <div className="px-5 text-xs sm:text-[13px] font-medium text-slate-900">
             Tidak ada agenda kantor dalam rentang 1 minggu ke depan.
           </div>
         ) : (
@@ -146,12 +146,12 @@ export function EventRunningTicker() {
                       key={`${copyIdx}-${ev.id || idx}`}
                       onClick={() => navigate('/calendar-event')}
                       title={`Klik untuk membuka kalender: ${ev.title}`}
-                      className="inline-flex items-center gap-2.5 cursor-pointer text-xs text-slate-900 font-medium"
+                      className="inline-flex items-center gap-2.5 cursor-pointer text-xs sm:text-[13px] text-slate-900 font-medium"
                     >
                       {/* Badge Warning Soft membungkus Icon Calendar dan Tanggal (Tanpa Garis Bawah) */}
                       {dateLabel && (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-amber-900/10 border border-amber-900/15 text-[11px] font-bold text-slate-950 shrink-0 shadow-2xs">
-                          <Calendar className="w-3 h-3 text-slate-900 shrink-0 opacity-90" />
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-900/10 border border-amber-900/15 text-[11px] sm:text-xs font-bold text-slate-950 shrink-0 shadow-2xs">
+                          <Calendar className="w-3.5 h-3.5 text-slate-900 shrink-0 opacity-90" />
                           <span>{dateLabel}</span>
                         </span>
                       )}
@@ -161,7 +161,7 @@ export function EventRunningTicker() {
                       </span>
 
                       {ev.location && ev.location !== '-' && (
-                        <span className="text-slate-800/85 font-normal">
+                        <span className="text-slate-800/85 font-normal text-xs sm:text-[13px]">
                           ({ev.location})
                         </span>
                       )}
@@ -182,9 +182,9 @@ export function EventRunningTicker() {
         onClick={() => setDismissed(true)}
         title="Tutup pengumuman"
         aria-label="Tutup running text"
-        className="px-2.5 h-full flex items-center justify-center text-slate-800/70 hover:text-slate-950 hover:bg-amber-400/50 transition-colors shrink-0 cursor-pointer"
+        className="px-3.5 h-full flex items-center justify-center text-slate-800/70 hover:text-slate-950 hover:bg-amber-400/50 transition-colors shrink-0 cursor-pointer"
       >
-        <X className="w-3.5 h-3.5" />
+        <X className="w-4 h-4" />
       </button>
     </div>
   )
