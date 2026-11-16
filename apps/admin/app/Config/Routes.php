@@ -80,6 +80,7 @@ $routes->group('', ['filter' => ['jwtauth', 'rbac', 'serviceaccess']], function 
     $routes->get('/api/navigation', 'Apps\AppsController::getUserMenus');
 
     // Route untuk Main Services / Dashboard
+    $routes->get('api/dashboard/summary', 'Apps\DashboardController::summary');
     $routes->get('/api/dashboard/summary', 'Apps\DashboardController::summary');
     $routes->post('/fetch-layanan', 'Apps\FetchData::fetchLayanan');
     $routes->post('/fetch-timkerja', 'Apps\FetchData::fetchTimKerja'); 

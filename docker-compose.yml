@@ -50,6 +50,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - ./apps/admin/.env:/var/www/html/.env
+      - ./apps/admin/app:/var/www/html/app
       - simojang_v2_writable:/var/www/html/writable
       - ./apps/admin/writable/uploads:/var/www/html/writable/uploads
     environment:
@@ -58,6 +59,4 @@ services:
     networks:
       appnet:
         aliases:
-          - app
           - app_v2
-          - simojang-app
