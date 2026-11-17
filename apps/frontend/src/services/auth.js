@@ -10,9 +10,63 @@ function emitAuthChanged() {
   window.dispatchEvent(new Event(AUTH_CHANGED_EVENT))
 }
 
+const SERVICE_URL_TO_ROUTE = {
+  // PnM
+  'apps-kp': '/layanan/kenaikan-pangkat',
+  'apps-pg': '/layanan/pencantuman-gelar',
+  'apps-tapnip': '/layanan/penetapan-nip',
+  'apps-pmk': '/layanan/peninjauan-masa-kerja',
+  'apps-pi': '/layanan/pindah-instansi',
+  // Mutasi
+  'apps-cltn': '/layanan/cltn',
+  'apps-aktif': '/layanan/asn-aktif',
+  'apps-cpns': '/layanan/cpns-pns',
+  'apps-pensiun': '/layanan/pertek-pensiun',
+  'apps-sk-pensiun': '/layanan/sk-pensiun',
+  'apps-regis-pensiun': '/layanan/regis-pensiun',
+  // Wasdal
+  'apps-merit': '/layanan/sistem-merit',
+  'apps-nspk': '/layanan/indeks-nspk',
+  'apps-wasdal': '/layanan/wasdal-netralitas',
+  // PMA
+  'apps-mt': '/layanan/manajemen-talenta',
+  'apps-pembinaan-kinerja': '/layanan/pembinaan-kinerja',
+  'apps-pembinaan-kompetensi-karier': '/layanan/pengembangan-kompetensi',
+  'apps-pembinaan-disiplin-budaya-citra': '/layanan/disiplin-budaya-citra',
+  'apps-kompetensi': '/layanan/penilaian-kompetensi',
+  'apps-karier': '/layanan/penilaian-karier',
+  // SIDIGI
+  'apps-statistik': '/layanan/statistik-pegawai',
+  'apps-pdm': '/layanan/peremajaan-data',
+  'apps-dispa': '/layanan/disparitas-data',
+  'apps-integrasi': '/layanan/integrasi-siasn',
+  'apps-takah': '/layanan/arsip-takah',
+  'apps-dms': '/layanan/arsip-dms',
+  'apps-cat': '/layanan/fasilitasi-cat',
+  'apps-pnbp': '/layanan/pnbp-cat',
+  // TU
+  'apps-anggaran': '/layanan/anggaran',
+  'apps-ikm': '/layanan/ikm',
+  'apps-humas': '/layanan/humas',
+  'apps-surat': '/layanan/surat',
+  'apps-konsultasi': '/layanan/konsultasi',
+  'apps-ikpa': '/layanan/ikpa',
+  'apps-statistik-internal': '/layanan/statistik-internal',
+  'apps-ekin': '/layanan/ekin',
+  'apps-manage-assets': '/layanan/manage-assets',
+  'apps-manage-project': '/layanan/manage-project',
+  'apps-lost-and-found': '/layanan/lost-and-found',
+  'apps-ikk': '/layanan/ikk',
+}
+
 function normalizeServicePath(rawPath, rawTitle = '') {
   const p = String(rawPath || '').trim()
+  const cleanKey = p.replace(/^\/+/, '').toLowerCase()
   const t = String(rawTitle || '').trim().toLowerCase()
+
+  if (SERVICE_URL_TO_ROUTE[cleanKey]) {
+    return SERVICE_URL_TO_ROUTE[cleanKey]
+  }
 
   if (p === '/layanan/kp' || p === '/apps-kp' || t === 'kenaikan pangkat') return '/layanan/kenaikan-pangkat'
   if (p === '/layanan/pg' || p === '/apps-pg' || t === 'pencantuman gelar') return '/layanan/pencantuman-gelar'
@@ -27,6 +81,12 @@ function normalizeServicePath(rawPath, rawTitle = '') {
     t.includes('mutasi antar instansi')
   ) {
     return '/layanan/pindah-instansi'
+  }
+  if (p === '/layanan/anggaran' || p === '/apps-anggaran' || t.includes('anggaran dipa') || t.includes('realisasi anggaran')) {
+    return '/layanan/anggaran'
+  }
+  if (p === '/layanan/statistik-internal' || p === '/apps-statistik-internal' || t.includes('statistik internal') || t.includes('kepegawaian internal')) {
+    return '/layanan/statistik-internal'
   }
 
   return rawPath
@@ -368,6 +428,8 @@ export function getCurrentUserRawUrls(session = getAuthSession()) {
   const walk = (nodes) => {
     nodes.forEach((item) => {
       if (item?.raw_url) urls.push(String(item.raw_url).trim().replace(/^\/+/, '').toLowerCase())
+      if (item?.url) urls.push(String(item.url).trim().replace(/^\/+/, '').toLowerCase())
+      if (item?.path) urls.push(String(item.path).trim().replace(/^\/+/, '').toLowerCase())
       if (Array.isArray(item?.children) && item.children.length > 0) walk(item.children)
     })
   }
