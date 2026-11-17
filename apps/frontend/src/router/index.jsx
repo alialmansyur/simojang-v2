@@ -3,6 +3,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 
 import {
+  clearAuthSession,
   getAuthSession,
   isAuthenticated as checkIsAuthenticated,
   refreshAuthSession,
@@ -106,10 +107,17 @@ const IkkPage = lazy(() => import('../modules/services/tu/IkkPage'))
 
 function ProtectedRoute({ authenticated, children }) {
   const location = useLocation()
-  if (!authenticated) {
-    return <Navigate to="/login" replace />
+  const session = getAuthSession()
+  const isAuth = Boolean(authenticated && session && checkIsAuthenticated())
+
+  // Jika sesi telah berakhir atau tidak ada data sesi valid, langsung arahkan ke /login
+  if (!isAuth) {
+    clearAuthSession()
+    return <Navigate to="/login?reason=expired" state={{ from: location }} replace />
   }
-  if (!canAccessRoute(location.pathname)) {
+
+  // Pengecekan RBAC hanya untuk sesi pengguna yang sah & aktif
+  if (!canAccessRoute(location.pathname, session)) {
     return (
       <AdminLayout title="Akses Dibatasi" canvasClassName={SOFT_CANVAS_CLASS}>
         <div className="min-h-[60vh] flex items-center justify-center p-4">
@@ -140,11 +148,33 @@ function ProtectedRoute({ authenticated, children }) {
 }
 
 export function AppRouter() {
+  const location = useLocation()
   const [authState, setAuthState] = useState(() => ({
     authenticated: checkIsAuthenticated(),
     version: 0,
   }))
   const [verifyingSession, setVerifyingSession] = useState(() => checkIsAuthenticated())
+
+  // Trigger saat klik halaman / navigasi berpindah rute:
+  // Cek apakah session masih aktif secara real-time. Jika session habis, langsung bersihkan & redirect ke login.
+  useEffect(() => {
+    const isPublic =
+      location.pathname === '/login' ||
+      location.pathname.startsWith('/laporan/esign/') ||
+      location.pathname.startsWith('/esign/') ||
+      location.pathname.startsWith('/layanan/fasilitasi-cat/laporan/esign/') ||
+      location.pathname.startsWith('/public/cat-esign')
+
+    if (!isPublic) {
+      if (!checkIsAuthenticated()) {
+        clearAuthSession()
+        setAuthState({
+          authenticated: false,
+          version: Date.now(),
+        })
+      }
+    }
+  }, [location.pathname])
 
   useEffect(() => {
     let active = true

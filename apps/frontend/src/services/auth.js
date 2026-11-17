@@ -330,31 +330,63 @@ function readRawAuthSession() {
   return { raw: null, storage: null, rememberLogin: false }
 }
 
+export function parseJwtPayload(token) {
+  try {
+    if (!token || typeof token !== 'string') return null
+    const parts = token.replace(/^Bearer\s+/i, '').split('.')
+    if (parts.length < 2) return null
+    const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
+  }
+}
+
+export function isSessionExpired(session) {
+  if (!session || !session.token) return true
+
+  // 1. Cek masa berlaku dari session.expires_at atau user.token_expires_at
+  const rawExp = session?.expires_at || session?.user?.token_expires_at
+  if (rawExp) {
+    let expTime = null
+    if (typeof rawExp === 'number') {
+      expTime = rawExp > 1e11 ? rawExp : rawExp * 1000
+    } else {
+      const parsed = new Date(rawExp).getTime()
+      if (!Number.isNaN(parsed)) expTime = parsed
+    }
+    if (expTime && Date.now() >= expTime) {
+      return true
+    }
+  }
+
+  // 2. Ekstraksi otomatis klaim exp langsung dari payload JWT token
+  const jwtPayload = parseJwtPayload(session.token)
+  if (jwtPayload?.exp) {
+    const jwtExpTime = Number(jwtPayload.exp) * 1000
+    if (!Number.isNaN(jwtExpTime) && Date.now() >= jwtExpTime) {
+      return true
+    }
+  }
+
+  return false
+}
+
 export function getAuthSession() {
   const { raw, rememberLogin } = readRawAuthSession()
   if (!raw) return null
 
   try {
     const session = JSON.parse(raw)
-    if (!session?.token || session?.is_offline_demo) {
-      localStorage.removeItem(AUTH_STORAGE_KEY)
-      localStorage.removeItem('role')
-      sessionStorage.removeItem(AUTH_STORAGE_KEY)
-      sessionStorage.removeItem('role')
+    if (!session?.token || session?.is_offline_demo || isSessionExpired(session)) {
+      clearAuthSession()
       return null
-    }
-
-    // Check expiration if available
-    const expiresAt = session?.expires_at || session?.user?.token_expires_at
-    if (expiresAt) {
-      const expTime = new Date(expiresAt).getTime()
-      if (!Number.isNaN(expTime) && Date.now() >= expTime) {
-        localStorage.removeItem(AUTH_STORAGE_KEY)
-        localStorage.removeItem('role')
-        sessionStorage.removeItem(AUTH_STORAGE_KEY)
-        sessionStorage.removeItem('role')
-        return null
-      }
     }
 
     if (typeof session.remember_login === 'undefined') {
@@ -363,8 +395,7 @@ export function getAuthSession() {
 
     return session
   } catch {
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-    sessionStorage.removeItem(AUTH_STORAGE_KEY)
+    clearAuthSession()
     return null
   }
 }

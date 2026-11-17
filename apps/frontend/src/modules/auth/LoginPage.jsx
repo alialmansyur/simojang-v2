@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { motion, AnimatePresence, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import {
   User,
@@ -65,6 +65,14 @@ export default function LoginPage() {
   const [backendStatus, setBackendStatus] = useState('checking')
   const [shakeInputs, setShakeInputs] = useState(false)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('reason') === 'expired') {
+      setError('Sesi Anda telah berakhir. Silakan masuk kembali.')
+    }
+  }, [location.search])
 
   // Sapaan Waktu Otomatis (Pagi, Siang, Sore, Malam)
   const [now, setNow] = useState(() => new Date())

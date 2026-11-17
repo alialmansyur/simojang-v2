@@ -145,7 +145,10 @@ export function installAuthFetchInterceptor() {
       const url = typeof input === 'string' ? input : (input?.url || '')
       const isInternal =
         url.startsWith('/') ||
-        (API_BASE_URL && url.startsWith(API_BASE_URL))
+        url.includes('/api/') ||
+        url.includes('/auth/') ||
+        (typeof window !== 'undefined' && url.startsWith(window.location.origin)) ||
+        (Boolean(API_BASE_URL) && url.startsWith(API_BASE_URL))
       const isLoginRequest = url.includes('/authprocess')
 
       if (isInternal && !isLoginRequest) {
