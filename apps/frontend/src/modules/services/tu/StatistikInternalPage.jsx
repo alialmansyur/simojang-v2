@@ -196,8 +196,10 @@ export default function StatistikInternalPage() {
         {/* Kolom 2: UNIT KERJA */}
         <td className="py-3.5 px-4">
           {item.unit_kerja ? (
-            <div className="flex flex-wrap gap-1 max-w-[240px]" title={item.unit_kerja}>
-              {item.unit_kerja.split(',').map((uk, idx) => (
+            <div className="flex flex-wrap gap-1 max-w-[240px]" title={String(item.unit_kerja)}>
+              {String(item.unit_kerja)
+                .split(',')
+                .map((uk, idx) => (
                 <span
                   key={idx}
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50 truncate max-w-[220px]"

@@ -143,7 +143,9 @@ export function PegawaiDetailModal({ isOpen, onClose, data }) {
                 <span className="text-slate-400 block text-[11px] mb-1">Unit Kerja / Tim Kerja</span>
                 {data.unit_kerja ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {data.unit_kerja.split(',').map((uk, idx) => (
+                    {String(data.unit_kerja)
+                      .split(',')
+                      .map((uk, idx) => (
                       <span
                         key={idx}
                         className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60"

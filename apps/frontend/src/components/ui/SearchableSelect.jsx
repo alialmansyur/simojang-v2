@@ -1,4 +1,4 @@
-import { forwardRef, useState, useEffect } from 'react'
+import { forwardRef, useState, useEffect, useMemo } from 'react'
 import Select from 'react-select'
 
 /**
@@ -49,7 +49,8 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
 
   // Normalize options to { value, label, raw }
   const normalizedOptions = useMemo(() => {
-    return options.map((opt) => {
+    const list = Array.isArray(options) ? options : []
+    return list.map((opt) => {
       if (typeof opt === 'string') {
         return { value: opt, label: opt, raw: opt }
       }
