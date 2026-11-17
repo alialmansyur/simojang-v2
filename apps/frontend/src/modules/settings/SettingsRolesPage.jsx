@@ -137,6 +137,9 @@ function getMenuLevelBadge(node) {
     if (id === 100) {
       return { label: 'Grup Eksternal', color: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200/60' }
     }
+    if (id === 500) {
+      return { label: 'Grup Pengaturan', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200/60' }
+    }
     return { label: 'Menu Utama', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200/60' }
   }
 
@@ -147,10 +150,16 @@ function getMenuLevelBadge(node) {
     if (parentId === 100) {
       return { label: 'Aplikasi Eksternal', color: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200/60' }
     }
+    if (parentId === 500) {
+      return { label: 'Sub-Menu Hub', color: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border-indigo-200/60' }
+    }
     return { label: 'Sub-Menu', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200/60' }
   }
 
   if (depth === 2) {
+    if (parentId === 59 || parentId === 61) {
+      return { label: 'Sub-Layanan', color: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200/60' }
+    }
     return { label: 'Layanan', color: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200/60' }
   }
 
