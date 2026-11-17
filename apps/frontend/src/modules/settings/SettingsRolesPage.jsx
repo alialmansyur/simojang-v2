@@ -125,6 +125,42 @@ function flattenAllMenus(nodes = [], depth = 0, out = []) {
   return out
 }
 
+function getMenuLevelBadge(node) {
+  const depth = Number(node.depth ?? 0)
+  const id = Number(node.id ?? 0)
+  const parentId = node.parent_id !== null ? Number(node.parent_id) : null
+
+  if (depth === 0) {
+    if (id === 57) {
+      return { label: 'Grup Tim Kerja', color: 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300 border-blue-200/60' }
+    }
+    if (id === 100) {
+      return { label: 'Grup Eksternal', color: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200/60' }
+    }
+    return { label: 'Menu Utama', color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border-slate-200/60' }
+  }
+
+  if (depth === 1) {
+    if (parentId === 57) {
+      return { label: 'Tim Kerja', color: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60' }
+    }
+    if (parentId === 100) {
+      return { label: 'Aplikasi Eksternal', color: 'bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300 border-purple-200/60' }
+    }
+    return { label: 'Sub-Menu', color: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200/60' }
+  }
+
+  if (depth === 2) {
+    return { label: 'Layanan', color: 'bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300 border-sky-200/60' }
+  }
+
+  if (depth >= 3) {
+    return { label: 'Sub-Layanan Hub', color: 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200/60' }
+  }
+
+  return null
+}
+
 export default function SettingsRolesPage() {
   const [activeTab, setActiveTab] = useState('matrix') // 'matrix' | 'users'
   const [roles, setRoles] = useState([])
@@ -198,7 +234,13 @@ export default function SettingsRolesPage() {
 
       setExpandedIds((prev) => {
         if (prev.size > 0) return prev
-        return collectParentIds(safeMenus)
+        const initial = new Set()
+        safeMenus.forEach((root) => {
+          if (Array.isArray(root.children) && root.children.length > 0) {
+            initial.add(Number(root.id))
+          }
+        })
+        return initial
       })
 
       const adm = safeRoles.find((r) => String(r.role_code || '').toUpperCase() === 'ADM')
@@ -681,6 +723,16 @@ export default function SettingsRolesPage() {
                               >
                                 {node.name}
                               </span>
+
+                              {(() => {
+                                const badge = getMenuLevelBadge(node)
+                                if (!badge) return null
+                                return (
+                                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold border shrink-0 ${badge.color}`}>
+                                    {badge.label}
+                                  </span>
+                                )
+                              })()}
 
                               {node.hasChildren && (
                                 <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">

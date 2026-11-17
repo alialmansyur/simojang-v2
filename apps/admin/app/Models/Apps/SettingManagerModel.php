@@ -123,6 +123,7 @@ class SettingManagerModel extends Model
     {
         $rows = $this->db->table('auth_permissions')
             ->select('id, parent_id, name, url, icon, is_order, is_show')
+            ->where('is_show', 1)
             ->orderBy('COALESCE(parent_id, 0)', 'ASC', false)
             ->orderBy('is_order', 'ASC')
             ->get()

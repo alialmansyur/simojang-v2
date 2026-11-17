@@ -554,6 +554,40 @@ class Auth extends ResourceController
         $allowedServiceIds = $isAdmin ? null : ($nip !== '' ? $servicePermModel->getUserAllowedServiceIds($nip) : []);
 
         $db = \Config\Database::connect();
+
+        // Untuk non-admin, filter lebih lanjut berdasarkan hak akses role (auth_role_permissions)
+        if (!$isAdmin && is_array($allowedServiceIds)) {
+            $roleId = $menuModel->getRoleIdByUserId((int) $userId);
+            if ($roleId > 0 && $db->tableExists('auth_role_permissions')) {
+                $rolePerms = $db->table('auth_role_permissions')
+                    ->select('permission_id')
+                    ->where('role_id', $roleId)
+                    ->where('is_read', 1)
+                    ->get()
+                    ->getResultArray();
+                $allowedRolePermIds = array_flip(array_column($rolePerms, 'permission_id'));
+
+                if (!empty($allowedServiceIds)) {
+                    $servicesMeta = $db->table('data_timkerja_layanan')
+                        ->select('id, permission_id, level_id')
+                        ->whereIn('id', $allowedServiceIds)
+                        ->get()
+                        ->getResultArray();
+
+                    $filteredIds = [];
+                    foreach ($servicesMeta as $sm) {
+                        $pId = !empty($sm['permission_id'])
+                            ? (int) $sm['permission_id']
+                            : (((int) $sm['level_id'] === 3 ? 400 : 300) + (int) $sm['id']);
+                        if (isset($allowedRolePermIds[$pId])) {
+                            $filteredIds[] = (int) $sm['id'];
+                        }
+                    }
+                    $allowedServiceIds = $filteredIds;
+                }
+            }
+        }
+
         $allowedSubserviceUrls = [];
         if ($isAdmin) {
             $subRows = $db->table('data_timkerja_layanan')
