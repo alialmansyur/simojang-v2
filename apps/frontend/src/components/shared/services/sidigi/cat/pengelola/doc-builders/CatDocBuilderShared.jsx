@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import {
   Save,
   FileText,
@@ -40,6 +41,8 @@ import {
   saveCatPengelolaDocItem,
   deleteCatPengelolaDocItem,
   saveCatPengelolaDocSignatures,
+  fetchCatUserSigners,
+  saveCatUserSigner,
 } from '../../../../../../../services/api/sidigiCatServicesApi'
 import { serializeSignersPayload } from './catDocBuilderUtils'
 
@@ -125,6 +128,7 @@ export function CatDocSignaturePrintBlock({
 }
 
 export function CatDocSignatureSection({
+  doc = null,
   docUid,
   signers,
   onChangeSigners,
@@ -136,11 +140,95 @@ export function CatDocSignatureSection({
   const [resetTargetKey, setResetTargetKey] = useState(null)
   const [sigMsg, setSigMsg] = useState('')
 
+  // Auto-populate dari session profil pegawai terpusat (txn_cat_user_signers)
+  useEffect(() => {
+    let active = true
+    const sId = doc?.seleksi_id || ''
+    const tId = doc?.tilok_id || ''
+    const iId =
+      doc?.instansi_id ||
+      (Array.isArray(doc?.meta_data?.instansi_ids) ? doc.meta_data.instansi_ids[0] : '')
+
+    if (tId || sId) {
+      fetchCatUserSigners({
+        seleksi_id: sId,
+        tilok_id: tId,
+        instansi_id: iId,
+      })
+        .then((res) => {
+          if (!active || !res) return
+          let updated = false
+          const next = { ...signers }
+
+          ;['kanan', 'kiri', 'tengah'].forEach((pos) => {
+            const saved = res[pos]
+            if (saved?.signature_data && !signers[pos]?.signatureData && !signers[pos]?.isSigned) {
+              next[pos] = {
+                ...next[pos],
+                nama: next[pos]?.nama && next[pos]?.nama !== '-' ? next[pos].nama : saved.nama,
+                nip: next[pos]?.nip || saved.nip,
+                jabatan: next[pos]?.jabatan || saved.jabatan,
+                pangkat_gol: next[pos]?.pangkat_gol || saved.pangkat_gol,
+                signatureData: saved.signature_data,
+                signatureHash: `DS-BKN-PERSISTED-${Date.now().toString(36).toUpperCase()}`,
+                signedAt: new Date().toISOString(),
+                isSigned: true,
+              }
+              updated = true
+            }
+          })
+
+          if (updated) {
+            onChangeSigners(next)
+          }
+        })
+        .catch(() => {})
+    }
+
+    return () => {
+      active = false
+    }
+  }, [doc?.uid, doc?.seleksi_id, doc?.tilok_id, doc?.instansi_id])
+
   const handleFieldChange = (posKey, field, val) => {
     onChangeSigners((prev) => ({
       ...prev,
       [posKey]: { ...prev[posKey], [field]: val },
     }))
+  }
+
+  // Simpan spesimen tanda tangan ke profil session pegawai terpusat
+  const handleSaveToProfile = async (posKey) => {
+    const s = signers[posKey]
+    if (!s || !s.nama) {
+      toast.warning('Isi nama penandatangan terlebih dahulu.')
+      return
+    }
+    const sId = doc?.seleksi_id || null
+    const tId = doc?.tilok_id || null
+    const iId =
+      doc?.instansi_id ||
+      (Array.isArray(doc?.meta_data?.instansi_ids) ? doc.meta_data.instansi_ids[0] : null)
+
+    try {
+      await saveCatUserSigner({
+        seleksi_id: sId,
+        tilok_id: tId,
+        instansi_id: iId,
+        position_key: posKey,
+        jabatan: s.jabatan || '',
+        nama: s.nama || '',
+        nip: s.nip || '',
+        pangkat_gol: s.pangkat_gol || '',
+        instansi_nama: s.instansi_nama || '',
+        signature_data: s.signatureData,
+      })
+      toast.success(
+        `Tanda tangan (${posKey.toUpperCase()}) berhasil disimpan ke profil akun Anda untuk tilok ini.`
+      )
+    } catch (err) {
+      toast.error(err?.message || 'Gagal menyimpan profil tanda tangan.')
+    }
   }
 
   const persistSigners = async (nextSigners) => {
@@ -153,6 +241,33 @@ export function CatDocSignatureSection({
       if (onSaved && res?.data) {
         onSaved(res.data)
       }
+
+      // Auto-sync TTE ke session terpusat bila ada goresan TTE baru
+      const sId = doc?.seleksi_id || null
+      const tId = doc?.tilok_id || null
+      const iId =
+        doc?.instansi_id ||
+        (Array.isArray(doc?.meta_data?.instansi_ids) ? doc.meta_data.instansi_ids[0] : null)
+
+      if (tId || sId) {
+        ;['kanan', 'kiri', 'tengah'].forEach((posKey) => {
+          const s = nextSigners[posKey]
+          if (s?.isSigned && s?.signatureData && s?.nama) {
+            saveCatUserSigner({
+              seleksi_id: sId,
+              tilok_id: tId,
+              instansi_id: iId,
+              position_key: posKey,
+              jabatan: s.jabatan || '',
+              nama: s.nama || '',
+              nip: s.nip || '',
+              pangkat_gol: s.pangkat_gol || '',
+              signature_data: s.signatureData,
+            }).catch(() => {})
+          }
+        })
+      }
+
       setSigMsg('Pengesahan dokumen tersimpan.')
       setTimeout(() => setSigMsg(''), 2500)
     } finally {
@@ -259,6 +374,7 @@ export function CatDocSignatureSection({
           onCopyLink={handleCopyLink}
           isCopied={copiedKey === 'kiri'}
           allowSignTitle
+          onSaveToProfile={handleSaveToProfile}
         />
         <SignerPositionCol
           positionKey="tengah"
@@ -271,6 +387,7 @@ export function CatDocSignatureSection({
           onCopyLink={handleCopyLink}
           isCopied={copiedKey === 'tengah'}
           allowSignTitle
+          onSaveToProfile={handleSaveToProfile}
         />
         <SignerPositionCol
           positionKey="kanan"
@@ -283,6 +400,7 @@ export function CatDocSignatureSection({
           onCopyLink={handleCopyLink}
           isCopied={copiedKey === 'kanan'}
           allowSignTitle
+          onSaveToProfile={handleSaveToProfile}
         />
       </div>
 

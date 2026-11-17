@@ -385,6 +385,14 @@ $routes->group('', ['filter' => ['jwtauth', 'rbac', 'serviceaccess']], function 
     $routes->post('/api/apps-cat/pengelola/dokumen/items', 'Apps\Services\PNBPDocumentController::saveItemApi');
     $routes->post('/api/apps-cat/pengelola/dokumen/items/delete', 'Apps\Services\PNBPDocumentController::deleteItemApi');
     $routes->post('/api/apps-cat/pengelola/dokumen/signatures', 'Apps\Services\PNBPDocumentController::saveSignaturesApi');
+    // API Layanan Laporan & E-Sign CAT
+    $routes->get('/api/apps-cat/laporan', 'Apps\Services\CatLaporanController::getLaporanList');
+    $routes->get('/api/apps-cat/laporan/detail/(:segment)', 'Apps\Services\CatLaporanController::getLaporanDetail/$1');
+    $routes->post('/api/apps-cat/laporan', 'Apps\Services\CatLaporanController::storeLaporan');
+    $routes->post('/api/apps-cat/laporan/delete', 'Apps\Services\CatLaporanController::deleteLaporan');
+    $routes->get('/api/apps-cat/laporan/user-signers', 'Apps\Services\CatLaporanController::getUserSigners');
+    $routes->post('/api/apps-cat/laporan/user-signers', 'Apps\Services\CatLaporanController::saveUserSigner');
+    $routes->post('/api/apps-cat/laporan/user-signers/reset', 'Apps\Services\CatLaporanController::resetUserSigner');
     $routes->get('/api/apps-cat/pengelola/rekap-pegawai', 'Apps\Services\FasilitasiCAT::getPengelolaRekapPegawai');
     $routes->get('/api/apps-cat/pengelola/pegawai-options', 'Apps\Services\FasilitasiCAT::getPengelolaPegawaiOptions');
     $routes->get('/api/apps-cat/pengelola/unit-kerja-options', 'Apps\Services\FasilitasiCAT::getPengelolaUnitKerjaOptions');

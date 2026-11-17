@@ -40,20 +40,93 @@ export default function CatPublicEsignPage() {
           setSignedAt(parsed.signedAt || '')
         }
       } else {
-        // Fallback pencarian across storage
-        const allKeys = Object.keys(localStorage).filter(
-          (k) => k.startsWith('doc_builder_') || k.startsWith('cat_laporan_data_')
-        )
+        // Fallback 1: Cari across all storage keys
+        let found = false
+        const allKeys = Object.keys(localStorage)
         for (const k of allKeys) {
           const raw = localStorage.getItem(k)
-          if (raw && raw.includes(token)) {
-            const p = JSON.parse(raw)
-            setReportData(p)
-            if (p.isSigned) {
-              setIsSigned(true)
-              setSignedAt(p.signedAt || '')
-            }
-            break
+          if (!raw) continue
+          if (raw.includes(token)) {
+            try {
+              const p = JSON.parse(raw)
+              // Cek jika p menyimpan signers
+              if (p?.signers) {
+                const foundPos = Object.keys(p.signers).find(
+                  (pos) => p.signers[pos]?.token === token || p.signers[pos]?.signToken === token || token.includes(pos)
+                )
+                if (foundPos) {
+                  const s = p.signers[foundPos]
+                  setReportData({
+                    ...p,
+                    storageKey: k,
+                    positionKey: foundPos,
+                    signerKey: foundPos,
+                    namaPenandatangan: s.nama,
+                    signerName: s.nama,
+                    nama: s.nama,
+                    nipPenandatangan: s.nip,
+                    signerNip: s.nip,
+                    nip: s.nip,
+                    jabatanPenandatangan: s.jabatan,
+                    signerJabatan: s.jabatan,
+                    jabatan: s.jabatan,
+                    isSigned: Boolean(s.isSigned),
+                    signatureData: s.signatureData,
+                    signedAt: s.signedAt,
+                  })
+                  if (s.isSigned) {
+                    setIsSigned(true)
+                    setSignedAt(s.signedAt || '')
+                  }
+                  found = true
+                  break
+                }
+              }
+              setReportData(p)
+              if (p.isSigned) {
+                setIsSigned(true)
+                setSignedAt(p.signedAt || '')
+              }
+              found = true
+              break
+            } catch {}
+          }
+        }
+
+        // Fallback 2: Jika token ada nama posisi ('kiri', 'kanan', 'tengah')
+        if (!found && token) {
+          const pos = token.includes('kiri') ? 'kiri' : token.includes('kanan') ? 'kanan' : 'tengah'
+          for (const k of allKeys.filter((k) => k.startsWith('cat_ba_') || k.startsWith('cat_laporan_') || k.startsWith('doc_builder_'))) {
+            try {
+              const p = JSON.parse(localStorage.getItem(k) || '{}')
+              if (p?.signers?.[pos]) {
+                const s = p.signers[pos]
+                setReportData({
+                  ...p,
+                  storageKey: k,
+                  positionKey: pos,
+                  signerKey: pos,
+                  namaPenandatangan: s.nama,
+                  signerName: s.nama,
+                  nama: s.nama,
+                  nipPenandatangan: s.nip,
+                  signerNip: s.nip,
+                  nip: s.nip,
+                  jabatanPenandatangan: s.jabatan,
+                  signerJabatan: s.jabatan,
+                  jabatan: s.jabatan,
+                  isSigned: Boolean(s.isSigned),
+                  signatureData: s.signatureData,
+                  signedAt: s.signedAt,
+                })
+                if (s.isSigned) {
+                  setIsSigned(true)
+                  setSignedAt(s.signedAt || '')
+                }
+                found = true
+                break
+              }
+            } catch {}
           }
         }
       }
@@ -150,9 +223,10 @@ export default function CatPublicEsignPage() {
       if (reportData?.storageKey) {
         const existing = localStorage.getItem(reportData.storageKey)
         const parsed = existing ? JSON.parse(existing) : {}
-        if (parsed.signers && reportData.signerKey) {
-          parsed.signers[reportData.signerKey] = {
-            ...parsed.signers[reportData.signerKey],
+        const signerKey = reportData.signerKey || reportData.positionKey
+        if (parsed.signers && signerKey) {
+          parsed.signers[signerKey] = {
+            ...parsed.signers[signerKey],
             isSigned: true,
             signatureData: dataUrl,
             signatureHash: uniqueHash,
@@ -220,11 +294,20 @@ export default function CatPublicEsignPage() {
             <div>
               <p className="text-[10px] text-slate-400 font-semibold uppercase">Pejabat Penandatangan</p>
               <p className="font-bold text-slate-900 dark:text-white">
-                {reportData?.namaPenandatangan || 'Koordinator Pelaksana'}
+                {reportData?.namaPenandatangan || reportData?.signerName || reportData?.nama || 'Koordinator Pelaksana'}
               </p>
               <p className="text-[11px] text-slate-500">
-                NIP. {reportData?.nipPenandatangan || '-'}
+                {reportData?.nipPenandatangan || reportData?.signerNip || reportData?.nip
+                  ? (String(reportData.nipPenandatangan || reportData.signerNip || reportData.nip).startsWith('NIP.')
+                      ? String(reportData.nipPenandatangan || reportData.signerNip || reportData.nip)
+                      : `NIP. ${reportData.nipPenandatangan || reportData.signerNip || reportData.nip}`)
+                  : '-'}
               </p>
+              {(reportData?.jabatanPenandatangan || reportData?.signerJabatan || reportData?.jabatan) && (
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  {reportData.jabatanPenandatangan || reportData.signerJabatan || reportData.jabatan}
+                </p>
+              )}
             </div>
             {isSigned && (
               <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/70">

@@ -109,7 +109,12 @@ export default function FasilitasiCatLaporanPage() {
 
   // Buka Halaman Builder Terpisah sesuai Dokumen Pilihan
   const handleOpenDocumentBuilder = (doc) => {
-    const currentPToken = filterToken || encodeCatFilterToken(appliedFilters)
+    const liveFilters = {
+      seleksiId: filterSeleksiId,
+      tilokUid: filterTilokUid,
+      instansiIds: filterInstansiIds,
+    }
+    const currentPToken = encodeCatFilterToken(liveFilters) || filterToken || encodeCatFilterToken(appliedFilters)
     navigate(buildCatModuleUrl(`/layanan/fasilitasi-cat/laporan/${jenisToken}`, doc.slug, currentPToken))
   }
 
@@ -210,7 +215,16 @@ export default function FasilitasiCatLaporanPage() {
             filterInstansiIds={filterInstansiIds}
             onKegiatanChange={handleKegiatanChange}
             onTilokChange={handleTilokChange}
-            onInstansiChange={setFilterInstansiIds}
+            onInstansiChange={(nextIds) => {
+              setFilterInstansiIds(nextIds)
+              if (hasSubmitted && filterSeleksiId && filterTilokUid) {
+                applyFilters({
+                  seleksiId: filterSeleksiId,
+                  tilokUid: filterTilokUid,
+                  instansiIds: nextIds,
+                })
+              }
+            }}
             currentSelectedTilok={currentSelectedTilok}
             onReloadKegiatan={() => activeJenisTes && loadKegiatanForActiveJenis(activeJenisTes)}
             onReloadTilok={() =>

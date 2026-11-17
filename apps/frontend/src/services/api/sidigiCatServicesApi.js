@@ -933,3 +933,74 @@ export async function fetchCatPengelolaMasterTilok(params = {}) {
   )
   return Array.isArray(json?.data) ? json.data : []
 }
+
+// -------------------------------------------------------------
+// 7. LAYANAN LAPORAN CAT & PERSISTENT USER SIGNERS
+// -------------------------------------------------------------
+
+export async function fetchCatLaporanList(params = {}) {
+  const json = await apiRequest(`/api/apps-cat/laporan${buildQuery(params)}`, {
+    method: 'GET',
+    fallbackMessage: 'Gagal memuat daftar riwayat laporan CAT.',
+  })
+  return {
+    rows: Array.isArray(json?.data) ? json.data : [],
+    total: Number(json?.total ?? 0),
+    page: Number(json?.page ?? 1),
+    limit: Number(json?.limit ?? 20),
+    summary: json?.summary || {},
+  }
+}
+
+export async function fetchCatLaporanDetail(uid) {
+  const json = await apiRequest(`/api/apps-cat/laporan/detail/${uid}`, {
+    method: 'GET',
+    fallbackMessage: 'Gagal memuat detail data laporan CAT.',
+  })
+  return json?.data || null
+}
+
+export function saveCatLaporan(payload) {
+  return apiRequest('/api/apps-cat/laporan', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Gagal menyimpan laporan CAT.',
+  })
+}
+
+export function deleteCatLaporan(uid) {
+  return apiRequest('/api/apps-cat/laporan/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ uid }),
+    fallbackMessage: 'Gagal menghapus laporan CAT.',
+  })
+}
+
+export async function fetchCatUserSigners(params = {}) {
+  const json = await apiRequest(`/api/apps-cat/laporan/user-signers${buildQuery(params)}`, {
+    method: 'GET',
+    fallbackMessage: 'Gagal memuat profil penandatangan pegawai.',
+  })
+  return json?.data || { kiri: null, tengah: null, kanan: null }
+}
+
+export function saveCatUserSigner(payload) {
+  return apiRequest('/api/apps-cat/laporan/user-signers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+    fallbackMessage: 'Gagal menyimpan profil tanda tangan pegawai.',
+  })
+}
+
+export function resetCatUserSigner(params = {}) {
+  return apiRequest('/api/apps-cat/laporan/user-signers/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+    fallbackMessage: 'Gagal mereset tanda tangan pegawai.',
+  })
+}
+

@@ -33,8 +33,8 @@ export function CatInstansiMultiSelect({
   const normalizedList = useMemo(() => {
     return instansiList.map((item) => {
       const id = String(item.id || item.instansi_id || item.kodeins || '')
-      const nama = item.nama || item.instansi_name || item.name || `Instansi ${id}`
-      const kode = item.kodeins || ''
+      const nama = item.instansi_nama || item.nama || item.instansi_name || item.name || `Instansi ${id}`
+      const kode = item.kodeins || item.instansi_id || ''
       return { id, nama, kode }
     })
   }, [instansiList])
@@ -182,6 +182,19 @@ export function CatInstansiMultiSelect({
                         </p>
                       )}
                     </div>
+                    <button
+                      type="button"
+                      title="Pilih hanya instansi ini"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
+                        onChange([item.id])
+                        setIsOpen(false)
+                      }}
+                      className="text-[10px] font-semibold text-[#175CD3] dark:text-blue-400 hover:underline px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 shrink-0"
+                    >
+                      Hanya Ini
+                    </button>
                   </label>
                 )
               })

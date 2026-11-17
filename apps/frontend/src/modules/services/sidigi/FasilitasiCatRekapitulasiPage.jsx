@@ -625,7 +625,7 @@ export default function FasilitasiCatRekapitulasiPage() {
               title="Buka Pembuat Dokumen Laporan CAT dengan parameter saat ini"
             >
               <FileText className="w-4 h-4 text-[#175CD3] dark:text-blue-400" />
-              <span>Buat Laporan CAT</span>
+              <span>Buat Laporan</span>
             </button>
           )}
 
@@ -710,7 +710,7 @@ export default function FasilitasiCatRekapitulasiPage() {
                   title="Buat Laporan CAT Langsung"
                 >
                   <FileText className="w-3.5 h-3.5 text-[#175CD3]" />
-                  <span>Buat Laporan CAT</span>
+                  <span>Buat Laporan</span>
                 </button>
               ) : null
             }

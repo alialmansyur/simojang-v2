@@ -71,6 +71,7 @@ const PnbpCatPage = lazy(() => import('../modules/services/sidigi/PnbpCatPage'))
 const FasilitasiCatHubPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatHubPage'))
 const FasilitasiCatRekapDataPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatRekapDataPage'))
 const FasilitasiCatLaporanPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatLaporanPage'))
+const FasilitasiCatLaporanDetailPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatLaporanDetailPage'))
 const FasilitasiCatLaporanBuilderPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatLaporanBuilderPage'))
 const FasilitasiCatPengelolaPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatPengelolaPage'))
 const FasilitasiCatPengelolaJadwalPage = lazy(() => import('../modules/services/sidigi/FasilitasiCatPengelolaJadwalPage'))
@@ -186,7 +187,15 @@ export function AppRouter() {
             element={isAuth ? <Navigate to="/dashboard" replace /> : <LoginPage />}
           />
 
-          {/* Public E-Signature Route (Shareable Link for CAT Report) */}
+          {/* Public E-Signature Routes (Shareable Link for CAT Report & BA) */}
+          <Route
+            path="/laporan/esign/:token"
+            element={<CatPublicEsignPage />}
+          />
+          <Route
+            path="/esign/:token"
+            element={<CatPublicEsignPage />}
+          />
           <Route
             path="/layanan/fasilitasi-cat/laporan/esign/:token"
             element={<CatPublicEsignPage />}
@@ -677,6 +686,16 @@ export function AppRouter() {
           />
           <Route
             path="/layanan/fasilitasi-cat/laporan/:jenisToken/:documentSlug"
+            element={
+              <ProtectedRoute authenticated={isAuth}>
+                <AdminLayout title="Dokumen Builder Laporan CAT" canvasClassName={SOFT_CANVAS_CLASS}>
+                  <FasilitasiCatLaporanBuilderPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/layanan/fasilitasi-cat/laporan/:jenisToken/:documentSlug/:reportUid"
             element={
               <ProtectedRoute authenticated={isAuth}>
                 <AdminLayout title="Dokumen Builder Laporan CAT" canvasClassName={SOFT_CANVAS_CLASS}>

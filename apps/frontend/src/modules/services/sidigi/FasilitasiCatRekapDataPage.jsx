@@ -25,6 +25,8 @@ import {
   Layers,
   MapPin,
   Clock,
+  ChevronUp,
+  BarChart3,
 } from 'lucide-react'
 import { SidigiDataOriginIcon, isExcelOrigin } from '../../../components/shared/services/sidigi/SidigiDataOriginIcon'
 import { SidigiTanggalCell, SidigiPetugasCell } from '../../../components/shared/services/sidigi/SidigiTableCells'
@@ -64,6 +66,28 @@ export default function FasilitasiCatRekapDataPage() {
   const [tableSearch, setTableSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(10)
+
+  // Show / Hide Bento KPI Cards with LocalStorage Persistence
+  const [showKpi, setShowKpi] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cat_rekap_show_kpi')
+      return saved !== null ? saved === 'true' : true
+    } catch {
+      return true
+    }
+  })
+
+  const toggleShowKpi = () => {
+    setShowKpi((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('cat_rekap_show_kpi', String(next))
+      } catch (err) {
+        console.warn('Failed saving showKpi preference to localStorage:', err)
+      }
+      return next
+    })
+  }
 
   // Modals state
   const [isSessionModalOpen, setIsSessionModalOpen] = useState(false)
@@ -446,7 +470,7 @@ export default function FasilitasiCatRekapDataPage() {
               title="Buka Pembuat Dokumen Laporan CAT dengan parameter saat ini"
             >
               <FileText className="w-4 h-4 text-[#175CD3] dark:text-blue-400" />
-              <span>Buat Laporan CAT</span>
+              <span>Buat Laporan</span>
             </button>
           )}
 
@@ -502,10 +526,7 @@ export default function FasilitasiCatRekapDataPage() {
             }
             onReloadInstansi={async () => {
               if (filterTilokUid) {
-                const newIds = await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId)
-                if (appliedFilters) {
-                  applyFilters({ ...appliedFilters, instansiIds: newIds })
-                }
+                await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId, { preserveSelection: true })
               }
             }}
             onSubmit={(e) => handleSearchSubmit(e, { includeDateRange: true })}
@@ -537,56 +558,60 @@ export default function FasilitasiCatRekapDataPage() {
             /* KETIKA SUDAH DISUBMIT: TAMPILKAN 4 BENTO KPI CARDS + SUB-TOOLBAR + TABEL */
             <div className="space-y-4">
               {/* 4 BENTO KPI CARDS (STANDAR MANAJEMEN TALENTA & SSOT) */}
-              <KpiCardGrid
-                borderless
-                isLoading={isSessionsLoading}
-                kpis={[
-                  {
-                    id: 'total_sesi',
-                    label: 'TOTAL SESI UJIAN',
-                    value: displaySummary?.total_sesi ?? displaySessions.length,
-                    unit: 'Sesi',
-                    context: currentSelectedTilok?.nama_tilok || 'Realisasi sesi',
-                    badge: 'Realisasi',
-                    badgeColor: 'blue',
-                    icon: Calendar,
-                    iconColor: 'bg-blue-50/80 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400',
-                  },
-                  {
-                    id: 'total_hadir',
-                    label: 'TOTAL PESERTA HADIR',
-                    value: displaySummary?.total_hadir ?? 0,
-                    unit: 'Orang',
-                    context: 'Total kehadiran terverifikasi',
-                    badge: 'Hadir',
-                    badgeColor: 'emerald',
-                    icon: Users,
-                    iconColor: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
-                  },
-                  {
-                    id: 'total_tidak_hadir',
-                    label: 'TIDAK HADIR',
-                    value: displaySummary?.total_tidak_hadir ?? 0,
-                    unit: 'Orang',
-                    context: 'Absen / Tidak datang',
-                    badge: 'Evaluasi',
-                    badgeColor: 'rose',
-                    icon: Users,
-                    iconColor: 'bg-rose-50/80 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
-                  },
-                  {
-                    id: 'total_peserta',
-                    label: 'TOTAL ALOKASI PESERTA',
-                    value: displaySummary?.total_peserta ?? 0,
-                    unit: 'Peserta',
-                    context: `Skor: ${displaySummary?.skor_min ?? '-'} s/d ${displaySummary?.skor_max ?? '-'}`,
-                    badge: 'Alokasi',
-                    badgeColor: 'amber',
-                    icon: UserCheck,
-                    iconColor: 'bg-amber-50/80 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
-                  },
-                ]}
-              />
+              {showKpi && (
+                <div className="animate-in fade-in zoom-in-95 duration-200">
+                  <KpiCardGrid
+                    borderless
+                    isLoading={isSessionsLoading}
+                    kpis={[
+                      {
+                        id: 'total_sesi',
+                        label: 'TOTAL SESI UJIAN',
+                        value: displaySummary?.total_sesi ?? displaySessions.length,
+                        unit: 'Sesi',
+                        context: currentSelectedTilok?.nama_tilok || 'Realisasi sesi',
+                        badge: 'Realisasi',
+                        badgeColor: 'blue',
+                        icon: Calendar,
+                        iconColor: 'bg-blue-50/80 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400',
+                      },
+                      {
+                        id: 'total_hadir',
+                        label: 'TOTAL PESERTA HADIR',
+                        value: displaySummary?.total_hadir ?? 0,
+                        unit: 'Orang',
+                        context: 'Total kehadiran terverifikasi',
+                        badge: 'Hadir',
+                        badgeColor: 'emerald',
+                        icon: Users,
+                        iconColor: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
+                      },
+                      {
+                        id: 'total_tidak_hadir',
+                        label: 'TIDAK HADIR',
+                        value: displaySummary?.total_tidak_hadir ?? 0,
+                        unit: 'Orang',
+                        context: 'Absen / Tidak datang',
+                        badge: 'Evaluasi',
+                        badgeColor: 'rose',
+                        icon: Users,
+                        iconColor: 'bg-rose-50/80 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
+                      },
+                      {
+                        id: 'total_peserta',
+                        label: 'TOTAL ALOKASI PESERTA',
+                        value: displaySummary?.total_peserta ?? 0,
+                        unit: 'Peserta',
+                        context: `Skor: ${displaySummary?.skor_min ?? '-'} s/d ${displaySummary?.skor_max ?? '-'}`,
+                        badge: 'Alokasi',
+                        badgeColor: 'amber',
+                        icon: UserCheck,
+                        iconColor: 'bg-amber-50/80 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+                      },
+                    ]}
+                  />
+                </div>
+              )}
 
               {/* ACTION & SUB-TOOLBAR WITH DATE RANGE FILTER */}
               <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xs p-3.5 sm:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -646,8 +671,27 @@ export default function FasilitasiCatRekapDataPage() {
                   </div>
                 </div>
 
-                {/* Quick Action Buttons (SSOT: Input Data Primer + Upload Data Sekunder) */}
+                {/* Quick Action Buttons (SSOT: Input Data Primer + Upload Data Sekunder + Toggle KPI) */}
                 <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={toggleShowKpi}
+                    className="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
+                    title={showKpi ? 'Sembunyikan Ringkasan Metrik KPI' : 'Tampilkan Ringkasan Metrik KPI'}
+                  >
+                    {showKpi ? (
+                      <>
+                        <ChevronUp className="w-4 h-4 text-slate-400" />
+                        <span>Sembunyikan KPI</span>
+                      </>
+                    ) : (
+                      <>
+                        <BarChart3 className="w-4 h-4 text-[#175CD3] dark:text-blue-400" />
+                        <span>Tampilkan KPI</span>
+                      </>
+                    )}
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setIsBatchModalOpen(true)}
@@ -676,7 +720,7 @@ export default function FasilitasiCatRekapDataPage() {
                   <table className="w-full text-left text-xs border-collapse">
                     <thead>
                       <tr className="border-b border-slate-200/60 dark:border-slate-800/60 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                        <th className="py-3.5 px-4 sm:px-5">SESI & TITIK LOKASI</th>
+                        <th className="py-3.5 px-4 sm:px-5">INSTANSI & SESI</th>
                         <th className="py-3.5 px-4 sm:px-5">TANGGAL</th>
                         <th className="py-3.5 px-4 sm:px-5">KEHADIRAN & PRESENSI</th>
                         <th className="py-3.5 px-4 sm:px-5">NILAI MIN / MAX</th>
@@ -688,7 +732,7 @@ export default function FasilitasiCatRekapDataPage() {
                       {isSessionsLoading ? (
                         Array.from({ length: 5 }).map((_, rIdx) => (
                           <tr key={rIdx} className="animate-pulse">
-                            {/* SESI & TITIK LOKASI */}
+                            {/* INSTANSI & SESI */}
                             <td className="py-4 px-4 sm:px-5">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-lg bg-slate-200 dark:bg-slate-800 shrink-0" />
@@ -755,7 +799,7 @@ export default function FasilitasiCatRekapDataPage() {
                               key={row.id}
                               className="hover:bg-slate-50/75 dark:hover:bg-slate-800/40 transition-colors"
                             >
-                              {/* Kolom 1: SESI & TITIK LOKASI */}
+                              {/* Kolom 1: INSTANSI & SESI */}
                               <td className="px-4 py-3.5">
                                 <div className="flex items-center gap-3">
                                   <SidigiDataOriginIcon isExcel={isExcelOrigin(row)} />
@@ -770,8 +814,6 @@ export default function FasilitasiCatRekapDataPage() {
                                     </button>
                                     <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-400 dark:text-slate-500 mt-0.5">
                                       <span className="font-bold text-slate-700 dark:text-slate-300">Sesi {row.sesi}</span>
-                                      <span>•</span>
-                                      <span className="truncate">{row.tilok_nama || row.instansi_kodeins || 'Lab CAT BKN'}</span>
                                     </div>
                                   </div>
                                 </div>
@@ -923,10 +965,7 @@ export default function FasilitasiCatRekapDataPage() {
         onClose={() => setIsSessionModalOpen(false)}
         onSuccess={async () => {
           if (filterTilokUid) {
-            const newIds = await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId)
-            if (appliedFilters) {
-              setAppliedFilters((prev) => (prev ? { ...prev, instansiIds: newIds } : prev))
-            }
+            await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId, { preserveSelection: true })
           }
           if (appliedFilters) executeQuery(appliedFilters)
         }}
@@ -950,10 +989,7 @@ export default function FasilitasiCatRekapDataPage() {
         onClose={() => setIsBatchModalOpen(false)}
         onSuccess={async () => {
           if (filterTilokUid) {
-            const newIds = await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId)
-            if (appliedFilters) {
-              setAppliedFilters((prev) => (prev ? { ...prev, instansiIds: newIds } : prev))
-            }
+            await loadInstansiForTilokAndKegiatan(filterTilokUid, filterSeleksiId, { preserveSelection: true })
           }
           if (appliedFilters) executeQuery(appliedFilters)
         }}

@@ -135,6 +135,7 @@ export function CatDocHadirJamuanBuilder({ doc, onDocUpdated }) {
 
           <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
             <CatDocSignatureSection
+              doc={doc}
               docUid={doc.uid}
               signers={signers}
               onChangeSigners={setSigners}

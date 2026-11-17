@@ -1835,6 +1835,33 @@ class PNBPDocumentController extends BaseController
                     'updated_at'           => date('Y-m-d H:i:s'),
                 ]);
             }
+
+            // Sinkronisasi otomatis ke profil tanda tangan terpusat (txn_cat_user_signers)
+            $userNip = trim((string) (session()->get('username') ?? ''));
+            if ($userNip !== '') {
+                $catSignerModel = new \App\Models\Apps\Services\CatUserSignerModel();
+                foreach ($slots as $slot) {
+                    if (!is_array($slot)) continue;
+                    $pos = trim((string) ($slot['sign_position'] ?? ''));
+                    $posKey = $pos === 'right' ? 'kanan' : ($pos === 'center' ? 'tengah' : ($pos === 'left' ? 'kiri' : $pos));
+                    $sigImg = trim((string) ($slot['signature_image_path'] ?? ''));
+                    $nama   = trim((string) ($slot['nama'] ?? ''));
+                    if ($sigImg !== '' && $nama !== '' && ($slot['sign_status'] ?? '') === 'signed') {
+                        $catSignerModel->upsertSignerProfile([
+                            'user_nip'       => $userNip,
+                            'user_name'      => session()->get('name') ?? session()->get('nama') ?? 'Pegawai',
+                            'seleksi_id'     => !empty($doc['seleksi_id']) ? (int) $doc['seleksi_id'] : null,
+                            'tilok_id'       => !empty($doc['tilok_id']) ? (string) $doc['tilok_id'] : null,
+                            'instansi_id'    => !empty($doc['instansi_id']) ? (string) $doc['instansi_id'] : null,
+                            'position_key'   => $posKey,
+                            'jabatan'        => $slot['jabatan'] ?? '',
+                            'nama'           => $nama,
+                            'nip'            => $slot['nip'] ?? '',
+                            'signature_data' => $sigImg,
+                        ]);
+                    }
+                }
+            }
         }
 
         $nextStatus = ($doc['source_mode'] ?? 'builder') === 'upload'

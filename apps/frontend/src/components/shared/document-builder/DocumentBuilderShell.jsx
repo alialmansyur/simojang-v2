@@ -13,6 +13,11 @@ import {
   Lock,
   Image as ImageIcon,
   Save,
+  Bookmark,
+  ArrowLeft,
+  Loader2,
+  PenTool,
+  Sparkles,
 } from 'lucide-react'
 import {
   formatDateIndo,
@@ -28,6 +33,11 @@ import {
   CAT_FORM_LABEL_CLS,
   CAT_FORM_INPUT_CLS,
 } from '../services/sidigi/cat/pengelola/pengelolaConstants'
+import {
+  fetchCatUserSigners,
+  saveCatUserSigner,
+  resetCatUserSigner,
+} from '../../../services/api/sidigiCatServicesApi'
 
 const EMPTY_ARRAY = []
 const EMPTY_OBJECT = {}
@@ -69,21 +79,26 @@ function createDefaultSigners() {
 }
 
 // Sub-komponen Input & Canvas E-Sign per Posisi (Kiri, Tengah, Kanan)
+// Dibuat ringkas tanpa card pembungkus dan tanpa label statis (cukup placeholder sesuai spesifikasi UI)
 export function SignerPositionCol({
   positionKey,
   title,
   sublabel,
-  signer,
+  signer = {},
   onChange,
   onSign,
   onReset,
   onCopyLink,
   isCopied,
   allowSignTitle = false,
+  savedPresetSignature = null,
 }) {
   const canvasRef = useRef(null)
+  const [showCanvas, setShowCanvas] = useState(false)
   const [isDrawing, setIsDrawing] = useState(false)
   const [hasStroke, setHasStroke] = useState(false)
+
+  const posLabel = positionKey === 'kiri' ? 'kiri' : positionKey === 'tengah' ? 'tengah' : 'kanan'
 
   const getCanvasPos = (e) => {
     const canvas = canvasRef.current
@@ -149,188 +164,250 @@ export function SignerPositionCol({
     if (!canvas) return
     const dataUrl = canvas.toDataURL('image/png')
     onSign(positionKey, dataUrl)
+    setShowCanvas(false)
+    setHasStroke(false)
   }
 
+  const inputBaseCls =
+    'w-full h-9 px-3.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 transition-all shadow-2xs'
+
   return (
-    <div className="flex flex-col justify-between p-4 rounded-xl border border-slate-200/80 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-850/40 space-y-3.5">
-      {/* Header Kolom */}
-      <div className="border-b border-slate-200/60 dark:border-slate-800 pb-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
-            {title}
-          </span>
-          {signer.isSigned ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              <Check className="w-3 h-3" />
-              <span>Sudah TTD</span>
-            </span>
-          ) : (
-            <span className="text-[10px] text-slate-400 font-medium">Belum TTD</span>
+    <div className="flex flex-col space-y-2">
+      {/* 0. Header Judul Posisi & Indikator Status TTE */}
+      <div className="flex items-center justify-between gap-2 pb-0.5">
+        <div className="min-w-0">
+          <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+            {title || (positionKey === 'kiri' ? '1. Posisi Kiri' : positionKey === 'tengah' ? '2. Posisi Tengah' : '3. Posisi Kanan')}
+          </p>
+          {sublabel && (
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 truncate">
+              {sublabel}
+            </p>
           )}
         </div>
-        <p className="text-[11px] text-slate-400 mt-0.5">{sublabel}</p>
-      </div>
 
-      {/* Form Isian: Jabatan/Instansi, Nama, NIP */}
-      <div className="space-y-2.5">
-        {allowSignTitle && (
-          <div className="space-y-1.5">
-            <label className={CAT_FORM_LABEL_CLS}>
-              Label Atas (Opsional)
-            </label>
-            <input
-              type="text"
-              disabled={signer.isSigned}
-              placeholder="Contoh: Mengetahui / Setuju Dibayar,"
-              value={signer.sign_title || ''}
-              onChange={(e) => onChange(positionKey, 'sign_title', e.target.value)}
-              className={`${CAT_FORM_INPUT_CLS} font-medium`}
-            />
-          </div>
-        )}
-        <div className="space-y-1.5">
-          <label className={CAT_FORM_LABEL_CLS}>
-            Jabatan / Instansi
-          </label>
-          <input
-            type="text"
-            disabled={signer.isSigned}
-            placeholder="Contoh: Kepala BKPSDM / Koordinator"
-            value={signer.jabatan || ''}
-            onChange={(e) => onChange(positionKey, 'jabatan', e.target.value)}
-            className={`${CAT_FORM_INPUT_CLS} font-medium`}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className={CAT_FORM_LABEL_CLS}>
-            Nama Lengkap
-          </label>
-          <input
-            type="text"
-            disabled={signer.isSigned}
-            placeholder="Nama Pejabat"
-            value={signer.nama || ''}
-            onChange={(e) => onChange(positionKey, 'nama', e.target.value)}
-            className={`${CAT_FORM_INPUT_CLS} font-bold text-slate-900 dark:text-white`}
-          />
-        </div>
-
-        <div className="space-y-1.5">
-          <label className={CAT_FORM_LABEL_CLS}>
-            NIP Pejabat
-          </label>
-          <input
-            type="text"
-            disabled={signer.isSigned}
-            placeholder="19XXXXXXXX..."
-            value={signer.nip || ''}
-            onChange={(e) => onChange(positionKey, 'nip', e.target.value)}
-            className={`${CAT_FORM_INPUT_CLS} font-medium`}
-          />
-        </div>
-      </div>
-
-      {/* Area E-Signature */}
-      <div className="space-y-2 pt-1 border-t border-slate-200/60 dark:border-slate-800">
+        {/* Badge Indikator Status TTE */}
         {signer.isSigned ? (
-          <div className="text-center space-y-2 py-1">
-            <div className="w-full h-20 flex items-center justify-center p-1 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
-              {signer.signatureData ? (
-                <img
-                  src={signer.signatureData}
-                  alt={`E-Sign ${title}`}
-                  className="max-h-full max-w-full object-contain"
-                />
-              ) : (
-                <span className="text-[11px] text-slate-400">Tanda Tangan Terlampir</span>
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800/60 shrink-0 shadow-2xs">
+            <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <span>Sudah TTE</span>
+          </span>
+        ) : signer.nama || signer.jabatan ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800/60 shrink-0 shadow-2xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+            <span>Menunggu TTE</span>
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400 shrink-0">
+            <span>Belum Terisi</span>
+          </span>
+        )}
+      </div>
+
+      {/* 1. Label Atas / Judul TTD (Opsional untuk format dokumen tertentu) */}
+      {allowSignTitle && (
+        <input
+          type="text"
+          disabled={signer.isSigned}
+          placeholder={`ttd ${posLabel} label atas`}
+          value={signer.sign_title || ''}
+          onChange={(e) => onChange(positionKey, 'sign_title', e.target.value)}
+          className={`${inputBaseCls} ${
+            signer.sign_title
+              ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium'
+              : 'bg-slate-100/90 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-400'
+          }`}
+        />
+      )}
+
+      {/* 2. Instansi / Jabatan */}
+      <input
+        type="text"
+        disabled={signer.isSigned}
+        placeholder={`ttd ${posLabel} instansi`}
+        value={signer.jabatan || ''}
+        onChange={(e) => onChange(positionKey, 'jabatan', e.target.value)}
+        className={`${inputBaseCls} ${
+          signer.jabatan
+            ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium'
+            : 'bg-slate-100/90 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-400'
+        }`}
+      />
+
+      {/* 3. Nama Pejabat */}
+      <input
+        type="text"
+        disabled={signer.isSigned}
+        placeholder={`ttd ${posLabel} nama`}
+        value={signer.nama || ''}
+        onChange={(e) => onChange(positionKey, 'nama', e.target.value)}
+        className={`${inputBaseCls} ${
+          signer.nama
+            ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-semibold'
+            : 'bg-slate-100/90 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-400'
+        }`}
+      />
+
+      {/* 4. NIP Pejabat */}
+      <input
+        type="text"
+        disabled={signer.isSigned}
+        placeholder={`ttd ${posLabel} nip`}
+        value={signer.nip || ''}
+        onChange={(e) => onChange(positionKey, 'nip', e.target.value)}
+        className={`${inputBaseCls} ${
+          signer.nip
+            ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-medium'
+            : 'bg-slate-100/90 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 placeholder:text-slate-500 dark:placeholder:text-slate-400'
+        }`}
+      />
+
+      {/* Area Aksi & Status E-Sign */}
+      {signer.isSigned ? (
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl border border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20">
+          <div className="flex items-center gap-2 min-w-0">
+            {signer.signatureData ? (
+              <img
+                src={signer.signatureData}
+                alt="TTE"
+                className="h-8 max-w-[80px] object-contain bg-white dark:bg-slate-900 border border-emerald-200 dark:border-emerald-800 rounded px-1.5 py-0.5"
+              />
+            ) : null}
+            <div className="min-w-0">
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-300">
+                <Check className="w-3.5 h-3.5" />
+                <span>Terverifikasi TTE</span>
+              </span>
+              {signer.signedAt && (
+                <p className="text-[10px] text-slate-400 truncate">
+                  {signer.signedAt}
+                </p>
               )}
             </div>
-            <div className="text-[10px] text-slate-500 font-mono truncate">
-              {signer.signatureHash || 'DS-BKN-VERIFIED'}
-            </div>
+          </div>
+
+          <div className="flex items-center gap-1 shrink-0">
             <button
               type="button"
               onClick={() => onReset(positionKey)}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300 transition-all active:scale-95 cursor-pointer w-full"
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 transition-colors cursor-pointer"
+              title="Reset tanda tangan"
             >
-              <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-              <span>Reset TTE {title}</span>
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset</span>
             </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-slate-600 dark:text-slate-400">
-                Goresan TTE:
-              </span>
-              {hasStroke && (
-                <button
-                  type="button"
-                  onClick={handleClear}
-                  className="font-bold text-rose-600 hover:underline cursor-pointer"
-                >
-                  Bersihkan
-                </button>
-              )}
-            </div>
+        </div>
+      ) : (
+        <div className="space-y-2 pt-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowCanvas((prev) => !prev)}
+              className={`flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                showCanvas
+                  ? 'bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200'
+                  : 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-400'
+              }`}
+            >
+              <PenTool className="w-3.5 h-3.5 text-[#175CD3]" />
+              <span>{showCanvas ? 'Tutup Canvas' : 'Gores TTE'}</span>
+            </button>
 
-            <div className="relative border border-slate-300 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-900 touch-none shadow-inner">
-              <canvas
-                ref={canvasRef}
-                width={300}
-                height={90}
-                onMouseDown={startDrawing}
-                onMouseMove={draw}
-                onMouseUp={stopDrawing}
-                onMouseLeave={stopDrawing}
-                onTouchStart={startDrawing}
-                onTouchMove={draw}
-                onTouchEnd={stopDrawing}
-                className="w-full h-20 cursor-crosshair bg-slate-50/40 dark:bg-slate-900"
-              />
-              {!hasStroke && (
-                <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-[10px] text-slate-400">
-                  Goreskan tanda tangan di sini
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2 pt-1.5">
+            {savedPresetSignature && (
               <button
                 type="button"
-                onClick={handleApplySign}
-                disabled={!hasStroke}
-                className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#0B3264] hover:bg-[#175CD3] text-white text-xs font-bold shadow-xs transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+                onClick={() => onSign(positionKey, savedPresetSignature)}
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                title="Gunakan tanda tangan tersimpan di profil pegawai"
               >
-                <Lock className="w-3.5 h-3.5 shrink-0" />
-                <span>Bubuhkan</span>
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>TTE Tersimpan</span>
               </button>
+            )}
 
-              {typeof onCopyLink === 'function' && (
+            {typeof onCopyLink === 'function' && (
               <button
                 type="button"
                 onClick={() => onCopyLink(positionKey)}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/80 dark:bg-blue-950/50 hover:bg-blue-100 text-[#175CD3] dark:text-blue-300 text-xs font-bold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0 whitespace-nowrap"
+                className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
                 title="Salin tautan untuk ditandatangani via HP"
               >
                 {isCopied ? (
                   <>
-                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                    <span className="text-emerald-700 dark:text-emerald-300">Tersalin!</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Tersalin!</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-3.5 h-3.5 shrink-0" />
-                    <span>Salin Link</span>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Link HP</span>
                   </>
                 )}
               </button>
-              )}
-            </div>
+            )}
           </div>
-        )}
-      </div>
+
+          {/* Canvas Drawer yang muncul jika tombol + Gores TTE diklik */}
+          {showCanvas && (
+            <div className="space-y-1.5 p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/60 shadow-2xs">
+              <div className="relative border border-slate-300 dark:border-slate-700 rounded-md overflow-hidden bg-white dark:bg-slate-900 touch-none">
+                <canvas
+                  ref={canvasRef}
+                  width={300}
+                  height={80}
+                  onMouseDown={startDrawing}
+                  onMouseMove={draw}
+                  onMouseUp={stopDrawing}
+                  onMouseLeave={stopDrawing}
+                  onTouchStart={startDrawing}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDrawing}
+                  className="w-full h-18 cursor-crosshair bg-white dark:bg-slate-900"
+                />
+                {!hasStroke && (
+                  <div className="absolute inset-0 pointer-events-none flex items-center justify-center text-[10px] text-slate-400">
+                    Goreskan tanda tangan di sini
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between gap-1.5 pt-0.5">
+                {hasStroke ? (
+                  <button
+                    type="button"
+                    onClick={handleClear}
+                    className="text-[10px] font-bold text-rose-600 hover:underline cursor-pointer"
+                  >
+                    Bersihkan
+                  </button>
+                ) : (
+                  <span />
+                )}
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setShowCanvas(false)}
+                    className="px-2 py-1 text-[10px] font-medium text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 rounded cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApplySign}
+                    disabled={!hasStroke}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-md bg-[#0B3264] hover:bg-[#175CD3] text-white text-[11px] font-bold shadow-2xs transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    <Lock className="w-3 h-3" />
+                    <span>Terapkan TTE</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -341,12 +418,17 @@ export function DocumentBuilderShell({
   kegiatan,
   tilok,
   selectedInstansiList = EMPTY_ARRAY,
+  instansiList = EMPTY_ARRAY,
   sessions = EMPTY_ARRAY,
   filterParams = EMPTY_OBJECT,
   categories = DEFAULT_DOKUMENTASI_CATEGORIES,
   defaultParams = EMPTY_OBJECT,
   renderTemplate,
   publicEsignBaseUrl = '/layanan/fasilitasi-cat/laporan/esign',
+  initialData = null,
+  onSaveDocument = null,
+  onBack = null,
+  documentTitle = 'Laporan Pelaksanaan CAT',
 }) {
 
   // 1. DYNAMIC STORAGE KEY:
@@ -366,32 +448,42 @@ export function DocumentBuilderShell({
   // Active Tab
   const [activeTab, setActiveTab] = useState('params')
 
-  // Tanggal sesi yang tersedia dari database
+  // Tanggal sesi yang tersedia dari database (diurutkan kronologis)
   const availableSessionDates = useMemo(() => {
     const dates = new Set()
     sessions.forEach((s) => {
       if (s.period_date) dates.add(s.period_date)
     })
-    return Array.from(dates).sort().reverse()
+    return Array.from(dates).sort()
   }, [sessions])
 
-  const initialDate = availableSessionDates[0] || ''
+  const initialStartDate = availableSessionDates[0] || ''
+  const initialEndDate = availableSessionDates[availableSessionDates.length - 1] || initialStartDate
 
   const buildEmptyParams = useCallback(
-    () => ({
-      instansiIds: Array.isArray(selectedInstansiList) ? selectedInstansiList.map(String) : [],
-      instansiNames: [],
-      nomorSuratDeputi: '',
-      tanggalSuratDeputi: '',
-      nomorSuratTugas: '',
-      tanggalSuratTugas: '',
-      tanggalPelaksanaan: initialDate,
-      waktuPelaksanaan: '',
-      tempatPelaksanaan: tilok?.nama_tilok || '',
-      kotaTtd: '',
-      ...defaultParams,
-    }),
-    [initialDate, tilok?.nama_tilok, defaultParams, selectedInstansiList]
+    () => {
+      const activeIds = Array.isArray(selectedInstansiList) ? selectedInstansiList.map(String) : []
+      const resolvedNames = activeIds.map((id) => {
+        const found = instansiList.find((i) => String(i.id || i.instansi_id || i.kodeins) === id)
+        return found ? (found.instansi_nama || found.nama || found.name) : id
+      })
+      return {
+        instansiIds: activeIds,
+        instansiNames: resolvedNames,
+        nomorSuratDeputi: '',
+        tanggalSuratDeputi: '',
+        nomorSuratTugas: '',
+        tanggalSuratTugas: '',
+        tanggalPelaksanaan: initialStartDate,
+        tanggalMulai: initialStartDate,
+        tanggalSelesai: initialEndDate,
+        waktuPelaksanaan: '08.00 s.d 17.00',
+        tempatPelaksanaan: tilok?.nama_tilok || (tilok?.lokasi ? `${tilok.nama_tilok || ''} - ${tilok.lokasi}` : '') || '',
+        kotaTtd: tilok?.kota || tilok?.lokasi || '',
+        ...defaultParams,
+      }
+    },
+    [initialStartDate, initialEndDate, tilok?.nama_tilok, tilok?.lokasi, tilok?.kota, defaultParams, selectedInstansiList, instansiList]
   )
 
   const buildEmptyParamsRef = useRef(buildEmptyParams)
@@ -402,13 +494,43 @@ export function DocumentBuilderShell({
   // Parameter Dokumen & Surat (kosong hingga diisi dan disimpan)
   const [params, setParams] = useState(buildEmptyParams)
 
+  // Otomatis sinkronisasi default tempat pelaksanaan, waktu, dan range tanggal jika baru termuat
+  useEffect(() => {
+    setParams((prev) => {
+      let changed = false
+      const next = { ...prev }
+      if (!next.tempatPelaksanaan && tilok?.nama_tilok) {
+        next.tempatPelaksanaan = tilok.nama_tilok
+        changed = true
+      }
+      if (!next.waktuPelaksanaan) {
+        next.waktuPelaksanaan = '08.00 s.d 17.00'
+        changed = true
+      }
+      if (!next.tanggalMulai && initialStartDate) {
+        next.tanggalMulai = initialStartDate
+        next.tanggalPelaksanaan = initialStartDate
+        changed = true
+      }
+      if (!next.tanggalSelesai && initialEndDate) {
+        next.tanggalSelesai = initialEndDate
+        changed = true
+      }
+      if (!next.kotaTtd) {
+        next.kotaTtd = 'Bandung'
+        changed = true
+      }
+      return changed ? next : prev
+    })
+  }, [tilok?.nama_tilok, initialStartDate, initialEndDate])
+
   const currentYear = useMemo(
     () =>
       resolveDocAutoYear({
         jenis_periode_tahun: activeJenisTes?.periode || activeJenisTes?.tahun,
-        doc_date: params?.tanggalPelaksanaan || initialDate,
+        doc_date: params?.tanggalMulai || params?.tanggalPelaksanaan || initialStartDate,
       }),
-    [activeJenisTes?.periode, activeJenisTes?.tahun, params?.tanggalPelaksanaan, initialDate]
+    [activeJenisTes?.periode, activeJenisTes?.tahun, params?.tanggalMulai, params?.tanggalPelaksanaan, initialStartDate]
   )
 
   // 3-POSISI TANDA TANGAN (KIRI, TENGAH, KANAN) - kosong hingga diisi & disimpan
@@ -424,10 +546,68 @@ export function DocumentBuilderShell({
   // Modal Reset Target
   const [resetTargetKey, setResetTargetKey] = useState(null)
   const [copiedKey, setCopiedKey] = useState(null)
+  const [savedUserPresetSigners, setSavedUserPresetSigners] = useState(null)
 
-  // Load Persisted Data HANYA Saat storageKey Berganti (bukan setiap re-render input)
+  const [isSavingDb, setIsSavingDb] = useState(false)
+  const [docStatus, setDocStatus] = useState(() => initialData?.status || 'draft')
+
+  useEffect(() => {
+    if (initialData?.status) {
+      setDocStatus(initialData.status)
+    }
+  }, [initialData?.status])
+
+  const isPublished = docStatus === 'published' || initialData?.status === 'published'
+
+  const signersSummary = useMemo(() => {
+    const list = Object.values(signers || {})
+    const active = list.filter((s) => s?.nama || s?.jabatan)
+    const signed = list.filter((s) => s?.isSigned)
+    return {
+      activeCount: active.length,
+      signedCount: signed.length,
+      isAllSigned: active.length > 0 && signed.length >= active.length,
+    }
+  }, [signers])
+
+  // Load Persisted Data HANYA Saat storageKey atau initialData Berganti
   useEffect(() => {
     let active = true
+
+    if (initialData) {
+      const activeIds = Array.isArray(selectedInstansiList) ? selectedInstansiList.map(String) : []
+      if (activeIds.length > 0) {
+        if (initialData.instansi_id) {
+          const savedIds = String(initialData.instansi_id).split(',').map((s) => s.trim())
+          const isMatch = activeIds.some((id) => savedIds.includes(id))
+          if (isMatch) {
+            const localSaved = localStorage.getItem(storageKey)
+            if (!localSaved) {
+              if (initialData.params) setParams(initialData.params)
+              if (initialData.evidence || initialData.evidenceMap) {
+                setEvidenceMap(initialData.evidence || initialData.evidenceMap)
+              }
+              if (initialData.signers) setSigners(initialData.signers)
+              setHasUnsavedChanges(false)
+              return
+            }
+          }
+        }
+        // Jika activeIds terdefinisi namun tidak cocok dengan initialData, jangan load!
+      } else if (!initialData.instansi_id) {
+        const localSaved = localStorage.getItem(storageKey)
+        if (!localSaved) {
+          if (initialData.params) setParams(initialData.params)
+          if (initialData.evidence || initialData.evidenceMap) {
+            setEvidenceMap(initialData.evidence || initialData.evidenceMap)
+          }
+          if (initialData.signers) setSigners(initialData.signers)
+          setHasUnsavedChanges(false)
+          return
+        }
+      }
+    }
+
     Promise.resolve().then(() => {
       if (!active) return
       try {
@@ -463,6 +643,41 @@ export function DocumentBuilderShell({
           setEvidenceMap({})
           setSigners(createDefaultSigners())
         }
+
+        // Auto-load session signer profil BKN dari DB jika nama belum terisi
+        const tId = tilok?.uid || tilok?.id || filterParams?.tilokUid || ''
+        const sId = kegiatan?.id || filterParams?.seleksiId || ''
+        const jId = activeJenisTes?.id || activeJenisTes?.jenis_tes_id || ''
+
+        if (tId && jId) {
+          fetchCatUserSigners({
+            jenis_tes_id: jId,
+            seleksi_id: sId,
+            tilok_id: tId,
+          })
+            .then((res) => {
+              if (!active) return
+              if (res?.kiri) {
+                setSavedUserPresetSigners(res)
+                setSigners((prev) => {
+                  const currentKiri = prev.kiri || {}
+                  if (currentKiri.nama?.trim()) return prev
+                  return {
+                    ...prev,
+                    kiri: {
+                      ...currentKiri,
+                      jabatan: currentKiri.jabatan || res.kiri.jabatan || '',
+                      nama: currentKiri.nama || res.kiri.nama || '',
+                      nip: currentKiri.nip || res.kiri.nip || '',
+                      pangkat_gol: currentKiri.pangkat_gol || res.kiri.pangkat_gol || '',
+                    },
+                  }
+                })
+              }
+            })
+            .catch(() => {})
+        }
+
         setHasUnsavedChanges(false)
       } catch (err) {
         console.warn('Gagal memuat cache storageKey:', err)
@@ -471,12 +686,18 @@ export function DocumentBuilderShell({
     return () => {
       active = false
     }
-  }, [storageKey])
+  }, [storageKey, initialData, tilok, kegiatan, filterParams, activeJenisTes])
 
-  // Hari Pelaksanaan otomatis terhitung dari tanggalPelaksanaan
+  // Hari Pelaksanaan otomatis terhitung dari tanggalMulai dan tanggalSelesai
   const calculatedHari = useMemo(() => {
-    return getHariIndo(params.tanggalPelaksanaan)
-  }, [params.tanggalPelaksanaan])
+    const start = params.tanggalMulai || params.tanggalPelaksanaan || ''
+    const end = params.tanggalSelesai || params.tanggalPelaksanaan || start
+    if (!start) return '-'
+    const hariMulai = getHariIndo(start)
+    if (!end || end === start) return hariMulai
+    const hariSelesai = getHariIndo(end)
+    return hariMulai === hariSelesai ? hariMulai : `${hariMulai} s.d ${hariSelesai}`
+  }, [params.tanggalMulai, params.tanggalSelesai, params.tanggalPelaksanaan])
 
   // Sinkronisasi Storage Event (Jika ditandatangani via link publik)
   useEffect(() => {
@@ -552,20 +773,28 @@ export function DocumentBuilderShell({
   )
 
   const handleParamChange = (field, value) => {
-    setParams((prev) => ({ ...prev, [field]: value }))
+    setParams((prev) => {
+      const next = { ...prev, [field]: value }
+      persistState(next, evidenceMap, signers)
+      return next
+    })
     setHasUnsavedChanges(true)
     setSavedNotice(false)
   }
 
   // Handler Perubahan Data Signer
   const handleSignerChange = (posKey, field, value) => {
-    setSigners((prev) => ({
-      ...prev,
-      [posKey]: {
-        ...prev[posKey],
-        [field]: value,
-      },
-    }))
+    setSigners((prev) => {
+      const next = {
+        ...prev,
+        [posKey]: {
+          ...prev[posKey],
+          [field]: value,
+        },
+      }
+      persistState(params, evidenceMap, next)
+      return next
+    })
     setHasUnsavedChanges(true)
     setSavedNotice(false)
   }
@@ -687,21 +916,36 @@ export function DocumentBuilderShell({
 
   const tableData = useMemo(() => {
     let list = sessions
-    if (params.tanggalPelaksanaan) {
-      list = list.filter((s) => s.period_date === params.tanggalPelaksanaan)
+    const startDate = params.tanggalMulai || params.tanggalPelaksanaan || ''
+    const endDate = params.tanggalSelesai || params.tanggalPelaksanaan || startDate
+
+    if (startDate && endDate) {
+      list = list.filter((s) => {
+        if (!s.period_date) return true
+        return s.period_date >= startDate && s.period_date <= endDate
+      })
+    } else if (startDate) {
+      list = list.filter((s) => s.period_date === startDate)
     }
+
     if (activeInstansiIds.length > 0) {
       list = list.filter((s) =>
         activeInstansiIds.includes(String(s.instansi_id || s.kodeins))
       )
     }
 
+    const displayTanggal = startDate
+      ? (endDate && endDate !== startDate
+          ? `${formatDateIndo(startDate)} s.d ${formatDateIndo(endDate)}`
+          : formatDateIndo(startDate))
+      : '-'
+
     if (list.length === 0) {
       if (activeInstansiNames.length > 0) {
         return activeInstansiNames.map((name, idx) => ({
           no: idx + 1,
           nama: name,
-          tanggal: formatDateIndo(params.tanggalPelaksanaan),
+          tanggal: displayTanggal,
           sesi: 1,
           jumlah: 0,
           hadir: 0,
@@ -712,7 +956,7 @@ export function DocumentBuilderShell({
         return activeInstansiIds.map((id, idx) => ({
           no: idx + 1,
           nama: id,
-          tanggal: formatDateIndo(params.tanggalPelaksanaan),
+          tanggal: displayTanggal,
           sesi: 1,
           jumlah: 0,
           hadir: 0,
@@ -728,7 +972,7 @@ export function DocumentBuilderShell({
       if (!grouped[insName]) {
         grouped[insName] = {
           nama: insName,
-          tanggal: formatDateIndo(s.period_date || params.tanggalPelaksanaan),
+          tanggal: displayTanggal,
           sesi: s.sesi || 1,
           jumlah: 0,
           hadir: 0,
@@ -746,7 +990,7 @@ export function DocumentBuilderShell({
       no: idx + 1,
       ...item,
     }))
-  }, [sessions, params.tanggalPelaksanaan, activeInstansiIds, activeInstansiNames])
+  }, [sessions, params.tanggalMulai, params.tanggalSelesai, params.tanggalPelaksanaan, activeInstansiIds, activeInstansiNames])
 
   const totalSummary = useMemo(() => {
     return tableData.reduce(
@@ -773,6 +1017,69 @@ export function DocumentBuilderShell({
   const totalUploadedEvidence = Object.values(evidenceMap).filter(Boolean).length
   const totalSignedCount = Object.values(signers).filter((s) => s.isSigned).length
 
+  // Handler Simpan TTE Spesimen ke Profil Akun Session Pegawai
+  const handleSaveSignerToProfile = async (posKey) => {
+    const s = signers[posKey]
+    if (!s || !s.nama) {
+      toast.warning('Isi nama penandatangan terlebih dahulu.')
+      return
+    }
+    try {
+      await saveCatUserSigner({
+        jenis_tes_id: activeJenisTes?.id || activeJenisTes?.jenis_tes_id || '',
+        seleksi_id: kegiatan?.id || filterParams?.seleksiId || '',
+        tilok_id: tilok?.uid || tilok?.id || filterParams?.tilokUid || '',
+        instansi_id: activeInstansiIds.length === 1 ? activeInstansiIds[0] : null,
+        position_key: posKey,
+        jabatan: s.jabatan,
+        nama: s.nama,
+        nip: s.nip,
+        pangkat_gol: s.pangkat_gol,
+        instansi_nama: s.instansi_nama,
+        signature_data: s.signatureData,
+      })
+      toast.success(`Tanda tangan (${posKey.toUpperCase()}) berhasil disimpan ke profil akun Anda untuk tilok ini.`)
+    } catch (err) {
+      toast.error(err?.message || 'Gagal menyimpan profil tanda tangan.')
+    }
+  }
+
+  // Handler Simpan / Terbitkan Laporan ke Database (Snapshot Beku JSON)
+  const handleSaveToDatabase = async (status = 'draft') => {
+    if (typeof onSaveDocument === 'function') {
+      try {
+        setIsSavingDb(true)
+        await onSaveDocument({
+          params,
+          signers,
+          evidenceMap,
+          dataSnapshot: {
+            tableData,
+            totalSummary,
+            formattedInstansiNames,
+            kegiatanNama: kegiatan?.nama_seleksi || activeJenisTes?.display_nama || 'SELEKSI PENGEMBANGAN KARIER',
+            tilokNama: tilok?.nama_tilok || params.tempatPelaksanaan || 'KANTOR REGIONAL III BKN BANDUNG',
+            calculatedHari,
+            currentYear,
+          },
+          status,
+        })
+        setDocStatus(status)
+        persistState(params, evidenceMap, signers)
+        setHasUnsavedChanges(false)
+        setSavedNotice(true)
+        setTimeout(() => setSavedNotice(false), 3000)
+        toast.success(status === 'published' ? 'Laporan berhasil Diterbitkan!' : 'Draft laporan berhasil disimpan ke database!')
+      } catch (err) {
+        toast.error(err?.message || 'Gagal menyimpan laporan ke database.')
+      } finally {
+        setIsSavingDb(false)
+      }
+    } else {
+      handleSaveParameters()
+    }
+  }
+
   return (
     <div className="space-y-5 w-full">
       {/* 3-TIER TABS HEADER */}
@@ -789,7 +1096,7 @@ export function DocumentBuilderShell({
             }`}
           >
             <FileText className="w-3.5 h-3.5" />
-            <span>1. Parameter & Sesi</span>
+            <span>Parameter</span>
           </button>
 
           {/* Tab 2 */}
@@ -803,7 +1110,7 @@ export function DocumentBuilderShell({
             }`}
           >
             <ImageIcon className="w-3.5 h-3.5" />
-            <span>2. Dokumentasi & Eviden</span>
+            <span>Dokumentasi</span>
             {totalUploadedEvidence > 0 && (
               <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 dark:bg-blue-950 text-[#175CD3] dark:text-blue-300">
                 {totalUploadedEvidence}/{categories.length}
@@ -822,25 +1129,59 @@ export function DocumentBuilderShell({
             }`}
           >
             <Printer className="w-3.5 h-3.5" />
-            <span>3. Pratinjau Laporan (PDF A4)</span>
+            <span>Pratinjau</span>
             {totalSignedCount > 0 && (
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             )}
           </button>
         </div>
 
-        {/* Status Indikator Header */}
-        <div className="flex items-center gap-2 px-2 shrink-0">
-          {totalSignedCount > 0 ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/80 dark:border-emerald-800">
-              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{totalSignedCount} TTE Terverifikasi</span>
+        {/* 1 Area Aksi Utama Simpan & Terbitkan (Terpusat di Kanan Atas) */}
+        <div className="flex items-center gap-2 px-2 shrink-0 justify-end">
+          {savedNotice && (
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/70">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>Tersimpan</span>
             </span>
+          )}
+
+          {typeof onSaveDocument === 'function' ? (
+            <>
+              {!isPublished && (
+                <button
+                  type="button"
+                  onClick={() => handleSaveToDatabase('draft')}
+                  disabled={isSavingDb}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 hover:bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-xs font-bold transition-all active:scale-95 cursor-pointer disabled:opacity-50 shadow-2xs"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingDb ? 'Menyimpan...' : 'Simpan Draft'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleSaveToDatabase('published')}
+                disabled={isSavingDb || isPublished}
+                className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold shadow-xs transition-all ${
+                  isPublished
+                    ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed opacity-60'
+                    : 'bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white active:scale-95 cursor-pointer disabled:opacity-50'
+                }`}
+              >
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>{isSavingDb ? 'Memproses...' : isPublished ? 'Sudah Diterbitkan' : 'Terbitkan Laporan'}</span>
+              </button>
+            </>
           ) : (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border border-amber-200/80 dark:border-amber-800">
-              <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
-              <span>Draft Laporan (Belum TTD)</span>
-            </span>
+            <button
+              type="button"
+              onClick={handleSaveParameters}
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>Simpan Parameter</span>
+            </button>
           )}
         </div>
       </div>
@@ -850,33 +1191,14 @@ export function DocumentBuilderShell({
       {/* ========================================================================= */}
       {activeTab === 'params' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 p-5 sm:p-7 shadow-2xs space-y-7">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <FileText className="w-5 h-5 text-[#175CD3]" />
-                <span>Parameter Laporan & Pengesahan Dokumen</span>
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Data sesi peserta otomatis dimuat dari server. Lengkapi parameter surat dan penandatangan lalu klik Simpan Parameter.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              {savedNotice && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/70">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Tersimpan</span>
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleSaveParameters}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
-              >
-                <Save className="w-4 h-4" />
-                <span>{hasUnsavedChanges ? 'Simpan Parameter *' : 'Simpan Parameter'}</span>
-              </button>
-            </div>
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <FileText className="w-5 h-5 text-[#175CD3]" />
+              <span>Parameter Laporan & Pengesahan Dokumen</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+              Data sesi peserta otomatis dimuat dari server. Lengkapi parameter pelaksanaan, surat tugas, dan penandatangan.
+            </p>
           </div>
 
           {/* SECTION A: PILIH INSTANSI (TERPISAH DI PALING ATAS) */}
@@ -965,38 +1287,48 @@ export function DocumentBuilderShell({
             </div>
           </div>
 
-          {/* SECTION C: Waktu & Lokasi Pelaksanaan */}
+          {/* SECTION C: Tanggal & Pengesahan Pelaksanaan */}
           <div className="space-y-3 pt-2">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-              C. Waktu &amp; Lokasi Pelaksanaan
+              C. Tanggal Pelaksanaan
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <label className={CAT_FORM_LABEL_CLS}>
-                  Tanggal Pelaksanaan <span className="text-rose-500">*</span>
+                  Tanggal Mulai <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="date"
-                  value={params.tanggalPelaksanaan || ''}
-                  onChange={(e) => handleParamChange('tanggalPelaksanaan', e.target.value)}
+                  value={params.tanggalMulai || params.tanggalPelaksanaan || ''}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    handleParamChange('tanggalMulai', val)
+                    if (!params.tanggalSelesai || params.tanggalSelesai < val) {
+                      handleParamChange('tanggalSelesai', val)
+                    }
+                    handleParamChange('tanggalPelaksanaan', val)
+                  }}
                   className={`${CAT_FORM_INPUT_CLS} font-bold`}
                 />
-                <p className="text-xs text-slate-400">
-                  Hari otomatis: <strong>{calculatedHari}</strong>
+                <p className="text-[11px] text-slate-400">
+                  Hari: <strong>{getHariIndo(params.tanggalMulai || params.tanggalPelaksanaan)}</strong>
                 </p>
               </div>
 
               <div className="space-y-1.5">
                 <label className={CAT_FORM_LABEL_CLS}>
-                  Waktu Pelaksanaan
+                  Tanggal Selesai <span className="text-rose-500">*</span>
                 </label>
                 <input
-                  type="text"
-                  value={params.waktuPelaksanaan || ''}
-                  onChange={(e) => handleParamChange('waktuPelaksanaan', e.target.value)}
-                  placeholder="Contoh: 09.00 s.d 12.00 WIB"
-                  className={`${CAT_FORM_INPUT_CLS} font-medium`}
+                  type="date"
+                  value={params.tanggalSelesai || params.tanggalPelaksanaan || ''}
+                  min={params.tanggalMulai || params.tanggalPelaksanaan || ''}
+                  onChange={(e) => handleParamChange('tanggalSelesai', e.target.value)}
+                  className={`${CAT_FORM_INPUT_CLS} font-bold`}
                 />
+                <p className="text-[11px] text-slate-400">
+                  Total Rentang: <strong>{calculatedHari}</strong>
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -1005,22 +1337,9 @@ export function DocumentBuilderShell({
                 </label>
                 <input
                   type="text"
-                  value={params.kotaTtd || ''}
+                  value={params.kotaTtd || 'Bandung'}
                   onChange={(e) => handleParamChange('kotaTtd', e.target.value)}
-                  placeholder="Contoh: Bandung"
-                  className={`${CAT_FORM_INPUT_CLS} font-medium`}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className={CAT_FORM_LABEL_CLS}>
-                  Tempat / Titik Lokasi
-                </label>
-                <input
-                  type="text"
-                  placeholder="Contoh: Kantor Regional III BKN Bandung"
-                  value={params.tempatPelaksanaan || ''}
-                  onChange={(e) => handleParamChange('tempatPelaksanaan', e.target.value)}
+                  placeholder="Bandung"
                   className={`${CAT_FORM_INPUT_CLS} font-medium`}
                 />
               </div>
@@ -1029,10 +1348,27 @@ export function DocumentBuilderShell({
 
           {/* SECTION D: 3 SECTIONS TANDA TANGAN FLEKSIBEL (KIRI, TENGAH, KANAN) */}
           <div className="space-y-3 pt-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-1">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                D. Penandatanganan &amp; Pengesahan Dokumen (3 Kolom Fleksibel)
-              </h4>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-1">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  D. Penandatanganan &amp; Pengesahan Dokumen (3 Kolom Fleksibel)
+                </h4>
+                {signersSummary.isAllSigned ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shadow-2xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Pengesahan Lengkap ({signersSummary.signedCount}/{signersSummary.activeCount} TTE)</span>
+                  </span>
+                ) : signersSummary.signedCount > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 dark:bg-amber-950/50 dark:text-amber-300 border border-amber-200 dark:border-amber-800 shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                    <span>Progress TTE: {signersSummary.signedCount}/{signersSummary.activeCount} Selesai</span>
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/70 dark:border-slate-700">
+                    <span>Belum Ada TTE (0/{signersSummary.activeCount || 2})</span>
+                  </span>
+                )}
+              </div>
               <p className="text-[11px] text-slate-400 italic">
                 * Kolom yang tidak diisi otomatis tidak muncul di cetakan dokumen.
               </p>
@@ -1044,20 +1380,21 @@ export function DocumentBuilderShell({
               <SignerPositionCol
                 positionKey="kiri"
                 title="1. Posisi Kiri"
-                sublabel="Opsional: Pihak Pertama / Instansi Pengusul"
+                sublabel="Panitia Pelaksana BKN"
                 signer={signers.kiri}
                 onChange={handleSignerChange}
                 onSign={handleSignPosition}
                 onReset={(key) => setResetTargetKey(key)}
                 onCopyLink={handleCopyLink}
                 isCopied={copiedKey === 'kiri'}
+                savedPresetSignature={savedUserPresetSigners?.kiri?.signature_data || savedUserPresetSigners?.kiri?.signatureData}
               />
 
               {/* Kolom 2: Tengah */}
               <SignerPositionCol
                 positionKey="tengah"
                 title="2. Posisi Tengah"
-                sublabel="Opsional: Mengetahui / Saksi / Koordinator Tilok"
+                sublabel="Opsional: Petugas TI / Saksi"
                 signer={signers.tengah}
                 onChange={handleSignerChange}
                 onSign={handleSignPosition}
@@ -1070,7 +1407,7 @@ export function DocumentBuilderShell({
               <SignerPositionCol
                 positionKey="kanan"
                 title="3. Posisi Kanan"
-                sublabel="Utama: Koordinator / Pihak Kedua / Penanggung Jawab"
+                sublabel="Panitia Instansi Pengusul"
                 signer={signers.kanan}
                 onChange={handleSignerChange}
                 onSign={handleSignPosition}
@@ -1081,28 +1418,17 @@ export function DocumentBuilderShell({
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {hasUnsavedChanges
-                ? 'Ada perubahan parameter yang belum disimpan ke penyimpanan lokal.'
-                : 'Parameter akan digunakan otomatis saat menyusun Pratinjau Laporan PDF.'}
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+            <p className="flex items-center gap-1.5">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Seluruh isian parameter dan tanda tangan otomatis tersimpan di sesi lokal. Klik <strong>Simpan Draft</strong> atau <strong>Terbitkan Laporan</strong> di pojok kanan atas untuk menyimpan permanen ke server database.</span>
             </p>
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              {savedNotice && (
-                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/70">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Tersimpan</span>
-                </span>
-              )}
-              <button
-                type="button"
-                onClick={handleSaveParameters}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer shrink-0"
-              >
-                <Save className="w-4 h-4" />
-                <span>Simpan Parameter</span>
-              </button>
-            </div>
+            {savedNotice && (
+              <span className="inline-flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Tersimpan ke Database</span>
+              </span>
+            )}
           </div>
         </div>
       )}

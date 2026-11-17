@@ -281,7 +281,6 @@ function CatSessionFormModalContent({
                           <input
                             type="number"
                             min="1"
-                            max="10"
                             value={row.sesi}
                             onChange={(e) => handleRowChange(row.id, 'sesi', e.target.value)}
                             required

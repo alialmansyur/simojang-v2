@@ -46,6 +46,14 @@ export function CatLaporanTemplate({
       activeSigners.kanan.signatureData
   )
 
+  const formatTanggalRange = () => {
+    const start = params.tanggalMulai || params.tanggalPelaksanaan || ''
+    const end = params.tanggalSelesai || params.tanggalPelaksanaan || start
+    if (!start) return '-'
+    if (!end || end === start) return formatDateIndo(start)
+    return `${formatDateIndo(start)} s.d ${formatDateIndo(end)}`
+  }
+
   const ttdDateLine = [
     params.kotaTtd?.trim(),
     params.tanggalPelaksanaan ? formatDateIndo(params.tanggalPelaksanaan) : '',
@@ -65,7 +73,7 @@ export function CatLaporanTemplate({
           width: '794px',
           minHeight: '1123px',
           maxWidth: '794px',
-          padding: '48px 50px',
+          padding: '64px 64px 64px 72px', // Standar Tata Naskah Dinas: Kiri 72px (~2.5cm), Kanan 64px (~2.2cm), Atas 64px, Bawah 64px
           boxSizing: 'border-box',
         }}
       >
@@ -135,18 +143,18 @@ export function CatLaporanTemplate({
               <span className="w-24 shrink-0">Tanggal</span>
               <span className="w-4">:</span>
               <span className="font-semibold">
-                {params.tanggalPelaksanaan ? formatDateIndo(params.tanggalPelaksanaan) : '-'}
+                {formatTanggalRange()}
               </span>
             </div>
             <div className="flex">
               <span className="w-24 shrink-0">Waktu</span>
               <span className="w-4">:</span>
-              <span className="font-semibold">{params.waktuPelaksanaan || '-'}</span>
+              <span className="font-semibold">{params.waktuPelaksanaan || '08.00 s.d 17.00'}</span>
             </div>
             <div className="flex">
               <span className="w-24 shrink-0">Tempat</span>
               <span className="w-4">:</span>
-              <span className="font-semibold">{params.tempatPelaksanaan || '-'}</span>
+              <span className="font-semibold">{params.tempatPelaksanaan || tilokNama || '-'}</span>
             </div>
           </div>
         </div>
@@ -160,7 +168,7 @@ export function CatLaporanTemplate({
               {params.nomorSuratTugas || '-'} Tanggal{' '}
               {params.tanggalSuratTugas ? formatDateIndo(params.tanggalSuratTugas) : '-'} dengan hormat kami laporkan
               bahwa surat perintah tersebut telah kami laksanakan pada tanggal{' '}
-              {params.tanggalPelaksanaan ? formatDateIndo(params.tanggalPelaksanaan) : '-'}{' '}
+              {formatTanggalRange()}{' '}
               dengan rincian sebagai berikut:
             </p>
 
@@ -349,7 +357,7 @@ export function CatLaporanTemplate({
               width: '794px',
               minHeight: '1123px',
               maxWidth: '794px',
-              padding: '48px 50px',
+              padding: '64px 64px 64px 72px', // Standar Tata Naskah Dinas: Kiri 72px (~2.5cm), Kanan 64px (~2.2cm), Atas 64px, Bawah 64px
               boxSizing: 'border-box',
             }}
           >
