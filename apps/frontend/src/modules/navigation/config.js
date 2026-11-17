@@ -365,7 +365,13 @@ export function canAccessRoute(path, session = getAuthSession()) {
           rawMenuPaths.includes(`/${alias}`)
         )
 
-      return hasDirectAccess
+      const hasParentAccess =
+        normalizedMenuPaths.includes(subConfig.parent) ||
+        rawMenuPaths.includes(subConfig.parent) ||
+        rawUrls.includes(subConfig.parent.replace(/^\/+/, '').toLowerCase()) ||
+        rawUrls.includes(subConfig.parent.toLowerCase())
+
+      return hasDirectAccess || hasParentAccess
     }
 
     // 2. Akses halaman Parent Hub itu sendiri (Fasilitasi CAT, Anggaran, Statistik Internal)

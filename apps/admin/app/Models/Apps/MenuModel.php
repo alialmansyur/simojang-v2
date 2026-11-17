@@ -255,7 +255,16 @@ class MenuModel extends Model
                 continue;
             }
 
-            $subs = $submenusByParent[$menuId] ?? [];
+            $isHubPage = in_array(strtolower(trim($rawUrl, '/')), [
+                'layanan/statistik-internal',
+                'layanan/anggaran',
+                'layanan/fasilitasi-cat',
+                'apps-statistik-internal',
+                'apps-anggaran',
+                'apps-cat',
+            ], true);
+
+            $subs = $isHubPage ? [] : ($submenusByParent[$menuId] ?? []);
             if (!empty($subs)) {
                 $children = [];
                 foreach ($subs as $sub) {

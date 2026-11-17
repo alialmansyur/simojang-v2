@@ -174,98 +174,6 @@ class RegisterHubSubServicesAndPermissions extends Migration
                 ]);
             }
         }
-
-        // =========================================================================
-        // 3. INSERT / UPDATE HUB & SUB-MENU KE auth_permissions (UNTUK /settings/roles)
-        // =========================================================================
-        if ($db->tableExists('auth_permissions')) {
-            // Helper function untuk upsert permission
-            $upsertPermission = function ($name, $url, $icon, $parentId = null, $order = 99) use ($db) {
-                $existing = $db->table('auth_permissions')
-                    ->where('url', $url)
-                    ->get()
-                    ->getRowArray();
-
-                if ($existing) {
-                    $db->table('auth_permissions')
-                        ->where('id', (int) $existing['id'])
-                        ->update([
-                            'name'      => $name,
-                            'icon'      => $icon,
-                            'parent_id' => $parentId,
-                            'is_show'   => 1,
-                            'is_order'  => $order,
-                        ]);
-                    return (int) $existing['id'];
-                }
-
-                $db->table('auth_permissions')->insert([
-                    'name'        => $name,
-                    'url'         => $url,
-                    'icon'        => $icon,
-                    'parent_id'   => $parentId,
-                    'is_show'     => 1,
-                    'is_order'    => $order,
-                    'is_external' => 0,
-                ]);
-                return (int) $db->insertID();
-            };
-
-            // A. Hub Layanan 1: Fasilitasi CAT
-            $catParentId = $upsertPermission('Fasilitasi Seleksi CAT BKN', 'layanan/fasilitasi-cat', 'Cpu', null, 50);
-            $catSub1 = $upsertPermission('Rekap Data Sesi CAT', 'layanan/fasilitasi-cat/rekap-data', 'Database', $catParentId, 1);
-            $catSub2 = $upsertPermission('Rekapitulasi Capaian CAT', 'layanan/fasilitasi-cat/rekapitulasi', 'BarChart3', $catParentId, 2);
-            $catSub3 = $upsertPermission('Laporan & Berita Acara CAT', 'layanan/fasilitasi-cat/laporan', 'FileText', $catParentId, 3);
-            $catSub4 = $upsertPermission('Pengelola Layanan CAT', 'layanan/fasilitasi-cat/pengelola', 'ShieldCheck', $catParentId, 4);
-
-            // B. Hub Layanan 2: Pagu & Realisasi Anggaran
-            $anggaranParentId = $upsertPermission('Pagu & Realisasi Anggaran DIPA', 'layanan/anggaran', 'Layers', null, 51);
-            $anggaranSub1 = $upsertPermission('Master Data Anggaran', 'layanan/anggaran/master', 'Database', $anggaranParentId, 1);
-            $anggaranSub2 = $upsertPermission('Realisasi Anggaran', 'layanan/anggaran/realisasi', 'Receipt', $anggaranParentId, 2);
-
-            // C. Hub Layanan 3: Statistik Kepegawaian Internal
-            $statParentId = $upsertPermission('Statistik Kepegawaian Internal', 'layanan/statistik-internal', 'Building2', null, 52);
-            $statSub1 = $upsertPermission('Data Pegawai Internal', 'layanan/statistik-internal/data-pegawai', 'Users', $statParentId, 1);
-            $statSub2 = $upsertPermission('Peta Jabatan & Bezzeting', 'layanan/statistik-internal/peta-jabatan', 'Briefcase', $statParentId, 2);
-            $statSub3 = $upsertPermission('Master Data Kepegawaian', 'layanan/statistik-internal/master-data', 'Database', $statParentId, 3);
-
-            // =========================================================================
-            // 4. SINKRONISASI KE auth_role_permissions UNTUK ROLE ADM & USR
-            // =========================================================================
-            if ($db->tableExists('auth_role_permissions') && $db->tableExists('auth_roles')) {
-                $allNewPermIds = [
-                    $catParentId, $catSub1, $catSub2, $catSub3, $catSub4,
-                    $anggaranParentId, $anggaranSub1, $anggaranSub2,
-                    $statParentId, $statSub1, $statSub2, $statSub3,
-                ];
-
-                $roles = $db->table('auth_roles')->select('id, role_code')->get()->getResultArray();
-                foreach ($roles as $r) {
-                    $roleId = (int) $r['id'];
-                    $isAdm = strtoupper(trim((string) $r['role_code'])) === 'ADM';
-
-                    foreach ($allNewPermIds as $pId) {
-                        $hasRolePerm = $db->table('auth_role_permissions')
-                            ->where('role_id', $roleId)
-                            ->where('permission_id', $pId)
-                            ->countAllResults();
-
-                        if ($hasRolePerm === 0) {
-                            $db->table('auth_role_permissions')->insert([
-                                'role_id'       => $roleId,
-                                'permission_id' => $pId,
-                                'is_create'     => $isAdm ? 1 : 0,
-                                'is_read'       => 1, // Default diizinkan agar menu tidak hilang tiba-tiba
-                                'is_update'     => $isAdm ? 1 : 0,
-                                'is_delete'     => $isAdm ? 1 : 0,
-                                'created_at'    => $now,
-                                'updated_at'    => $now,
-                            ]);
-                        }
-                    }
-                }
-            }
-        }
     }
 
     public function down()
@@ -275,32 +183,6 @@ class RegisterHubSubServicesAndPermissions extends Migration
         // Hapus subservices dari data_timkerja_layanan
         if ($db->tableExists('data_timkerja_layanan')) {
             $db->table('data_timkerja_layanan')->where('is_subservice', 1)->delete();
-        }
-
-        // Hapus permissions hub
-        if ($db->tableExists('auth_permissions')) {
-            $urls = [
-                'layanan/fasilitasi-cat',
-                'layanan/fasilitasi-cat/rekap-data',
-                'layanan/fasilitasi-cat/rekapitulasi',
-                'layanan/fasilitasi-cat/laporan',
-                'layanan/fasilitasi-cat/pengelola',
-                'layanan/anggaran',
-                'layanan/anggaran/master',
-                'layanan/anggaran/realisasi',
-                'layanan/statistik-internal',
-                'layanan/statistik-internal/data-pegawai',
-                'layanan/statistik-internal/peta-jabatan',
-                'layanan/statistik-internal/master-data',
-            ];
-            $perms = $db->table('auth_permissions')->whereIn('url', $urls)->get()->getResultArray();
-            $permIds = array_column($perms, 'id');
-            if (!empty($permIds)) {
-                if ($db->tableExists('auth_role_permissions')) {
-                    $db->table('auth_role_permissions')->whereIn('permission_id', $permIds)->delete();
-                }
-                $db->table('auth_permissions')->whereIn('id', $permIds)->delete();
-            }
         }
     }
 }
