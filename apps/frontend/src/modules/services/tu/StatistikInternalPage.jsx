@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   Users,
   UserCheck,
+  UserX,
   Award,
   AlertTriangle,
   Pencil,
@@ -84,6 +85,17 @@ export default function StatistikInternalPage() {
       iconColor: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
     },
     {
+      id: 'total_nonaktif',
+      label: 'PEGAWAI NON-AKTIF',
+      value: summary?.total_nonaktif ?? 0,
+      unit: 'Pegawai',
+      context: `${summary?.persen_nonaktif ?? 0}% Purna Tugas / Mutasi`,
+      badge: 'Nonaktif',
+      badgeColor: 'rose',
+      icon: UserX,
+      iconColor: 'bg-rose-50 text-rose-600 dark:bg-rose-950/40 dark:text-rose-400',
+    },
+    {
       id: 'menjelang_bup',
       label: 'MENJELANG BUP (57 TH)',
       value: summary?.total_menjelang_bup ?? 0,
@@ -94,17 +106,6 @@ export default function StatistikInternalPage() {
       icon: AlertTriangle,
       iconColor: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
     },
-    {
-      id: 'total_pppk',
-      label: 'PEGAWAI PPPK',
-      value: summary?.total_pppk ?? 0,
-      unit: 'Pegawai',
-      context: 'ASN Perjanjian Kerja',
-      badge: 'Status Kontrak',
-      badgeColor: 'indigo',
-      icon: Award,
-      iconColor: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400',
-    },
   ]
 
   // Nav/Tabs: Bersih tanpa ambigu "Semua" ganda:
@@ -112,6 +113,7 @@ export default function StatistikInternalPage() {
   const categories = [
     { value: 'aktif', label: 'Aktif' },
     { value: 'nonaktif', label: 'Nonaktif' },
+    { value: 'bup', label: 'Menjelang BUP' },
     { value: 'pns', label: 'PNS' },
     { value: 'pppk', label: 'PPPK' },
     { value: 'pppk_pw', label: 'PPPK PW' },

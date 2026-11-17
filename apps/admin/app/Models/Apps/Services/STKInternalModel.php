@@ -132,10 +132,12 @@ class STKInternalModel extends Model
                     ELSE 'Tidak Diketahui'
                 END AS generasi,
                 CASE
-                    WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) >= 58
+                    WHEN a.is_status = 1 AND TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) >= 58
                         THEN 'Sudah BUP'
-                    WHEN TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) = 57
+                    WHEN a.is_status = 1 AND TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) = 57
                         THEN 'Menjelang BUP'
+                    WHEN a.is_status = 0 OR a.is_status IS NULL
+                        THEN 'Nonaktif'
                     ELSE 'Aktif'
                 END AS status_bup
             FROM data_pegawai a
@@ -239,6 +241,7 @@ class STKInternalModel extends Model
                 MENJELANG BUP
                 =============================== */
                 SUM(
+                    a.is_status = 1 AND
                     TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) = 57
                 ) AS total_menjelang_bup,
 
@@ -247,7 +250,16 @@ class STKInternalModel extends Model
                 =============================== */
                 SUM(
                     TIMESTAMPDIFF(YEAR, STR_TO_DATE(SUBSTRING(a.nip, 1, 8), '%Y%m%d'), CURDATE()) >= 58
-                ) AS total_telah_bup
+                ) AS total_telah_bup,
+
+                /* ===============================
+                STATUS KEPEGAWAIAN (PNS & PPPK)
+                =============================== */
+                SUM(CASE WHEN a.status_pegawai_id = 1 THEN 1 ELSE 0 END) AS total_pns,
+                ROUND(SUM(CASE WHEN a.status_pegawai_id = 1 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 2) AS persen_pns,
+
+                SUM(CASE WHEN a.status_pegawai_id IN (2, 3) THEN 1 ELSE 0 END) AS total_pppk,
+                ROUND(SUM(CASE WHEN a.status_pegawai_id IN (2, 3) THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 2) AS persen_pppk
 
             FROM data_pegawai a
             WHERE 1=1
@@ -271,6 +283,9 @@ class STKInternalModel extends Model
                 SUM(CASE WHEN x.is_status = 0 OR x.is_status IS NULL THEN 1 ELSE 0 END) AS total_nonaktif,
                 SUM(CASE WHEN x.gender = 1 THEN 1 ELSE 0 END) AS total_pria,
                 SUM(CASE WHEN x.gender = 2 THEN 1 ELSE 0 END) AS total_wanita,
+                SUM(CASE WHEN x.status_pegawai_id = 1 OR x.status_pegawai = \'PNS\' THEN 1 ELSE 0 END) AS total_pns,
+                SUM(CASE WHEN x.status_pegawai_id IN (2, 3) OR x.status_pegawai LIKE \'%PPPK%\' THEN 1 ELSE 0 END) AS total_pppk,
+                SUM(CASE WHEN x.status_bup = \'Menjelang BUP\' THEN 1 ELSE 0 END) AS total_menjelang_bup,
                 MAX(x.updated_at) AS last_update
             ')
             ->get()
