@@ -1,14 +1,140 @@
 -- ========================================================================================
--- SIMOJANG V2 - UNIFIED RBAC & SERVICE HIERARCHY MIGRATION SCRIPT
--- Single Source of Truth (SSOT) Navigasi & Hak Akses Berbasis Role (MariaDB / MySQL)
+-- SIMOJANG V2 - UNIFIED RBAC, FASILITASI CAT & SERVICE HIERARCHY MIGRATION SCRIPT
+-- Single Source of Truth (SSOT) Navigasi, Fasilitasi CAT & Hak Akses Role
 -- ========================================================================================
 -- Script ini bersifat Idempotent (aman dijalankan berulang tanpa data duplikat).
+-- Kompatibel dengan MariaDB 10.4+ / MySQL 8.0+
 -- ========================================================================================
 
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- ----------------------------------------------------------------------------------------
--- 1. ALTER TABLE: Penambahan Kolom Hierarki pada Tabel Layanan & Tim Kerja
+-- 1. TABEL BARU & MODIFIKASI SKEMA: FASILITASI CAT & DOKUMEN PNBP
+-- ----------------------------------------------------------------------------------------
+
+-- 1.1 Tabel Pengelola CAT (Whitelist Akses Pengelola CAT)
+CREATE TABLE IF NOT EXISTS `cfg_cat_pengelola` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `nip` varchar(30) NOT NULL,
+  `nama` varchar(150) DEFAULT NULL,
+  `keterangan` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cat_pengelola_nip` (`nip`),
+  KEY `idx_cat_pengelola_active` (`is_active`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.2 Tabel Laporan & Berita Acara CAT (Snapshot Dokumen & TTE)
+CREATE TABLE IF NOT EXISTS `txn_cat_laporan` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` varchar(64) NOT NULL,
+  `jenis_laporan` varchar(64) NOT NULL DEFAULT 'laporan-pelaksanaan-cat',
+  `nomor_dokumen` varchar(150) DEFAULT NULL,
+  `judul_laporan` varchar(255) NOT NULL,
+  `tanggal_dokumen` date DEFAULT NULL,
+  `tanggal_pelaksanaan` date DEFAULT NULL,
+  `jenis_tes_id` varchar(64) DEFAULT NULL,
+  `seleksi_id` int(11) unsigned DEFAULT NULL,
+  `tilok_id` varchar(64) DEFAULT NULL,
+  `instansi_id` varchar(255) DEFAULT NULL COMMENT 'Comma separated instansi IDs atau null jika tilok',
+  `periode` varchar(10) DEFAULT NULL,
+  `status` enum('draft','published') NOT NULL DEFAULT 'draft',
+  `params_json` longtext DEFAULT NULL COMMENT 'Form parameters: dasar surat, waktu, kota, dll',
+  `data_snapshot_json` longtext DEFAULT NULL COMMENT 'Snapshot beku data sesi, peserta hadir/tidak',
+  `signers_json` longtext DEFAULT NULL COMMENT 'Snapshot 3 penandatangan (kiri, tengah, kanan) & e-sign data',
+  `evidence_json` longtext DEFAULT NULL COMMENT 'Snapshot foto eviden dokumentasi',
+  `created_by_nip` varchar(50) DEFAULT NULL,
+  `created_by_name` varchar(150) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cat_laporan_uid` (`uid`),
+  KEY `idx_cat_laporan_type_status` (`jenis_laporan`,`status`),
+  KEY `idx_cat_laporan_scope` (`seleksi_id`,`tilok_id`),
+  KEY `idx_cat_laporan_creator` (`created_by_nip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.3 Tabel E-Sign Penandatangan Laporan CAT
+CREATE TABLE IF NOT EXISTS `txn_cat_user_signers` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `user_nip` varchar(50) NOT NULL,
+  `user_name` varchar(150) DEFAULT NULL,
+  `jenis_tes_id` varchar(64) DEFAULT NULL,
+  `seleksi_id` int(11) unsigned DEFAULT NULL,
+  `tilok_id` varchar(64) DEFAULT NULL,
+  `instansi_id` varchar(100) DEFAULT NULL COMMENT 'NULL berarti berlaku untuk seluruh tilok',
+  `position_key` varchar(20) NOT NULL DEFAULT 'kanan' COMMENT 'kiri, tengah, kanan',
+  `jabatan` varchar(255) DEFAULT NULL,
+  `nama` varchar(255) DEFAULT NULL,
+  `nip` varchar(50) DEFAULT NULL,
+  `pangkat_gol` varchar(100) DEFAULT NULL,
+  `instansi_nama` varchar(255) DEFAULT NULL,
+  `signature_data` longtext DEFAULT NULL COMMENT 'Base64 image TTE',
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_cat_user_signers_user_pos` (`user_nip`,`position_key`),
+  KEY `idx_cat_user_signers_scope` (`seleksi_id`,`tilok_id`,`instansi_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.4 Tabel Petugas Tim Kerja CAT Lapangan
+CREATE TABLE IF NOT EXISTS `txn_cat_tim` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `jadwal_id` bigint(20) unsigned NOT NULL,
+  `pegawai_id` int(11) unsigned DEFAULT NULL,
+  `nip` varchar(30) NOT NULL,
+  `nama` varchar(255) NOT NULL,
+  `pangkat_gol` varchar(100) DEFAULT NULL,
+  `jabatan` varchar(255) DEFAULT NULL,
+  `peran` enum('Koordinator','IT','Pengawas') NOT NULL DEFAULT 'Pengawas',
+  `st_document_id` bigint(20) unsigned DEFAULT NULL,
+  `nomor_st` varchar(120) DEFAULT NULL,
+  `tanggal_mulai` date DEFAULT NULL,
+  `tanggal_selesai` date DEFAULT NULL,
+  `catatan` varchar(255) DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_cat_tim_jadwal_peran` (`jadwal_id`,`peran`),
+  KEY `idx_cat_tim_nip` (`nip`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.5 Tabel Pemetaan Instansi pada Jadwal CAT
+CREATE TABLE IF NOT EXISTS `txn_cat_jadwal_instansi` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `jadwal_id` bigint(20) unsigned NOT NULL,
+  `instansi_id` varchar(50) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_cat_jadwal_instansi` (`jadwal_id`,`instansi_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.6 Penyesuaian Kolom Status Batal pada Jadwal CAT
+ALTER TABLE `txn_cat_jadwal` MODIFY COLUMN `status` ENUM('draft','aktif','selesai','batal') NOT NULL DEFAULT 'aktif';
+
+-- 1.7 Penyesuaian Dokumen PNBP CAT (Upload & Personel Eksternal)
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_documents' AND column_name = 'source_mode');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_documents` ADD COLUMN `source_mode` ENUM(\'builder\',\'upload\') NOT NULL DEFAULT \'builder\' AFTER `status`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_documents' AND column_name = 'original_filename');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_documents` ADD COLUMN `original_filename` VARCHAR(255) NULL DEFAULT NULL AFTER `pdf_file_path`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_doc_personel' AND column_name = 'is_external');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `nip`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_doc_personel' AND column_name = 'instansi_asal');
+SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN `instansi_asal` VARCHAR(255) NULL DEFAULT NULL AFTER `nama`', 'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+
+-- ----------------------------------------------------------------------------------------
+-- 2. ALTER TABLE: Penambahan Kolom Hierarki pada Tabel Layanan & Tim Kerja
 -- ----------------------------------------------------------------------------------------
 
 -- data_timkerja
@@ -37,24 +163,24 @@ SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja_layanan` ADD COLUMN `
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
 -- ----------------------------------------------------------------------------------------
--- 2. PEMBERSIHAN DATA: Bersihkan data eksternal (level 4) dari data_timkerja_layanan
+-- 3. PEMBERSIHAN & NORMALISASI: data_timkerja_layanan
 -- ----------------------------------------------------------------------------------------
 DELETE FROM `data_timkerja_layanan` WHERE `level_id` = 4 OR `id` IN (53, 54, 55, 56, 57, 58);
 
--- Update level_id & is_subservice untuk sub-layanan hub di data_timkerja_layanan
+-- Update level_id & is_subservice
 UPDATE `data_timkerja_layanan` SET `level_id` = 2, `is_subservice` = 0 WHERE `parent_id` IS NULL;
 UPDATE `data_timkerja_layanan` SET `level_id` = 3, `is_subservice` = 1 WHERE `parent_id` IS NOT NULL;
 
 -- ----------------------------------------------------------------------------------------
--- 3. MASTER MENU SISTEM: auth_permissions
+-- 4. MASTER MENU SISTEM: auth_permissions
 -- ----------------------------------------------------------------------------------------
 
--- 3.1 Nonaktifkan menu legacy lama (is_show = 0)
+-- 4.1 Nonaktifkan menu legacy lama (is_show = 0)
 UPDATE `auth_permissions` 
 SET `is_show` = 0 
 WHERE `id` IN (7, 45, 47, 48, 49, 50, 51, 52, 60, 96, 97);
 
--- 3.2 Menu Utama Root (Depth 0)
+-- 4.2 Menu Utama Root (Depth 0)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 (94, 'Home', 'dashboard', 'bi bi-grid-fill', NULL, 1, 1, 0),
 (95, 'Kalender Kantor', 'calendar-event', 'bi bi-calendar', NULL, 1, 2, 0),
@@ -67,7 +193,7 @@ ON DUPLICATE KEY UPDATE
     `parent_id` = VALUES(`parent_id`), `is_show` = VALUES(`is_show`), 
     `is_order` = VALUES(`is_order`), `is_external` = VALUES(`is_external`);
 
--- 3.3 Layanan Eksternal (Depth 1, Parent ID 100)
+-- 4.3 Layanan Eksternal (Depth 1, Parent ID 100)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 (101, 'Dashboard Executive', 'https://kanreg3.id/dashboard-executive/', 'bi bi-speedometer2', 100, 1, 1, 1),
 (102, 'Dashboard Simanja', 'https://kanreg3.id/simanja-dashboard/', 'bi bi-graph-up', 100, 1, 2, 1),
@@ -80,7 +206,7 @@ ON DUPLICATE KEY UPDATE
     `parent_id` = VALUES(`parent_id`), `is_show` = VALUES(`is_show`), 
     `is_order` = VALUES(`is_order`), `is_external` = VALUES(`is_external`);
 
--- 3.4 6 Tim Kerja Kanreg III (Depth 1, Parent ID 57)
+-- 4.4 6 Tim Kerja Kanreg III (Depth 1, Parent ID 57)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 (201, 'Tim Kerja Pengangkatan dan Mutasi', 'timkerja/pnm', 'bi bi-person-check', 57, 1, 1, 0),
 (202, 'Tim Kerja Status dan Pemberhentian', 'timkerja/snp', 'bi bi-shield-exclamation', 57, 1, 2, 0),
@@ -100,7 +226,7 @@ UPDATE `data_timkerja` SET `permission_id` = 204 WHERE `id` = 4;
 UPDATE `data_timkerja` SET `permission_id` = 205 WHERE `id` = 5;
 UPDATE `data_timkerja` SET `permission_id` = 206 WHERE `id` = 6;
 
--- 3.5 Layanan Tim Kerja (Depth 2, Parent ID 201-206)
+-- 4.5 Layanan Tim Kerja (Depth 2, Parent ID 201-206)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 -- PNM (Parent 201)
 (301, 'Verifikasi dan validasi penyusunan kebutuhan pegawai ASN', 'layanan/1', 'bi bi-grid', 201, 1, 1, 0),
@@ -158,7 +284,7 @@ ON DUPLICATE KEY UPDATE
 
 UPDATE `data_timkerja_layanan` SET `permission_id` = (300 + `id`) WHERE `level_id` = 2;
 
--- 3.6 Sub-Layanan Hub (Depth 3, Parent ID 328, 329, 335)
+-- 4.6 Sub-Layanan Hub (Depth 3, Parent ID 328, 329, 335)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 -- Fasilitasi CAT (Parent 328)
 (444, 'Rekap Data Sesi CAT', 'apps-cat-rekap', 'bi bi-diagram-2', 328, 1, 44, 0),
@@ -179,7 +305,7 @@ ON DUPLICATE KEY UPDATE
 
 UPDATE `data_timkerja_layanan` SET `permission_id` = (400 + `id`) WHERE `level_id` = 3;
 
--- 3.7 Sub-Menu Hub Pengaturan & Referensi (Depth 1, Parent ID 500)
+-- 4.7 Sub-Menu Hub Pengaturan & Referensi (Depth 1, Parent ID 500)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 (59, 'Pengaturan', 'settings', 'bi bi-sliders', 500, 1, 1, 0),
 (61, 'Referensi', 'settings/referensi', 'bi bi-table', 500, 1, 2, 0)
@@ -188,7 +314,7 @@ ON DUPLICATE KEY UPDATE
     `parent_id` = VALUES(`parent_id`), `is_show` = VALUES(`is_show`), 
     `is_order` = VALUES(`is_order`), `is_external` = VALUES(`is_external`);
 
--- 3.8 Sub-Layanan Pengaturan Hub (Depth 2, Parent ID 59 - Tepat 5 Layanan Sesuai Kartu Hub)
+-- 4.8 Sub-Layanan Pengaturan Hub (Depth 2, Parent ID 59 - Tepat 5 Layanan Sesuai Kartu Hub)
 INSERT INTO `auth_permissions` (`id`, `name`, `url`, `icon`, `parent_id`, `is_show`, `is_order`, `is_external`) VALUES
 (99, 'Manajemen Pengguna & Pegawai', 'settings/users', 'bi bi-people', 59, 1, 1, 0),
 (55, 'Manajemen Role & Struktur Menu', 'settings/roles', 'bi bi-shield-check', 59, 1, 2, 0),
@@ -201,10 +327,10 @@ ON DUPLICATE KEY UPDATE
     `is_order` = VALUES(`is_order`), `is_external` = VALUES(`is_external`);
 
 -- ----------------------------------------------------------------------------------------
--- 4. SEEDING HAK AKSES RBAC: auth_role_permissions
+-- 5. SEEDING HAK AKSES RBAC: auth_role_permissions
 -- ----------------------------------------------------------------------------------------
 
--- 4.1 Role 1: Administrator (ADM) -> Full CRUD (Akses ke Seluruh Menu)
+-- 5.1 Role 1: Administrator (ADM) -> Full CRUD (Akses ke Seluruh Menu)
 INSERT INTO `auth_role_permissions` (`role_id`, `permission_id`, `is_create`, `is_read`, `is_update`, `is_delete`, `created_at`, `updated_at`)
 SELECT 1, p.id, 1, 1, 1, 1, NOW(), NOW()
 FROM `auth_permissions` p
@@ -212,7 +338,7 @@ WHERE p.is_show = 1
 ON DUPLICATE KEY UPDATE 
     `is_create` = 1, `is_read` = 1, `is_update` = 1, `is_delete` = 1, `updated_at` = NOW();
 
--- 4.2 Role 2: User Pegawai (USR) -> Read Access ke Menu Utama, Eksternal, Tim Kerja & Layanan
+-- 5.2 Role 2: User Pegawai (USR) -> Read Access ke Menu Utama, Eksternal, Tim Kerja & Layanan
 -- (Setting & Referensi tidak diberikan akses / dicabut)
 INSERT INTO `auth_role_permissions` (`role_id`, `permission_id`, `is_create`, `is_read`, `is_update`, `is_delete`, `created_at`, `updated_at`)
 SELECT 2, p.id, 0, 1, 0, 0, NOW(), NOW()
