@@ -143,16 +143,49 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
       setNama(initialData.nama || '')
       setGender(String(initialData.gender || '1'))
       setTglLahir(initialData.tgl_lahir || '')
-      setMenikah(initialData.menikah || 'Menikah')
-      setStatusPegawaiId(String(initialData.status_pegawai_id || '1'))
+
+      // Normalisasi status pernikahan
+      const rawMenikah = String(initialData.menikah || '').trim()
+      if (rawMenikah === 'Belum Kawin') {
+        setMenikah('Belum Menikah')
+      } else if (rawMenikah === 'Janda' || rawMenikah === 'Janda / Duda' || rawMenikah === 'Duda') {
+        setMenikah('Duda / Janda')
+      } else {
+        setMenikah(rawMenikah || 'Menikah')
+      }
+
+      // Normalisasi status kepegawaian (mendukung integer id maupun legacy string 'PNS', 'PPPK', dll)
+      const rawStatus = String(initialData.status_pegawai_id || initialData.status_pegawai || '1').toUpperCase().trim()
+      let resolvedStatus = '1'
+      if (rawStatus === '2' || rawStatus === 'PPPK') {
+        resolvedStatus = '2'
+      } else if (rawStatus === '3' || rawStatus.includes('PW') || rawStatus.includes('PARUH')) {
+        resolvedStatus = '3'
+      } else if (rawStatus === '4' || rawStatus === 'PPNPN') {
+        resolvedStatus = '4'
+      } else if (rawStatus === '5' || rawStatus === 'MAGANG') {
+        resolvedStatus = '5'
+      } else if (/^\d+$/.test(rawStatus)) {
+        resolvedStatus = rawStatus
+      }
+      setStatusPegawaiId(resolvedStatus)
+
       setAgamaId(String(initialData.agama_id || '1'))
       setPendidikanId(String(initialData.pendidikan_id || '9'))
-      setUnitKerjaId(String(initialData.unit_kerja_id || '13'))
+
+      // Jika unit_kerja_id multiple dipisah koma (misal '18,22'), ambil unit utama yang pertama
+      const rawUk = String(initialData.unit_kerja_id || '13').split(',')[0].trim()
+      setUnitKerjaId(rawUk || '13')
+
       setUnitSkId(String(initialData.unit_sk_id || '1'))
       setJenisJabatanId(String(initialData.jenis_jabatan_id || '1'))
-      setJabatanId(String(initialData.jabatan_id || ''))
+      setJabatanId(initialData.jabatan_id ? String(initialData.jabatan_id) : '')
       setGolId(String(initialData.gol_id || '10'))
-      setPangkatId(String(initialData.pangkat_id || '10'))
+
+      // Normalisasi pangkat: abaikan 0 atau null untuk PPPK
+      const rawPkt = initialData.pangkat_id ? String(initialData.pangkat_id) : ''
+      setPangkatId(rawPkt === '0' ? '' : rawPkt)
+
       setTmtGol(initialData.tmt_gol || '')
       setPhone(initialData.phone || '')
       setEmail(initialData.email || '')
@@ -231,6 +264,11 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
     }
     if (!nama || nama.trim().length < 3) {
       setErrorMsg('Nama lengkap wajib diisi minimal 3 karakter.')
+      return
+    }
+
+    if (!statusPegawaiId) {
+      setErrorMsg('Status Kepegawaian wajib dipilih.')
       return
     }
 
@@ -369,7 +407,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={GENDER_OPTIONS}
                   value={gender}
-                  onChange={(opt) => setGender(opt ? opt.value : '1')}
+                  onChange={(val) => setGender(val?.value ?? val ?? '1')}
                   placeholder="Pilih Gender"
                   isClearable={false}
                 />
@@ -395,7 +433,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={NIKAH_OPTIONS}
                   value={menikah}
-                  onChange={(opt) => setMenikah(opt ? opt.value : 'Menikah')}
+                  onChange={(val) => setMenikah(val?.value ?? val ?? 'Menikah')}
                   placeholder="Pilih Status"
                   isClearable={false}
                 />
@@ -408,7 +446,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedAgama}
                   value={agamaId}
-                  onChange={(opt) => setAgamaId(opt ? opt.value : '')}
+                  onChange={(val) => setAgamaId(val?.value ?? val ?? '')}
                   placeholder="Pilih Agama"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -422,7 +460,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedJenisPegawai}
                   value={statusPegawaiId}
-                  onChange={(opt) => setStatusPegawaiId(opt ? opt.value : '')}
+                  onChange={(val) => setStatusPegawaiId(val?.value ?? val ?? '')}
                   placeholder="PNS / PPPK / Magang"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -436,7 +474,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedPendidikan}
                   value={pendidikanId}
-                  onChange={(opt) => setPendidikanId(opt ? opt.value : '')}
+                  onChange={(val) => setPendidikanId(val?.value ?? val ?? '')}
                   placeholder="Pilih Jenjang Pendidikan"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -462,7 +500,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedUnitKerja}
                   value={unitKerjaId}
-                  onChange={(opt) => setUnitKerjaId(opt ? opt.value : '')}
+                  onChange={(val) => setUnitKerjaId(val?.value ?? val ?? '')}
                   placeholder="Pilih Tim Kerja"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -476,7 +514,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedUnitSk}
                   value={unitSkId}
-                  onChange={(opt) => setUnitSkId(opt ? opt.value : '')}
+                  onChange={(val) => setUnitSkId(val?.value ?? val ?? '')}
                   placeholder="Kantor Regional III / UPT"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -490,7 +528,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedJenisJabatan}
                   value={jenisJabatanId}
-                  onChange={(opt) => setJenisJabatanId(opt ? opt.value : '')}
+                  onChange={(val) => setJenisJabatanId(val?.value ?? val ?? '')}
                   placeholder="Struktural / Fungsional / Pelaksana"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -504,7 +542,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedJabatan}
                   value={jabatanId}
-                  onChange={(opt) => setJabatanId(opt ? opt.value : '')}
+                  onChange={(val) => setJabatanId(val?.value ?? val ?? '')}
                   placeholder="Pilih atau cari jabatan..."
                   isClearable={false}
                 />
@@ -529,7 +567,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedGolongan}
                   value={golId}
-                  onChange={(opt) => setGolId(opt ? opt.value : '')}
+                  onChange={(val) => setGolId(val?.value ?? val ?? '')}
                   placeholder="Pilih Golongan"
                   isLoading={isLoadingMaster}
                   isClearable={false}
@@ -543,7 +581,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedPangkat}
                   value={pangkatId}
-                  onChange={(opt) => setPangkatId(opt ? opt.value : '')}
+                  onChange={(val) => setPangkatId(val?.value ?? val ?? '')}
                   placeholder="Pilih Pangkat"
                   isLoading={isLoadingMaster}
                   isClearable={false}

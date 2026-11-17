@@ -38,7 +38,7 @@ class StatistikInternal extends BaseController
         $rules = [
             'nama' => 'required|min_length[3]',
             'gender' => 'required',
-            // 'status_pegawai' => 'required',
+            'status_pegawai' => 'required',
             'tgl_lahir' => 'required|valid_date',
             'unit_kerja' => 'required',
             'jenis_jabatan' => 'required',
@@ -70,22 +70,41 @@ class StatistikInternal extends BaseController
             }
         }
 
+        $statusPegawaiRaw = $this->request->getPost('status_pegawai');
+        $statusPegawaiId = null;
+        if (!empty($statusPegawaiRaw)) {
+            if (is_numeric($statusPegawaiRaw)) {
+                $statusPegawaiId = (int) $statusPegawaiRaw;
+            } else {
+                $m = $this->simodel->getMasterData('data_pegawai_jenis_pegawai');
+                foreach ($m as $jp) {
+                    if (strcasecmp(trim($jp['nama']), trim($statusPegawaiRaw)) === 0) {
+                        $statusPegawaiId = (int) $jp['id'];
+                        break;
+                    }
+                }
+            }
+        }
+
+        $pangkatRaw = $this->request->getPost('pangkat');
+        $pangkatId = (!empty($pangkatRaw) && (int) $pangkatRaw > 0) ? (int) $pangkatRaw : null;
+
         $dataSave = [
             'nama' => $this->request->getPost('nama'),
             'gender' => $this->request->getPost('gender'),
             'tgl_lahir' => $this->request->getPost('tgl_lahir'),
             'menikah' => $this->request->getPost('menikah'),
-            'status_pegawai_id' => $this->request->getPost('status_pegawai'),
-            'agama_id' => $this->request->getPost('agama'),
-            'pendidikan_id' => $this->request->getPost('pendidikan'),
-            'jabatan_id' => $jabatanId ?: null,
+            'status_pegawai_id' => $statusPegawaiId,
+            'agama_id' => !empty($this->request->getPost('agama')) ? (int) $this->request->getPost('agama') : null,
+            'pendidikan_id' => !empty($this->request->getPost('pendidikan')) ? (int) $this->request->getPost('pendidikan') : null,
+            'jabatan_id' => !empty($jabatanId) ? (int) $jabatanId : null,
             'jabatan' => $jabatanNama,
-            'gol_id' => $this->request->getPost('golongan'),
-            'pangkat_id' => $this->request->getPost('pangkat'),
+            'gol_id' => !empty($this->request->getPost('golongan')) ? (int) $this->request->getPost('golongan') : null,
+            'pangkat_id' => $pangkatId,
             'tmt_gol' => $this->request->getPost('tmt_gol') ?: null,
             'unit_kerja_id' => is_array($this->request->getPost('unit_kerja')) ? implode(',', $this->request->getPost('unit_kerja')) : $this->request->getPost('unit_kerja'),
-            'unit_sk_id' => $this->request->getPost('unit_sk'),
-            'jenis_jabatan_id' => $this->request->getPost('jenis_jabatan'),
+            'unit_sk_id' => !empty($this->request->getPost('unit_sk')) ? (int) $this->request->getPost('unit_sk') : null,
+            'jenis_jabatan_id' => !empty($this->request->getPost('jenis_jabatan')) ? (int) $this->request->getPost('jenis_jabatan') : null,
             'phone' => $this->request->getPost('phone'),
             'email' => $this->request->getPost('email'),
             'updated_at' => date('Y-m-d H:i:s')

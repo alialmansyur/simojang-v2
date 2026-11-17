@@ -168,28 +168,23 @@ class STKInternalModel extends Model
             ->groupEnd();
         } elseif ($modeKey === 'pns') {
             $builder->groupStart()
-                ->where('status_pegawai', 'PNS')
-                ->orWhere('status_pegawai_id', '1')
-                ->orWhere('status_pegawai_id', 'PNS')
+                ->where('status_pegawai_id', 1)
+                ->orWhere('status_pegawai', 'PNS')
             ->groupEnd();
         } elseif ($modeKey === 'pppk') {
             $builder->groupStart()
-                ->where('status_pegawai', 'PPPK')
-                ->orWhere('status_pegawai_id', '2')
-                ->orWhere('status_pegawai_id', 'PPPK')
+                ->where('status_pegawai_id', 2)
+                ->orWhere('status_pegawai', 'PPPK')
             ->groupEnd();
         } elseif ($modeKey === 'pppk_pw' || $modeKey === 'pppk pw' || $modeKey === 'pppk-pw') {
             $builder->groupStart()
-                ->where('status_pegawai', 'PPPK PW')
-                ->orWhere('status_pegawai_id', '3')
-                ->orLike('status_pegawai', 'PARUH WAKTU')
-                ->orLike('status_pegawai', 'PPPK PW')
+                ->where('status_pegawai_id', 3)
+                ->orWhere('status_pegawai', 'PPPK PW')
             ->groupEnd();
         } elseif ($modeKey === 'magang') {
             $builder->groupStart()
-                ->where('status_pegawai', 'MAGANG')
-                ->orWhere('status_pegawai_id', '5')
-                ->orLike('status_pegawai', 'MAGANG')
+                ->where('status_pegawai_id', 5)
+                ->orWhere('status_pegawai', 'MAGANG')
             ->groupEnd();
         }
 

@@ -322,7 +322,7 @@ export default function StatistikInternalPage() {
       <SearchableSelect
         options={unitOptions}
         value={selectedUnit}
-        onChange={(val) => setSelectedUnit(val ? val.value : '')}
+        onChange={(val) => setSelectedUnit(val?.value ?? val ?? '')}
         placeholder="Pilih Tim Kerja / Bidang..."
         isClearable={true}
       />
