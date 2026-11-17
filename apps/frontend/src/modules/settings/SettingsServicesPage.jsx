@@ -21,6 +21,7 @@ import {
   Wrench,
   AlertTriangle,
   CornerDownRight,
+  ExternalLink,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import {
@@ -87,6 +88,7 @@ export default function SettingsServicesPage() {
   const [servicesError, setServicesError] = useState('')
   const [serviceSearch, setServiceSearch] = useState('')
   const [modeFilter, setModeFilter] = useState('all')
+  const [levelFilter, setLevelFilter] = useState('all')
   const [servicePage, setServicePage] = useState(1)
   const [servicePageSize, setServicePageSize] = useState(10)
 
@@ -240,13 +242,20 @@ export default function SettingsServicesPage() {
       const matchesMode =
         modeFilter === 'all' || (item.access_mode || 'everyone') === modeFilter
       if (!matchesMode) return false
+
+      const itemLevel = String(item.level_id || (Number(item.is_subservice) === 1 || item.parent_id ? '3' : '2'))
+      const matchesLevel = levelFilter === 'all' || itemLevel === levelFilter
+      if (!matchesLevel) return false
+
       if (!q) return true
       return (
         (item.nama_layanan || '').toLowerCase().includes(q) ||
-        (item.url || '').toLowerCase().includes(q)
+        (item.url || '').toLowerCase().includes(q) ||
+        (item.alias || '').toLowerCase().includes(q) ||
+        (item.timkerja_nama || '').toLowerCase().includes(q)
       )
     })
-  }, [services, serviceSearch, modeFilter])
+  }, [services, serviceSearch, modeFilter, levelFilter])
 
   const paginatedServices = useMemo(() => {
     const start = (servicePage - 1) * servicePageSize
@@ -508,18 +517,33 @@ export default function SettingsServicesPage() {
               showMonthFilter={false}
               borderless
               extraControls={
-                <select
-                  value={modeFilter}
-                  onChange={(e) => {
-                    setModeFilter(e.target.value)
-                    setServicePage(1)
-                  }}
-                  className="h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#175CD3]"
-                >
-                  <option value="all">Semua Mode Akses</option>
-                  <option value="everyone">Everyone (Semua Pegawai)</option>
-                  <option value="assigned">Assigned Only (Tertentu)</option>
-                </select>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={levelFilter}
+                    onChange={(e) => {
+                      setLevelFilter(e.target.value)
+                      setServicePage(1)
+                    }}
+                    className="h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#175CD3]"
+                  >
+                    <option value="all">Semua Level</option>
+                    <option value="2">Level 2: Sub Menu (Layanan Induk)</option>
+                    <option value="3">Level 3: Layanan Sub Menu (Hub)</option>
+                    <option value="4">Level 4: Layanan Eksternal</option>
+                  </select>
+                  <select
+                    value={modeFilter}
+                    onChange={(e) => {
+                      setModeFilter(e.target.value)
+                      setServicePage(1)
+                    }}
+                    className="h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 text-xs font-medium text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#175CD3]"
+                  >
+                    <option value="all">Semua Mode Akses</option>
+                    <option value="everyone">Everyone (Semua Pegawai)</option>
+                    <option value="assigned">Assigned Only (Tertentu)</option>
+                  </select>
+                </div>
               }
             />
           </div>
@@ -588,12 +612,18 @@ export default function SettingsServicesPage() {
                     const isAssigned = (item.access_mode || 'everyone') === 'assigned'
                     const isShown = Number(item.is_show) === 1
                     const isMaint = Number(item.is_maintenance) === 1
-                    const isSub = Boolean(Number(item.is_subservice) === 1 || item.parent_id)
+                    const levelId = Number(item.level_id || (Number(item.is_subservice) === 1 || item.parent_id ? 3 : 2))
+                    const isSub = levelId === 3
+                    const isExternal = levelId === 4
                     return (
                       <tr
                         key={item.id}
                         className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors ${
-                          isSub ? 'bg-slate-50/40 dark:bg-slate-800/20' : ''
+                          isSub
+                            ? 'bg-slate-50/40 dark:bg-slate-800/20'
+                            : isExternal
+                              ? 'bg-purple-50/15 dark:bg-purple-950/10'
+                              : ''
                         }`}
                       >
                         <td className={`px-4 sm:px-5 py-3 ${isSub ? 'pl-8 sm:pl-10' : ''}`}>
@@ -601,17 +631,30 @@ export default function SettingsServicesPage() {
                             {isSub && (
                               <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />
                             )}
+                            {isExternal && (
+                              <ExternalLink className="w-3.5 h-3.5 text-purple-500 shrink-0" />
+                            )}
                             <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
                               {item.nama_layanan}
                             </div>
+                            {levelId === 2 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40 whitespace-nowrap">
+                                Sub Menu {item.timkerja_nama ? `• ${item.timkerja_nama}` : ''}
+                              </span>
+                            )}
                             {isSub && (
                               <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40 whitespace-nowrap">
-                                Sub: {item.parent_nama || 'Induk Hub'}
+                                Layanan Hub: {item.parent_nama || 'Induk Hub'}
+                              </span>
+                            )}
+                            {isExternal && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/40 whitespace-nowrap">
+                                Layanan Eksternal
                               </span>
                             )}
                           </div>
                           <div className={`text-[11px] font-normal text-slate-400 dark:text-slate-500 mt-0.5 ${isSub ? 'ml-5' : ''}`}>
-                            /{item.url || '-'}
+                            {item.url ? (item.url.startsWith('http') ? item.url : `/${item.url}`) : '-'}
                           </div>
                         </td>
                         <td className="px-4 sm:px-5 py-3">

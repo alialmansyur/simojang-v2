@@ -110,9 +110,8 @@ function ProtectedRoute({ authenticated, children }) {
   const session = getAuthSession()
   const isAuth = Boolean(authenticated && session && checkIsAuthenticated())
 
-  // Jika sesi telah berakhir atau tidak ada data sesi valid, langsung arahkan ke /login
+  // Jika sesi telah berakhir atau tidak ada data sesi valid, langsung arahkan ke /login tanpa side-effects saat render
   if (!isAuth) {
-    clearAuthSession()
     return <Navigate to="/login?reason=expired" state={{ from: location }} replace />
   }
 
@@ -153,10 +152,16 @@ export function AppRouter() {
     authenticated: checkIsAuthenticated(),
     version: 0,
   }))
-  const [verifyingSession, setVerifyingSession] = useState(() => checkIsAuthenticated())
+  const [verifyingSession, setVerifyingSession] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = window.location.pathname
+      if (p === '/login' || p.endsWith('/login')) return false
+    }
+    return checkIsAuthenticated()
+  })
 
   // Trigger saat klik halaman / navigasi berpindah rute:
-  // Cek apakah session masih aktif secara real-time. Jika session habis, langsung bersihkan & redirect ke login.
+  // Cek apakah session masih aktif secara real-time. Jika session habis, bersihkan & sinkronkan state.
   useEffect(() => {
     const isPublic =
       location.pathname === '/login' ||
@@ -178,14 +183,25 @@ export function AppRouter() {
 
   useEffect(() => {
     let active = true
+
     if (checkIsAuthenticated()) {
+      // Safety timer (maks 2.5 detik) agar tidak pernah muter/loading tak terhingga jika backend lambat/macet
+      const safetyTimer = setTimeout(() => {
+        if (active) {
+          setVerifyingSession(false)
+        }
+      }, 2500)
+
       refreshAuthSession()
         .catch(() => null)
         .finally(() => {
+          clearTimeout(safetyTimer)
           if (active) {
             setVerifyingSession(false)
           }
         })
+    } else {
+      setVerifyingSession(false)
     }
 
     const unsubscribe = subscribeAuthChange(() => {

@@ -546,11 +546,41 @@ class Auth extends ResourceController
         $profile = $this->buildUserProfilePayload($user, $detail);
         $expiredAt = session()->get('jwt_expired_at');
 
+        $nip = trim((string) ($user['username'] ?? ''));
+        $roleCode = strtoupper(trim((string) ($user['role'] ?? 'USR')));
+        $isAdmin = ($roleCode === 'ADM');
+
+        $servicePermModel = new \App\Models\Auth\ServicePermissionModel();
+        $allowedServiceIds = $isAdmin ? null : ($nip !== '' ? $servicePermModel->getUserAllowedServiceIds($nip) : []);
+
+        $db = \Config\Database::connect();
+        $allowedSubserviceUrls = [];
+        if ($isAdmin) {
+            $subRows = $db->table('data_timkerja_layanan')
+                ->select('url')
+                ->where('level_id', 3)
+                ->where('is_show', 1)
+                ->get()
+                ->getResultArray();
+            $allowedSubserviceUrls = array_column($subRows, 'url');
+        } elseif (!empty($allowedServiceIds)) {
+            $subRows = $db->table('data_timkerja_layanan')
+                ->select('url')
+                ->where('level_id', 3)
+                ->whereIn('id', $allowedServiceIds)
+                ->where('is_show', 1)
+                ->get()
+                ->getResultArray();
+            $allowedSubserviceUrls = array_column($subRows, 'url');
+        }
+
         return $this->respond(array_merge($profile, [
-            'status'           => 'success',
-            'is_active'        => true,
-            'menu_tree'        => $menuTree,
-            'token_expires_at' => $expiredAt ? date('c', (int) $expiredAt) : null,
+            'status'                  => 'success',
+            'is_active'               => true,
+            'menu_tree'               => $menuTree,
+            'allowed_service_ids'     => $allowedServiceIds,
+            'allowed_subservice_urls' => $allowedSubserviceUrls,
+            'token_expires_at'        => $expiredAt ? date('c', (int) $expiredAt) : null,
         ]));
     }
 

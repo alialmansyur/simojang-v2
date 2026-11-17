@@ -385,7 +385,11 @@ export function getAuthSession() {
   try {
     const session = JSON.parse(raw)
     if (!session?.token || session?.is_offline_demo || isSessionExpired(session)) {
-      clearAuthSession()
+      // Silently purge stale tokens to avoid triggering recursive window event storms during render getters
+      localStorage.removeItem(AUTH_STORAGE_KEY)
+      localStorage.removeItem('role')
+      sessionStorage.removeItem(AUTH_STORAGE_KEY)
+      sessionStorage.removeItem('role')
       return null
     }
 
@@ -395,7 +399,10 @@ export function getAuthSession() {
 
     return session
   } catch {
-    clearAuthSession()
+    localStorage.removeItem(AUTH_STORAGE_KEY)
+    localStorage.removeItem('role')
+    sessionStorage.removeItem(AUTH_STORAGE_KEY)
+    sessionStorage.removeItem('role')
     return null
   }
 }
@@ -438,11 +445,20 @@ export function saveAuthSession(session, { silent = false } = {}) {
 }
 
 export function clearAuthSession() {
+  const hadAuth =
+    localStorage.getItem(AUTH_STORAGE_KEY) !== null ||
+    localStorage.getItem('role') !== null ||
+    sessionStorage.getItem(AUTH_STORAGE_KEY) !== null ||
+    sessionStorage.getItem('role') !== null
+
   localStorage.removeItem(AUTH_STORAGE_KEY)
   localStorage.removeItem('role')
   sessionStorage.removeItem(AUTH_STORAGE_KEY)
   sessionStorage.removeItem('role')
-  emitAuthChanged()
+
+  if (hadAuth) {
+    emitAuthChanged()
+  }
 }
 
 export function getBearerToken() {

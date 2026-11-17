@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Layers,
@@ -7,12 +7,16 @@ import {
   RefreshCw,
   Lock,
 } from 'lucide-react'
-import { toast } from 'react-toastify'
 import { fetchAnggaranSummary, fetchAnggaranSettings } from '../../../services/api/tuServicesApi'
 import { canAccessRoute } from '../../navigation/config'
+import { getAuthSession } from '../../../services/auth'
 
 export default function AnggaranHubPage() {
   const navigate = useNavigate()
+  const session = getAuthSession()
+  const roleCode = String(session?.user?.role || session?.user?.roles?.[0] || 'USR').trim().toUpperCase()
+  const isAdmin = roleCode === 'ADM'
+
   const [summary, setSummary] = useState(null)
   const [settings, setSettings] = useState(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -78,6 +82,12 @@ export default function AnggaranHubPage() {
     },
   ]
 
+  // Saring kartu sub-layanan sesuai penugasan hak akses RBAC / NIP session
+  const visibleCards = useMemo(() => {
+    if (isAdmin) return portalCards
+    return portalCards.filter((card) => canAccessRoute(card.path, session))
+  }, [isAdmin, session])
+
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
       {/* 1. Header Page Standard (Matching /layanan/fasilitasi-cat) */}
@@ -111,10 +121,10 @@ export default function AnggaranHubPage() {
         </div>
       </div>
 
-      {/* Dedicated Portal Cards Grid (Matching FasilitasiCatHubPage: 4 Kolom di Desktop / lg:grid-cols-4) */}
+      {/* Dedicated Portal Cards Grid (Hanya menampilkan sub-layanan yang di-assign) */}
       {isLoading && !summary ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
-          {[1, 2, 3, 4].map((idx) => (
+          {[1, 2].map((idx) => (
             <div
               key={idx}
               className="bg-white dark:bg-slate-900 rounded-2xl p-5 border border-slate-200/60 dark:border-slate-800/60 shadow-xs flex flex-col justify-between h-full animate-pulse"
@@ -138,49 +148,41 @@ export default function AnggaranHubPage() {
             </div>
           ))}
         </div>
+      ) : visibleCards.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-slate-300 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 p-8 text-center space-y-3">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">
+              Belum Ada Sub-Layanan yang Ditugaskan
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+              Akun atau Role Anda saat ini belum memiliki izin akses untuk modul kerja di dalam layanan ini. Silakan hubungi Administrator untuk penugasan hak akses.
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
-          {portalCards.map((card) => {
+          {visibleCards.map((card) => {
             const IconComponent = card.icon
-            const isAllowed = canAccessRoute(card.path)
             return (
               <div
                 key={card.id}
-                onClick={() => {
-                  if (isAllowed) {
-                    navigate(card.path)
-                  } else {
-                    toast.warning('Role atau akun Anda tidak memiliki hak akses untuk membuka modul ini.')
-                  }
-                }}
-                className={`group rounded-2xl p-5 shadow-xs transition-all duration-200 flex flex-col justify-between h-full border ${
-                  isAllowed
-                    ? 'bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 hover:shadow-sm cursor-pointer'
-                    : 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/40 dark:border-slate-800/40 opacity-75 cursor-not-allowed'
-                }`}
+                onClick={() => navigate(card.path)}
+                className="group rounded-2xl p-5 shadow-xs transition-all duration-200 flex flex-col justify-between h-full border bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 hover:shadow-sm hover:border-[#175CD3]/50 dark:hover:border-blue-500/50 cursor-pointer"
               >
                 <div>
                   <div className="flex items-center justify-between gap-2 mb-3.5">
-                    <div className={`w-11 h-11 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0 shadow-inner ${!isAllowed ? 'grayscale opacity-60' : ''}`}>
+                    <div className={`w-11 h-11 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0 shadow-inner`}>
                       <IconComponent className="w-5 h-5 stroke-[2.2]" />
                     </div>
-                    {isAllowed ? (
-                      <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${card.badgeColor}`}>
-                        {card.badge}
-                      </span>
-                    ) : (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold border bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300">
-                        <Lock className="w-3 h-3" />
-                        Akses Dibatasi
-                      </span>
-                    )}
+                    <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${card.badgeColor}`}>
+                      {card.badge}
+                    </span>
                   </div>
 
-                  <h3 className={`text-base font-bold mb-1.5 transition-colors ${
-                    isAllowed
-                      ? 'text-slate-900 dark:text-white group-hover:text-[#175CD3] dark:group-hover:text-blue-400'
-                      : 'text-slate-600 dark:text-slate-400'
-                  }`}>
+                  <h3 className="text-base font-bold mb-1.5 transition-colors text-slate-900 dark:text-white group-hover:text-[#175CD3] dark:group-hover:text-blue-400">
                     {card.title}
                   </h3>
 
@@ -190,23 +192,11 @@ export default function AnggaranHubPage() {
                 </div>
 
                 <div className="pt-3.5 mt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                  <span className={`text-xs font-bold transition-colors ${
-                    isAllowed
-                      ? 'text-slate-700 dark:text-slate-300 group-hover:text-[#175CD3] dark:group-hover:text-blue-400'
-                      : 'text-slate-400 dark:text-slate-500'
-                  }`}>
-                    {isAllowed ? card.actionText : 'Akses Dibatasi'}
+                  <span className="text-xs font-bold transition-colors text-slate-700 dark:text-slate-300 group-hover:text-[#175CD3] dark:group-hover:text-blue-400">
+                    {card.actionText}
                   </span>
-                  <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
-                    isAllowed
-                      ? 'bg-slate-50 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 text-slate-400 group-hover:text-[#175CD3] dark:group-hover:text-blue-400 group-hover:translate-x-1'
-                      : 'bg-slate-100 dark:bg-slate-800/60 text-slate-400'
-                  }`}>
-                    {isAllowed ? (
-                      <ArrowRight className="w-3.5 h-3.5" />
-                    ) : (
-                      <Lock className="w-3.5 h-3.5" />
-                    )}
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center transition-all bg-slate-50 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 text-slate-400 group-hover:text-[#175CD3] dark:group-hover:text-blue-400 group-hover:translate-x-1">
+                    <ArrowRight className="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>

@@ -122,8 +122,12 @@ export function handleUnauthorizedSession({ skipRedirect = false } = {}) {
   clearAuthSession()
   const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
   const loginPath = `${base}/login`
-  if (!skipRedirect && typeof window !== 'undefined' && !window.location.pathname.endsWith('/login')) {
-    window.location.replace(`${loginPath}?reason=expired`)
+  if (typeof window !== 'undefined') {
+    const currentPath = window.location.pathname
+    const isAlreadyOnLogin = currentPath === loginPath || currentPath.endsWith('/login')
+    if (!skipRedirect && !isAlreadyOnLogin) {
+      window.location.replace(`${loginPath}?reason=expired`)
+    }
   }
 }
 

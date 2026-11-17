@@ -243,6 +243,7 @@ class ServicePermissionModel extends Model
 
         // Kelompokkan layanan berdasarkan timkerja_id (Hanya root services)
         $servicesByTk = [];
+        $externalServices = [];
         foreach ($servicesList as $s) {
             $isSub = !empty($s['is_subservice']) || !empty($s['parent_id']);
             if ($isSub) {
@@ -251,11 +252,30 @@ class ServicePermissionModel extends Model
 
             $tkId = (int) $s['timkerja_id'];
             $serviceId = (int) $s['id'];
+            $isExt = ((int) ($s['level_id'] ?? 0)) === 4;
 
             if (isset($explicitMap[$serviceId])) {
                 $isAllowed = ($explicitMap[$serviceId] === 1);
             } else {
                 $isAllowed = isset($defaultMap[$serviceId]);
+            }
+
+            if ($isExt) {
+                $externalServices[] = [
+                    'id'          => $serviceId,
+                    'raw_id'      => $serviceId,
+                    'parent_id'   => 'tk_eksternal',
+                    'type'        => 'service',
+                    'name'        => (string) $s['nama_layanan'],
+                    'alias'       => (string) ($s['alias'] ?? ''),
+                    'url'         => (string) ($s['url'] ?? ''),
+                    'deskripsi'   => (string) ($s['deskripsi'] ?? ''),
+                    'level'       => 1,
+                    'allowed'     => $isAllowed,
+                    'is_partial'  => false,
+                    'children'    => [],
+                ];
+                continue;
             }
 
             // Bangun children Level 2 (Sub-Layanan / Fitur Hub)
@@ -352,6 +372,31 @@ class ServicePermissionModel extends Model
             ];
         }
 
+        // Tambahkan Grup Layanan Eksternal (Level 4)
+        if (!empty($externalServices)) {
+            $totalExt = count($externalServices);
+            $allowedExtCount = count(array_filter($externalServices, fn($x) => !empty($x['allowed'])));
+            $isExtAllowed = $totalExt > 0 && ($allowedExtCount === $totalExt);
+            $isExtPartial = $allowedExtCount > 0 && ($allowedExtCount < $totalExt);
+
+            $tree[] = [
+                'id'            => 'tk_eksternal',
+                'raw_id'        => 999,
+                'parent_id'     => null,
+                'type'          => 'timkerja',
+                'name'          => 'Layanan Eksternal',
+                'code'          => 'eksternal',
+                'url'           => 'layanan-eksternal',
+                'icon'          => 'Globe',
+                'level'         => 0,
+                'allowed'       => $isExtAllowed,
+                'is_partial'    => $isExtPartial,
+                'allowed_count' => $allowedExtCount,
+                'total_count'   => $totalExt,
+                'children'      => $externalServices,
+            ];
+        }
+
         return $tree;
     }
 
@@ -378,21 +423,32 @@ class ServicePermissionModel extends Model
         $now = date('Y-m-d H:i:s');
         $affectedServiceIds = [];
 
-        // Normalisasi node ID jika string seperti 'tk_1'
+        // Normalisasi node ID jika string seperti 'tk_1' atau 'tk_eksternal'
         if (is_string($nodeId) && str_starts_with($nodeId, 'tk_')) {
             $nodeType = 'timkerja';
-            $nodeId = (int) substr($nodeId, 3);
+            $nodeId = $nodeId === 'tk_eksternal' ? 'eksternal' : (int) substr($nodeId, 3);
         }
 
         if ($nodeType === 'timkerja') {
-            $tkId = (int) $nodeId;
-            // Ambil seluruh layanan di bawah tim kerja ini
-            $childServices = $this->db->table('data_timkerja_layanan')
-                ->select('id')
-                ->where('timkerja_id', $tkId)
-                ->where('is_show', 1)
-                ->get()
-                ->getResultArray();
+            if ($nodeId === 'eksternal' || $nodeId === 999) {
+                // Ambil seluruh layanan eksternal (Level 4)
+                $childServices = $this->db->table('data_timkerja_layanan')
+                    ->select('id')
+                    ->where('level_id', 4)
+                    ->where('is_show', 1)
+                    ->get()
+                    ->getResultArray();
+            } else {
+                $tkId = (int) $nodeId;
+                // Ambil seluruh layanan di bawah tim kerja ini (selain eksternal)
+                $childServices = $this->db->table('data_timkerja_layanan')
+                    ->select('id')
+                    ->where('timkerja_id', $tkId)
+                    ->where('COALESCE(level_id, 2) <>', 4)
+                    ->where('is_show', 1)
+                    ->get()
+                    ->getResultArray();
+            }
 
             foreach ($childServices as $cs) {
                 $sid = (int) $cs['id'];

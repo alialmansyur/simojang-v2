@@ -356,6 +356,18 @@ export function canAccessRoute(path, session = getAuthSession()) {
 
     if (matchedSubKey) {
       const subConfig = REGISTERED_HUB_SUBROUTES[matchedSubKey]
+
+      // Pengecekan eksplisit izin sub-layanan dari session (Level 3)
+      const allowedSubUrls = Array.isArray(session?.user?.allowed_subservice_urls)
+        ? session.user.allowed_subservice_urls
+        : null
+
+      if (allowedSubUrls !== null) {
+        return subConfig.aliases.some((alias) =>
+          allowedSubUrls.some((u) => u.toLowerCase() === alias.toLowerCase())
+        )
+      }
+
       const hasDirectAccess =
         normalizedMenuPaths.includes(matchedSubKey) ||
         rawMenuPaths.includes(matchedSubKey) ||
@@ -365,13 +377,7 @@ export function canAccessRoute(path, session = getAuthSession()) {
           rawMenuPaths.includes(`/${alias}`)
         )
 
-      const hasParentAccess =
-        normalizedMenuPaths.includes(subConfig.parent) ||
-        rawMenuPaths.includes(subConfig.parent) ||
-        rawUrls.includes(subConfig.parent.replace(/^\/+/, '').toLowerCase()) ||
-        rawUrls.includes(subConfig.parent.toLowerCase())
-
-      return hasDirectAccess || hasParentAccess
+      return hasDirectAccess
     }
 
     // 2. Akses halaman Parent Hub itu sendiri (Fasilitasi CAT, Anggaran, Statistik Internal)

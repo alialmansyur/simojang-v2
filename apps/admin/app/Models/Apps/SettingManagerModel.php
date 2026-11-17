@@ -580,11 +580,15 @@ class SettingManagerModel extends Model
         return $this->db->table('data_timkerja_layanan l')
             ->select("
                 l.id,
+                l.timkerja_id,
+                COALESCE(l.level_id, 2) AS level_id,
                 l.parent_id,
                 COALESCE(l.is_subservice, 0) AS is_subservice,
                 p.nama_layanan AS parent_nama,
+                t.nama AS timkerja_nama,
                 l.nama_layanan,
                 l.url,
+                l.alias,
                 l.is_show,
                 COALESCE(l.is_maintenance, 0) AS is_maintenance,
                 l.maintenance_msg,
@@ -599,9 +603,10 @@ class SettingManagerModel extends Model
                 SUM(CASE WHEN sa.is_active = 1 AND sa.nip <> '' THEN 1 ELSE 0 END) AS total_assigned
             ")
             ->join('data_timkerja_layanan p', 'p.id = l.parent_id', 'left')
+            ->join('data_timkerja t', 't.id = l.timkerja_id', 'left')
             ->join('auth_service_access sa', 'sa.layanan_id = l.id', 'left')
             ->groupBy('l.id')
-            ->orderBy('COALESCE(l.parent_id, l.id) ASC, l.is_subservice ASC, l.id ASC')
+            ->orderBy('COALESCE(l.level_id, 2) ASC, COALESCE(l.parent_id, l.id) ASC, l.is_subservice ASC, l.id ASC')
             ->get()
             ->getResultArray();
     }
@@ -611,11 +616,15 @@ class SettingManagerModel extends Model
         $row = $this->db->table('data_timkerja_layanan l')
             ->select("
                 l.id,
+                l.timkerja_id,
+                COALESCE(l.level_id, 2) AS level_id,
                 l.parent_id,
                 COALESCE(l.is_subservice, 0) AS is_subservice,
                 p.nama_layanan AS parent_nama,
+                t.nama AS timkerja_nama,
                 l.nama_layanan,
                 l.url,
+                l.alias,
                 l.is_show,
                 COALESCE(l.is_maintenance, 0) AS is_maintenance,
                 l.maintenance_msg,
@@ -630,6 +639,7 @@ class SettingManagerModel extends Model
                 SUM(CASE WHEN sa.is_active = 1 AND sa.nip <> '' THEN 1 ELSE 0 END) AS total_assigned
             ")
             ->join('data_timkerja_layanan p', 'p.id = l.parent_id', 'left')
+            ->join('data_timkerja t', 't.id = l.timkerja_id', 'left')
             ->join('auth_service_access sa', 'sa.layanan_id = l.id', 'left')
             ->where('l.id', $layananId)
             ->groupBy('l.id')
