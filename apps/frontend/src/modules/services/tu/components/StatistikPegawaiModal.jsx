@@ -225,7 +225,13 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
     [jenisJabatanOptions]
   )
   const mappedJenisPegawai = useMemo(
-    () => jenisPegawaiOptions.map((o) => ({ value: String(o.id), label: o.nama })),
+    () =>
+      jenisPegawaiOptions.map((o) => ({
+        value: String(o.id ?? o.value ?? ''),
+        label: o.nama ?? o.label ?? String(o.id ?? ''),
+        id: String(o.id ?? o.value ?? ''),
+        nama: o.nama ?? o.label ?? '',
+      })),
     [jenisPegawaiOptions]
   )
   const mappedJabatan = useMemo(
@@ -339,16 +345,18 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-6 flex-1 clean-scrollbar">
-          {/* Helper Banner Akun Login */}
-          <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/40 flex items-center gap-3 text-xs text-[#175CD3] dark:text-blue-300">
-            <KeyRound className="w-5 h-5 shrink-0 text-[#175CD3] dark:text-blue-400" />
-            <div>
-              <span className="font-bold">Otomatisasi Akun SIMOJANG:</span>{' '}
-              <span>
-                Pegawai yang ditambahkan otomatis memiliki akun pengguna dengan username <strong>NIP</strong> dan kata sandi default <strong>NIP</strong>.
-              </span>
+          {/* Helper Banner Akun Login (Hanya untuk Tambah Pegawai Baru) */}
+          {!initialData && (
+            <div className="p-3.5 rounded-2xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200/70 dark:border-blue-900/40 flex items-center gap-3 text-xs text-[#175CD3] dark:text-blue-300">
+              <KeyRound className="w-5 h-5 shrink-0 text-[#175CD3] dark:text-blue-400" />
+              <div>
+                <span className="font-bold">Otomatisasi Akun SIMOJANG:</span>{' '}
+                <span>
+                  Pegawai yang ditambahkan otomatis memiliki akun pengguna dengan username <strong>NIP</strong> dan kata sandi default <strong>NIP</strong>.
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {errorMsg && (
             <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
@@ -460,7 +468,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
                 <SearchableSelect
                   options={mappedJenisPegawai}
                   value={statusPegawaiId}
-                  onChange={(val) => setStatusPegawaiId(val?.value ?? val ?? '')}
+                  onChange={(val, selected) => setStatusPegawaiId(selected?.value ?? val?.value ?? val ?? '')}
                   placeholder="PNS / PPPK / Magang"
                   isLoading={isLoadingMaster}
                   isClearable={false}

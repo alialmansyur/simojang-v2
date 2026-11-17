@@ -59,13 +59,22 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
     }
   })
 
-  // Find currently selected option
+  // Find currently selected option (mencocokkan berdasarkan value, id, atau teks label secara case-insensitive)
   const selectedOption = normalizedOptions.find((opt) => {
     if (value && typeof value === 'object') {
-      const v = value.value ?? value.id ?? value.kodeins
-      return String(opt.value) === String(v)
+      const v = String(value.value ?? value.id ?? value.kodeins ?? value.nama ?? '').trim()
+      if (!v) return false
+      return (
+        String(opt.value) === v ||
+        String(opt.label).toLowerCase() === v.toLowerCase()
+      )
     }
-    return String(opt.value) === String(value)
+    const strVal = String(value ?? '').trim()
+    if (!strVal) return false
+    return (
+      String(opt.value) === strVal ||
+      String(opt.label).toLowerCase() === strVal.toLowerCase()
+    )
   }) || null
 
   const customStyles = {
@@ -193,8 +202,21 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
       onChange('', null)
       return
     }
-    // Return original item value, plus normalized object as second param
-    onChange(selected.value, selected)
+    // Kompatibilitas ganda: pass value payload yang aman diakses baik sebagai string langsung maupun properti .value
+    const rawVal = String(selected.value ?? '')
+    let valPayload = rawVal
+    try {
+      valPayload = Object.assign(new String(rawVal), {
+        value: rawVal,
+        label: selected.label,
+        id: rawVal,
+        toString: () => rawVal,
+        valueOf: () => rawVal,
+      })
+    } catch {
+      valPayload = rawVal
+    }
+    onChange(valPayload, selected)
   }
 
   return (
