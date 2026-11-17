@@ -138,10 +138,24 @@ export function PegawaiDetailModal({ isOpen, onClose, data }) {
             <h4 className="font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100 dark:border-slate-800">
               2. Unit Kerja & Jabatan
             </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-slate-400 block text-[11px]">Unit Kerja / Tim Kerja</span>
-                <span className="font-bold text-slate-800 dark:text-slate-100">{data.unit_kerja || '-'}</span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <span className="text-slate-400 block text-[11px] mb-1">Unit Kerja / Tim Kerja</span>
+                {data.unit_kerja ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.unit_kerja.split(',').map((uk, idx) => (
+                      <span
+                        key={idx}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/60 dark:border-slate-700/60"
+                      >
+                        <Building2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />
+                        <span>{uk.trim()}</span>
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="font-bold text-slate-800 dark:text-slate-100">-</span>
+                )}
               </div>
               <div>
                 <span className="text-slate-400 block text-[11px]">Unit SK Induk</span>

@@ -45,7 +45,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
   const [statusPegawaiId, setStatusPegawaiId] = useState('1')
   const [agamaId, setAgamaId] = useState('1')
   const [pendidikanId, setPendidikanId] = useState('9')
-  const [unitKerjaId, setUnitKerjaId] = useState('13')
+  const [unitKerjaId, setUnitKerjaId] = useState([])
   const [unitSkId, setUnitSkId] = useState('1')
   const [jenisJabatanId, setJenisJabatanId] = useState('1')
   const [jabatanId, setJabatanId] = useState('')
@@ -173,9 +173,10 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
       setAgamaId(String(initialData.agama_id || '1'))
       setPendidikanId(String(initialData.pendidikan_id || '9'))
 
-      // Jika unit_kerja_id multiple dipisah koma (misal '18,22'), ambil unit utama yang pertama
-      const rawUk = String(initialData.unit_kerja_id || '13').split(',')[0].trim()
-      setUnitKerjaId(rawUk || '13')
+      // Unit Kerja mendukung multiple pilihan (disimpan format '16,22' di DB)
+      const rawUk = String(initialData.unit_kerja_id || '')
+      const ukArr = rawUk.split(',').map((s) => s.trim()).filter(Boolean)
+      setUnitKerjaId(ukArr.length > 0 ? ukArr : ['13'])
 
       setUnitSkId(String(initialData.unit_sk_id || '1'))
       setJenisJabatanId(String(initialData.jenis_jabatan_id || '1'))
@@ -198,7 +199,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
       setStatusPegawaiId('1')
       setAgamaId('1')
       setPendidikanId('9')
-      setUnitKerjaId('13')
+      setUnitKerjaId(['13'])
       setUnitSkId('1')
       setJenisJabatanId('1')
       setJabatanId('')
@@ -278,6 +279,15 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
       return
     }
 
+    const ukValues = Array.isArray(unitKerjaId)
+      ? unitKerjaId.map((u) => (typeof u === 'object' && u !== null ? u.value : String(u))).filter(Boolean)
+      : String(unitKerjaId || '').split(',').map((s) => s.trim()).filter(Boolean)
+
+    if (ukValues.length === 0) {
+      setErrorMsg('Unit Kerja / Tim Kerja wajib dipilih minimal satu.')
+      return
+    }
+
     try {
       setIsSubmitting(true)
       setErrorMsg('')
@@ -292,7 +302,7 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
         status_pegawai: statusPegawaiId,
         agama: agamaId,
         pendidikan: pendidikanId,
-        unit_kerja: unitKerjaId,
+        unit_kerja: ukValues.join(','),
         unit_sk: unitSkId,
         jenis_jabatan: jenisJabatanId,
         jabatan: jabatanId,
@@ -501,17 +511,28 @@ export function StatistikPegawaiModal({ isOpen, onClose, onSuccess, initialData 
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  Unit Kerja / Tim Kerja <span className="text-rose-500">*</span>
+              <div className="space-y-1 sm:col-span-2">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>
+                    Unit Kerja / Tim Kerja <span className="text-rose-500">*</span>
+                  </span>
+                  <span className="text-[11px] font-normal text-slate-400">
+                    Mendukung multi-pilihan (dapat memilih lebih dari satu tim kerja)
+                  </span>
                 </label>
                 <SearchableSelect
                   options={mappedUnitKerja}
                   value={unitKerjaId}
-                  onChange={(val) => setUnitKerjaId(val?.value ?? val ?? '')}
-                  placeholder="Pilih Tim Kerja"
+                  onChange={(val) => {
+                    const arr = Array.isArray(val) ? val : val ? [val] : []
+                    setUnitKerjaId(
+                      arr.map((item) => (typeof item === 'object' && item !== null ? String(item.value ?? item.id) : String(item)))
+                    )
+                  }}
+                  placeholder="Pilih atau cari satu atau lebih Tim Kerja..."
                   isLoading={isLoadingMaster}
-                  isClearable={false}
+                  isMulti={true}
+                  isClearable={true}
                 />
               </div>
 

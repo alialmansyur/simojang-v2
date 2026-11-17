@@ -19,6 +19,8 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
     isLoading = false,
     isDisabled = false,
     isClearable = true,
+    isMulti = false,
+    closeMenuOnSelect,
     name,
     required = false,
     className = '',
@@ -46,36 +48,61 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
   }, [])
 
   // Normalize options to { value, label, raw }
-  const normalizedOptions = options.map((opt) => {
-    if (typeof opt === 'string') {
-      return { value: opt, label: opt, raw: opt }
-    }
-    const val = opt.value ?? opt.id ?? opt.kodeins ?? ''
-    const lbl = opt.label ?? opt.text ?? opt.nama ?? opt.instansi_name ?? String(val)
-    return {
-      value: String(val),
-      label: String(lbl),
-      raw: opt,
-    }
-  })
+  const normalizedOptions = useMemo(() => {
+    return options.map((opt) => {
+      if (typeof opt === 'string') {
+        return { value: opt, label: opt, raw: opt }
+      }
+      const val = opt.value ?? opt.id ?? opt.kodeins ?? ''
+      const lbl = opt.label ?? opt.text ?? opt.nama ?? opt.instansi_name ?? String(val)
+      return {
+        value: String(val),
+        label: String(lbl),
+        raw: opt,
+      }
+    })
+  }, [options])
 
   // Find currently selected option (mencocokkan berdasarkan value, id, atau teks label secara case-insensitive)
-  const selectedOption = normalizedOptions.find((opt) => {
+  const selectedOption = useMemo(() => {
+    if (isMulti) {
+      let valArray = []
+      if (Array.isArray(value)) {
+        valArray = value
+          .map((v) => (typeof v === 'object' && v !== null ? String(v.value ?? v.id ?? '') : String(v)))
+          .map((s) => s.trim())
+          .filter(Boolean)
+      } else if (typeof value === 'string' && value.trim()) {
+        valArray = value.split(',').map((s) => s.trim()).filter(Boolean)
+      } else if (value && typeof value === 'object') {
+        const v = String(value.value ?? value.id ?? '').trim()
+        if (v) valArray = [v]
+      }
+
+      if (valArray.length === 0) return []
+
+      return normalizedOptions.filter((opt) =>
+        valArray.some((v) => String(opt.value) === v || String(opt.label).toLowerCase() === v.toLowerCase())
+      )
+    }
+
     if (value && typeof value === 'object') {
       const v = String(value.value ?? value.id ?? value.kodeins ?? value.nama ?? '').trim()
-      if (!v) return false
+      if (!v) return null
       return (
-        String(opt.value) === v ||
-        String(opt.label).toLowerCase() === v.toLowerCase()
+        normalizedOptions.find(
+          (opt) => String(opt.value) === v || String(opt.label).toLowerCase() === v.toLowerCase()
+        ) || null
       )
     }
     const strVal = String(value ?? '').trim()
-    if (!strVal) return false
+    if (!strVal) return null
     return (
-      String(opt.value) === strVal ||
-      String(opt.label).toLowerCase() === strVal.toLowerCase()
+      normalizedOptions.find(
+        (opt) => String(opt.value) === strVal || String(opt.label).toLowerCase() === strVal.toLowerCase()
+      ) || null
     )
-  }) || null
+  }, [isMulti, value, normalizedOptions])
 
   const customStyles = {
     control: (base, state) => ({
@@ -194,10 +221,52 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
       backgroundColor: isDark ? '#334155' : '#e2e8f0',
       margin: '6px 0',
     }),
+    multiValue: (base) => ({
+      ...base,
+      backgroundColor: isDark ? 'rgba(30, 58, 138, 0.45)' : '#eff6ff',
+      borderRadius: '0.375rem',
+      border: isDark ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid #bfdbfe',
+      padding: '1px 2px',
+      margin: '2px 4px 2px 0',
+    }),
+    multiValueLabel: (base) => ({
+      ...base,
+      color: isDark ? '#93c5fd' : '#1d4ed8',
+      fontSize: '0.75rem',
+      fontWeight: '600',
+      padding: '2px 6px',
+      fontFamily: "'Plus Jakarta Sans', sans-serif",
+    }),
+    multiValueRemove: (base) => ({
+      ...base,
+      color: isDark ? '#93c5fd' : '#1d4ed8',
+      borderRadius: '0 0.375rem 0.375rem 0',
+      cursor: 'pointer',
+      paddingLeft: '2px',
+      paddingRight: '4px',
+      ':hover': {
+        backgroundColor: '#ef4444',
+        color: '#ffffff',
+      },
+    }),
   }
 
   const handleChange = (selected) => {
     if (!onChange) return
+    if (isMulti) {
+      const selectedArr = Array.isArray(selected) ? selected : []
+      const ids = selectedArr.map((s) => String(s.value))
+      try {
+        Object.assign(ids, {
+          value: ids.join(','),
+          options: selectedArr,
+          values: ids,
+        })
+      } catch {}
+      onChange(ids, selectedArr)
+      return
+    }
+
     if (!selected) {
       onChange('', null)
       return
@@ -233,6 +302,8 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
         isDisabled={isDisabled}
         isClearable={isClearable}
         isSearchable
+        isMulti={isMulti}
+        closeMenuOnSelect={closeMenuOnSelect ?? !isMulti}
         menuPlacement={menuPlacement}
         menuPortalTarget={typeof document !== 'undefined' ? document.body : null}
         styles={{
@@ -247,7 +318,15 @@ export const SearchableSelect = forwardRef(function SearchableSelect(
           tabIndex={-1}
           autoComplete="off"
           style={{ opacity: 0, width: 0, height: 0, position: 'absolute' }}
-          value={selectedOption ? selectedOption.value : ''}
+          value={
+            isMulti
+              ? Array.isArray(selectedOption) && selectedOption.length > 0
+                ? selectedOption.map((o) => o.value).join(',')
+                : ''
+              : selectedOption
+              ? selectedOption.value
+              : ''
+          }
           onChange={() => {}}
           required={required}
         />

@@ -194,11 +194,22 @@ export default function StatistikInternalPage() {
         </td>
 
         {/* Kolom 2: UNIT KERJA */}
-        <td className="py-3.5 px-4 whitespace-nowrap">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
-            <Building2 className="w-3 h-3 text-slate-400" />
-            <span className="truncate max-w-[150px]">{item.unit_kerja || '-'}</span>
-          </span>
+        <td className="py-3.5 px-4">
+          {item.unit_kerja ? (
+            <div className="flex flex-wrap gap-1 max-w-[240px]" title={item.unit_kerja}>
+              {item.unit_kerja.split(',').map((uk, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50 truncate max-w-[220px]"
+                >
+                  <Building2 className="w-3 h-3 text-slate-400 shrink-0" />
+                  <span className="truncate">{uk.trim()}</span>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-xs text-slate-400">-</span>
+          )}
         </td>
 
         {/* Kolom 3: JABATAN */}
