@@ -588,12 +588,14 @@ function organizeAndSortMenuTree(rawItems = []) {
     }
   }
 
-  // 2. Pastikan keenam list lengkap (Dashboard Executive, Dashboard Simanja, SIKASEP, SIMANJA, SIWAREGTILU, SIOLIN)
-  for (const defaultSvc of EXTERNAL_SERVICES_LIST) {
-    const key = defaultSvc.title.toLowerCase().trim()
-    if (!seenTitles.has(key)) {
-      seenTitles.add(key)
-      finalExternalList.push(defaultSvc)
+  // 2. Fallback ke list default hanya jika belum ada menu eksternal dari API (misal offline/loading)
+  if (flattenedExternal.length === 0 && safeRawItems.length === 0) {
+    for (const defaultSvc of EXTERNAL_SERVICES_LIST) {
+      const key = defaultSvc.title.toLowerCase().trim()
+      if (!seenTitles.has(key)) {
+        seenTitles.add(key)
+        finalExternalList.push(defaultSvc)
+      }
     }
   }
 
