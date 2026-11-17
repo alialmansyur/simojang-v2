@@ -211,7 +211,7 @@ class ServicePermissionModel extends Model
 
         // 2. Ambil seluruh Layanan aktif (Level 1)
         $servicesList = $this->db->table('data_timkerja_layanan')
-            ->select('id, timkerja_id, nama_layanan, alias, url, is_show, deskripsi')
+            ->select('id, timkerja_id, parent_id, is_subservice, nama_layanan, alias, url, is_show, deskripsi')
             ->where('is_show', 1)
             ->orderBy('id', 'ASC')
             ->get()
@@ -232,9 +232,23 @@ class ServicePermissionModel extends Model
         $defaultServiceIds = $this->getDefaultServiceIdsForNip($nip);
         $defaultMap = array_flip($defaultServiceIds);
 
-        // Kelompokkan layanan berdasarkan timkerja_id
+        // Petakan sub-services berdasarkan parent_id
+        $subServicesByParent = [];
+        foreach ($servicesList as $s) {
+            $isSub = !empty($s['is_subservice']) || !empty($s['parent_id']);
+            if ($isSub && !empty($s['parent_id'])) {
+                $subServicesByParent[(int) $s['parent_id']][] = $s;
+            }
+        }
+
+        // Kelompokkan layanan berdasarkan timkerja_id (Hanya root services)
         $servicesByTk = [];
         foreach ($servicesList as $s) {
+            $isSub = !empty($s['is_subservice']) || !empty($s['parent_id']);
+            if ($isSub) {
+                continue;
+            }
+
             $tkId = (int) $s['timkerja_id'];
             $serviceId = (int) $s['id'];
 
@@ -242,6 +256,48 @@ class ServicePermissionModel extends Model
                 $isAllowed = ($explicitMap[$serviceId] === 1);
             } else {
                 $isAllowed = isset($defaultMap[$serviceId]);
+            }
+
+            // Bangun children Level 2 (Sub-Layanan / Fitur Hub)
+            $subChildren = [];
+            if (!empty($subServicesByParent[$serviceId])) {
+                foreach ($subServicesByParent[$serviceId] as $sub) {
+                    $subId = (int) $sub['id'];
+                    $subAllowed = isset($explicitMap[$subId])
+                        ? ($explicitMap[$subId] === 1)
+                        : (isset($explicitMap[$serviceId]) ? $isAllowed : isset($defaultMap[$subId]));
+
+                    $subChildren[] = [
+                        'id'        => $subId,
+                        'raw_id'    => $subId,
+                        'parent_id' => $serviceId,
+                        'type'      => 'subservice',
+                        'name'      => (string) $sub['nama_layanan'],
+                        'alias'     => (string) ($sub['alias'] ?? ''),
+                        'url'       => (string) ($sub['url'] ?? ''),
+                        'deskripsi' => (string) ($sub['deskripsi'] ?? ''),
+                        'level'     => 2,
+                        'allowed'   => $subAllowed,
+                        'children'  => [],
+                    ];
+                }
+            }
+
+            $parentAllowed = $isAllowed;
+            $parentPartial = false;
+            if (!empty($subChildren)) {
+                $allowedSubCount = count(array_filter($subChildren, fn($x) => !empty($x['allowed'])));
+                $totalSubCount = count($subChildren);
+                if ($allowedSubCount === 0) {
+                    $parentAllowed = false;
+                    $parentPartial = false;
+                } elseif ($allowedSubCount === $totalSubCount) {
+                    $parentAllowed = true;
+                    $parentPartial = false;
+                } else {
+                    $parentAllowed = false;
+                    $parentPartial = true;
+                }
             }
 
             $servicesByTk[$tkId][] = [
@@ -254,8 +310,9 @@ class ServicePermissionModel extends Model
                 'url'         => (string) ($s['url'] ?? ''),
                 'deskripsi'   => (string) ($s['deskripsi'] ?? ''),
                 'level'       => 1,
-                'allowed'     => $isAllowed,
-                'children'    => [],
+                'allowed'     => $parentAllowed,
+                'is_partial'  => $parentPartial,
+                'children'    => $subChildren,
             ];
         }
 
@@ -342,10 +399,38 @@ class ServicePermissionModel extends Model
                 $affectedServiceIds[] = $sid;
                 $this->upsertServicePermissionRow($pegawaiId, $nip, $sid, $allowed ? 1 : 0, $now, $actorUserId);
             }
+        } elseif ($nodeType === 'subservice' || $nodeType === 'sub_service') {
+            $subServiceId = (int) $nodeId;
+            $affectedServiceIds[] = $subServiceId;
+            $this->upsertServicePermissionRow($pegawaiId, $nip, $subServiceId, $allowed ? 1 : 0, $now, $actorUserId);
+
+            // Cek parent service: jika sub-service diizinkan, pastikan parent juga diizinkan
+            $subRow = $this->db->table('data_timkerja_layanan')->select('parent_id')->where('id', $subServiceId)->get()->getRowArray();
+            if (!empty($subRow['parent_id'])) {
+                $parentId = (int) $subRow['parent_id'];
+                $affectedServiceIds[] = $parentId;
+                if ($allowed) {
+                    $this->upsertServicePermissionRow($pegawaiId, $nip, $parentId, 1, $now, $actorUserId);
+                }
+            }
         } else {
             $serviceId = (int) $nodeId;
             $affectedServiceIds[] = $serviceId;
             $this->upsertServicePermissionRow($pegawaiId, $nip, $serviceId, $allowed ? 1 : 0, $now, $actorUserId);
+
+            // Cascade DOWN ke seluruh sub-services jika ada
+            $subServices = $this->db->table('data_timkerja_layanan')
+                ->select('id')
+                ->where('parent_id', $serviceId)
+                ->where('is_show', 1)
+                ->get()
+                ->getResultArray();
+
+            foreach ($subServices as $sub) {
+                $subId = (int) $sub['id'];
+                $affectedServiceIds[] = $subId;
+                $this->upsertServicePermissionRow($pegawaiId, $nip, $subId, $allowed ? 1 : 0, $now, $actorUserId);
+            }
         }
 
         $this->db->transComplete();
@@ -775,6 +860,7 @@ class ServicePermissionModel extends Model
     {
         return (int) $this->db->table('data_timkerja_layanan')
             ->where('is_show', 1)
+            ->where('COALESCE(is_subservice, 0)', 0)
             ->countAllResults();
     }
 

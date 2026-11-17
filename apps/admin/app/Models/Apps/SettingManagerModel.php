@@ -580,6 +580,9 @@ class SettingManagerModel extends Model
         return $this->db->table('data_timkerja_layanan l')
             ->select("
                 l.id,
+                l.parent_id,
+                COALESCE(l.is_subservice, 0) AS is_subservice,
+                p.nama_layanan AS parent_nama,
                 l.nama_layanan,
                 l.url,
                 l.is_show,
@@ -595,9 +598,10 @@ class SettingManagerModel extends Model
                 END AS access_mode,
                 SUM(CASE WHEN sa.is_active = 1 AND sa.nip <> '' THEN 1 ELSE 0 END) AS total_assigned
             ")
+            ->join('data_timkerja_layanan p', 'p.id = l.parent_id', 'left')
             ->join('auth_service_access sa', 'sa.layanan_id = l.id', 'left')
             ->groupBy('l.id')
-            ->orderBy('l.id', 'ASC')
+            ->orderBy('COALESCE(l.parent_id, l.id) ASC, l.is_subservice ASC, l.id ASC')
             ->get()
             ->getResultArray();
     }
@@ -607,6 +611,9 @@ class SettingManagerModel extends Model
         $row = $this->db->table('data_timkerja_layanan l')
             ->select("
                 l.id,
+                l.parent_id,
+                COALESCE(l.is_subservice, 0) AS is_subservice,
+                p.nama_layanan AS parent_nama,
                 l.nama_layanan,
                 l.url,
                 l.is_show,
@@ -622,6 +629,7 @@ class SettingManagerModel extends Model
                 END AS access_mode,
                 SUM(CASE WHEN sa.is_active = 1 AND sa.nip <> '' THEN 1 ELSE 0 END) AS total_assigned
             ")
+            ->join('data_timkerja_layanan p', 'p.id = l.parent_id', 'left')
             ->join('auth_service_access sa', 'sa.layanan_id = l.id', 'left')
             ->where('l.id', $layananId)
             ->groupBy('l.id')

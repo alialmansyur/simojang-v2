@@ -189,10 +189,23 @@ const LEGACY_SERVICE_PATH_MAP = {
   '/layanan/dokumen-pnbp': '/layanan/pnbp-cat',
   '/apps-pnbp': '/layanan/pnbp-cat',
   'apps-pnbp': '/layanan/pnbp-cat',
+  // Hub Sub-Services CAT
+  '/apps-cat-rekap': '/layanan/fasilitasi-cat/rekap-data',
+  'apps-cat-rekap': '/layanan/fasilitasi-cat/rekap-data',
+  '/apps-cat-rekapitulasi': '/layanan/fasilitasi-cat/rekapitulasi',
+  'apps-cat-rekapitulasi': '/layanan/fasilitasi-cat/rekapitulasi',
+  '/apps-cat-laporan': '/layanan/fasilitasi-cat/laporan',
+  'apps-cat-laporan': '/layanan/fasilitasi-cat/laporan',
+  '/apps-cat-pengelola': '/layanan/fasilitasi-cat/pengelola',
+  'apps-cat-pengelola': '/layanan/fasilitasi-cat/pengelola',
   // TU
   '/layanan/anggaran': '/layanan/anggaran',
   '/apps-anggaran': '/layanan/anggaran',
   'apps-anggaran': '/layanan/anggaran',
+  '/apps-anggaran-master': '/layanan/anggaran/master',
+  'apps-anggaran-master': '/layanan/anggaran/master',
+  '/apps-anggaran-realisasi': '/layanan/anggaran/realisasi',
+  'apps-anggaran-realisasi': '/layanan/anggaran/realisasi',
   '/layanan/ikm': '/layanan/ikm',
   '/apps-ikm': '/layanan/ikm',
   'apps-ikm': '/layanan/ikm',
@@ -213,6 +226,12 @@ const LEGACY_SERVICE_PATH_MAP = {
   '/layanan/statistik-internal': '/layanan/statistik-internal',
   '/apps-statistik-internal': '/layanan/statistik-internal',
   'apps-statistik-internal': '/layanan/statistik-internal',
+  '/apps-statistik-internal-pegawai': '/layanan/statistik-internal/data-pegawai',
+  'apps-statistik-internal-pegawai': '/layanan/statistik-internal/data-pegawai',
+  '/apps-statistik-internal-peta': '/layanan/statistik-internal/peta-jabatan',
+  'apps-statistik-internal-peta': '/layanan/statistik-internal/peta-jabatan',
+  '/apps-statistik-internal-master': '/layanan/statistik-internal/master-data',
+  'apps-statistik-internal-master': '/layanan/statistik-internal/master-data',
   '/layanan/ekin': '/layanan/ekin',
   '/apps-ekin': '/layanan/ekin',
   'apps-ekin': '/layanan/ekin',
@@ -230,6 +249,48 @@ const LEGACY_SERVICE_PATH_MAP = {
   '/layanan/ikk': '/layanan/ikk',
   '/apps-ikk': '/layanan/ikk',
   'apps-ikk': '/layanan/ikk',
+}
+
+export const REGISTERED_HUB_SUBROUTES = {
+  // Fasilitasi CAT (Parent: /layanan/fasilitasi-cat)
+  '/layanan/fasilitasi-cat/rekap-data': {
+    parent: '/layanan/fasilitasi-cat',
+    aliases: ['apps-cat-rekap', 'layanan/fasilitasi-cat/rekap-data'],
+  },
+  '/layanan/fasilitasi-cat/rekapitulasi': {
+    parent: '/layanan/fasilitasi-cat',
+    aliases: ['apps-cat-rekapitulasi', 'layanan/fasilitasi-cat/rekapitulasi'],
+  },
+  '/layanan/fasilitasi-cat/laporan': {
+    parent: '/layanan/fasilitasi-cat',
+    aliases: ['apps-cat-laporan', 'layanan/fasilitasi-cat/laporan'],
+  },
+  '/layanan/fasilitasi-cat/pengelola': {
+    parent: '/layanan/fasilitasi-cat',
+    aliases: ['apps-cat-pengelola', 'layanan/fasilitasi-cat/pengelola'],
+  },
+  // Pagu & Realisasi Anggaran (Parent: /layanan/anggaran)
+  '/layanan/anggaran/master': {
+    parent: '/layanan/anggaran',
+    aliases: ['apps-anggaran-master', 'layanan/anggaran/master'],
+  },
+  '/layanan/anggaran/realisasi': {
+    parent: '/layanan/anggaran',
+    aliases: ['apps-anggaran-realisasi', 'layanan/anggaran/realisasi'],
+  },
+  // Statistik Kepegawaian Internal (Parent: /layanan/statistik-internal)
+  '/layanan/statistik-internal/data-pegawai': {
+    parent: '/layanan/statistik-internal',
+    aliases: ['apps-statistik-internal-pegawai', 'layanan/statistik-internal/data-pegawai'],
+  },
+  '/layanan/statistik-internal/peta-jabatan': {
+    parent: '/layanan/statistik-internal',
+    aliases: ['apps-statistik-internal-peta', 'layanan/statistik-internal/peta-jabatan'],
+  },
+  '/layanan/statistik-internal/master-data': {
+    parent: '/layanan/statistik-internal',
+    aliases: ['apps-statistik-internal-master', 'layanan/statistik-internal/master-data'],
+  },
 }
 
 export function canAccessRoute(path, session = getAuthSession()) {
@@ -288,17 +349,65 @@ export function canAccessRoute(path, session = getAuthSession()) {
   }
 
   if (cleanPath.startsWith('/layanan/')) {
-    if (cleanPath.startsWith('/layanan/fasilitasi-cat/pengelola')) {
-      return (
-        normalizedMenuPaths.includes('/layanan/fasilitasi-cat') ||
-        normalizedMenuPaths.includes('/layanan/pnbp-cat')
-      )
-    }
-    if (cleanPath.startsWith('/layanan/fasilitasi-cat')) {
-      return normalizedMenuPaths.includes('/layanan/fasilitasi-cat')
+    // 1. Cek apakah route ini merupakan registered sub-route dari halaman Hub
+    const matchedSubKey = Object.keys(REGISTERED_HUB_SUBROUTES).find(
+      (sub) => cleanPath === sub || cleanPath.startsWith(`${sub}/`)
+    )
+
+    if (matchedSubKey) {
+      const subConfig = REGISTERED_HUB_SUBROUTES[matchedSubKey]
+      const hasDirectAccess =
+        normalizedMenuPaths.includes(matchedSubKey) ||
+        rawMenuPaths.includes(matchedSubKey) ||
+        subConfig.aliases.some((alias) =>
+          rawUrls.includes(alias.toLowerCase()) ||
+          rawUrls.includes(`/${alias.toLowerCase()}`) ||
+          rawMenuPaths.includes(`/${alias}`)
+        )
+
+      return hasDirectAccess
     }
 
-    // 1. Direct check for exact route
+    // 2. Akses halaman Parent Hub itu sendiri (Fasilitasi CAT, Anggaran, Statistik Internal)
+    if (cleanPath === '/layanan/fasilitasi-cat') {
+      const hasParent =
+        normalizedMenuPaths.includes('/layanan/fasilitasi-cat') ||
+        rawMenuPaths.includes('/layanan/fasilitasi-cat') ||
+        rawUrls.includes('apps-cat')
+      const hasAnySub = Object.keys(REGISTERED_HUB_SUBROUTES)
+        .filter((k) => REGISTERED_HUB_SUBROUTES[k].parent === '/layanan/fasilitasi-cat')
+        .some((k) => normalizedMenuPaths.includes(k) || rawMenuPaths.includes(k))
+
+      return hasParent || hasAnySub
+    }
+
+    if (cleanPath === '/layanan/anggaran') {
+      const hasParent =
+        normalizedMenuPaths.includes('/layanan/anggaran') ||
+        rawMenuPaths.includes('/layanan/anggaran') ||
+        rawUrls.includes('apps-anggaran') ||
+        rawUrls.includes('anggaran')
+      const hasAnySub = Object.keys(REGISTERED_HUB_SUBROUTES)
+        .filter((k) => REGISTERED_HUB_SUBROUTES[k].parent === '/layanan/anggaran')
+        .some((k) => normalizedMenuPaths.includes(k) || rawMenuPaths.includes(k))
+
+      return hasParent || hasAnySub
+    }
+
+    if (cleanPath === '/layanan/statistik-internal') {
+      const hasParent =
+        normalizedMenuPaths.includes('/layanan/statistik-internal') ||
+        rawMenuPaths.includes('/layanan/statistik-internal') ||
+        rawUrls.includes('apps-statistik-internal') ||
+        rawUrls.includes('statistik-internal')
+      const hasAnySub = Object.keys(REGISTERED_HUB_SUBROUTES)
+        .filter((k) => REGISTERED_HUB_SUBROUTES[k].parent === '/layanan/statistik-internal')
+        .some((k) => normalizedMenuPaths.includes(k) || rawMenuPaths.includes(k))
+
+      return hasParent || hasAnySub
+    }
+
+    // 3. Direct check for exact route
     const normalizedServicePath = LEGACY_SERVICE_PATH_MAP[cleanPath] || cleanPath
     if (
       normalizedMenuPaths.includes(normalizedServicePath) ||
@@ -308,9 +417,7 @@ export function canAccessRoute(path, session = getAuthSession()) {
       return true
     }
 
-    // 2. Base service route check for nested/child routes
-    // e.g. /layanan/statistik-internal/data-pegawai -> base: /layanan/statistik-internal
-    // e.g. /layanan/anggaran/master -> base: /layanan/anggaran
+    // 4. Base service route check for nested/child routes
     const segments = cleanPath.split('/').filter(Boolean)
     if (segments.length >= 2) {
       const baseServicePath = `/${segments[0]}/${segments[1]}`

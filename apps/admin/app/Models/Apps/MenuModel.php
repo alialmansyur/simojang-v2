@@ -367,6 +367,7 @@ class MenuModel extends Model
 
         $layanan = $this->db->table('data_timkerja_layanan')
             ->where('is_show', 1)
+            ->where('COALESCE(is_subservice, 0)', 0)
             ->orderBy('timkerja_id ASC, nama_layanan ASC')
             ->get()
             ->getResultArray();

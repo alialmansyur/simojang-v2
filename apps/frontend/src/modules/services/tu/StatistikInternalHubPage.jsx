@@ -5,7 +5,10 @@ import {
   Database,
   ArrowRight,
   RefreshCw,
+  Lock,
 } from 'lucide-react'
+import { toast } from 'react-toastify'
+import { canAccessRoute } from '../../navigation/config'
 
 export default function StatistikInternalHubPage() {
   const navigate = useNavigate()
@@ -82,23 +85,45 @@ export default function StatistikInternalHubPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-4.5">
         {portalCards.map((card) => {
           const Icon = card.icon
+          const isAllowed = canAccessRoute(card.path)
           return (
             <div
               key={card.id}
-              onClick={() => navigate(card.path)}
-              className="group bg-white dark:bg-slate-900 rounded-2xl p-5 shadow-xs hover:shadow-sm border border-slate-200/60 dark:border-slate-800/60 transition-all duration-200 cursor-pointer flex flex-col justify-between h-full"
+              onClick={() => {
+                if (isAllowed) {
+                  navigate(card.path)
+                } else {
+                  toast.warning('Role atau akun Anda tidak memiliki hak akses untuk membuka modul ini.')
+                }
+              }}
+              className={`group rounded-2xl p-5 shadow-xs transition-all duration-200 flex flex-col justify-between h-full border ${
+                isAllowed
+                  ? 'bg-white dark:bg-slate-900 border-slate-200/60 dark:border-slate-800/60 hover:shadow-sm cursor-pointer'
+                  : 'bg-slate-50/70 dark:bg-slate-900/40 border-slate-200/40 dark:border-slate-800/40 opacity-75 cursor-not-allowed'
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-3.5">
-                  <div className={`w-11 h-11 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0 shadow-inner`}>
+                  <div className={`w-11 h-11 rounded-xl ${card.iconBg} flex items-center justify-center shrink-0 shadow-inner ${!isAllowed ? 'grayscale opacity-60' : ''}`}>
                     <Icon className="w-5 h-5 stroke-[2.2]" />
                   </div>
-                  <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${card.badgeColor}`}>
-                    {card.badge}
-                  </span>
+                  {isAllowed ? (
+                    <span className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold border ${card.badgeColor}`}>
+                      {card.badge}
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-bold border bg-rose-50 text-rose-700 border-rose-200/60 dark:bg-rose-950/40 dark:text-rose-300">
+                      <Lock className="w-3 h-3" />
+                      Akses Dibatasi
+                    </span>
+                  )}
                 </div>
 
-                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#175CD3] dark:group-hover:text-blue-400 transition-colors mb-1.5">
+                <h3 className={`text-base font-bold mb-1.5 transition-colors ${
+                  isAllowed
+                    ? 'text-slate-900 dark:text-white group-hover:text-[#175CD3] dark:group-hover:text-blue-400'
+                    : 'text-slate-600 dark:text-slate-400'
+                }`}>
                   {card.title}
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3">
@@ -107,11 +132,23 @@ export default function StatistikInternalHubPage() {
               </div>
 
               <div className="pt-3.5 mt-4 border-t border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 group-hover:text-[#175CD3] dark:group-hover:text-blue-400 transition-colors">
-                  {card.actionText}
+                <span className={`text-xs font-bold transition-colors ${
+                  isAllowed
+                    ? 'text-slate-700 dark:text-slate-300 group-hover:text-[#175CD3] dark:group-hover:text-blue-400'
+                    : 'text-slate-400 dark:text-slate-500'
+                }`}>
+                  {isAllowed ? card.actionText : 'Akses Dibatasi'}
                 </span>
-                <div className="w-7 h-7 rounded-lg bg-slate-50 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 text-slate-400 group-hover:text-[#175CD3] dark:group-hover:text-blue-400 flex items-center justify-center transition-all group-hover:translate-x-1">
-                  <ArrowRight className="w-3.5 h-3.5" />
+                <div className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${
+                  isAllowed
+                    ? 'bg-slate-50 dark:bg-slate-800 group-hover:bg-blue-50 dark:group-hover:bg-blue-950/40 text-slate-400 group-hover:text-[#175CD3] dark:group-hover:text-blue-400 group-hover:translate-x-1'
+                    : 'bg-slate-100 dark:bg-slate-800/60 text-slate-400'
+                }`}>
+                  {isAllowed ? (
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  ) : (
+                    <Lock className="w-3.5 h-3.5" />
+                  )}
                 </div>
               </div>
             </div>

@@ -20,6 +20,7 @@ import {
   X,
   Wrench,
   AlertTriangle,
+  CornerDownRight,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import {
@@ -124,6 +125,7 @@ export default function SettingsServicesPage() {
   const [pegawaiDetail, setPegawaiDetail] = useState(null)
   const [loadingTree, setLoadingTree] = useState(false)
   const [expandedGroups, setExpandedGroups] = useState({})
+  const [expandedServices, setExpandedServices] = useState({})
   const [togglingNodeId, setTogglingNodeId] = useState('')
   const [resettingPegawai, setResettingPegawai] = useState(false)
 
@@ -353,10 +355,19 @@ export default function SettingsServicesPage() {
       setPegawaiTree(tree)
       setPegawaiDetail(res?.detail || null)
       const initialExpanded = {}
+      const initialExpandedServices = {}
       tree.forEach((group) => {
         initialExpanded[group.id] = true
+        if (Array.isArray(group.children)) {
+          group.children.forEach((c) => {
+            if (Array.isArray(c.children) && c.children.length > 0) {
+              initialExpandedServices[c.id] = true
+            }
+          })
+        }
       })
       setExpandedGroups(initialExpanded)
+      setExpandedServices(initialExpandedServices)
     } catch (err) {
       toast.error(err?.message || 'Gagal memuat tree izin pegawai.')
       setPegawaiTree([])
@@ -577,16 +588,29 @@ export default function SettingsServicesPage() {
                     const isAssigned = (item.access_mode || 'everyone') === 'assigned'
                     const isShown = Number(item.is_show) === 1
                     const isMaint = Number(item.is_maintenance) === 1
+                    const isSub = Boolean(Number(item.is_subservice) === 1 || item.parent_id)
                     return (
                       <tr
                         key={item.id}
-                        className="hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors"
+                        className={`hover:bg-slate-50/70 dark:hover:bg-slate-800/30 transition-colors ${
+                          isSub ? 'bg-slate-50/40 dark:bg-slate-800/20' : ''
+                        }`}
                       >
-                        <td className="px-4 sm:px-5 py-3">
-                          <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
-                            {item.nama_layanan}
+                        <td className={`px-4 sm:px-5 py-3 ${isSub ? 'pl-8 sm:pl-10' : ''}`}>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {isSub && (
+                              <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            )}
+                            <div className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                              {item.nama_layanan}
+                            </div>
+                            {isSub && (
+                              <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200/80 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40 whitespace-nowrap">
+                                Sub: {item.parent_nama || 'Induk Hub'}
+                              </span>
+                            )}
                           </div>
-                          <div className="text-[11px] font-normal text-slate-400 dark:text-slate-500 mt-0.5">
+                          <div className={`text-[11px] font-normal text-slate-400 dark:text-slate-500 mt-0.5 ${isSub ? 'ml-5' : ''}`}>
                             /{item.url || '-'}
                           </div>
                         </td>
@@ -1145,44 +1169,129 @@ export default function SettingsServicesPage() {
                           <div className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
                             {group.children.map((child) => {
                               const childToggling = togglingNodeId === child.id
+                              const hasSubChildren = Array.isArray(child.children) && child.children.length > 0
+                              const isSubExpanded = !!expandedServices[child.id]
                               return (
-                                <div
-                                  key={child.id}
-                                  className="flex items-center justify-between pl-10 pr-4 py-2 hover:bg-slate-50/60 dark:hover:bg-slate-800/30"
-                                >
-                                  <button
-                                    type="button"
-                                    disabled={childToggling}
-                                    onClick={() =>
-                                      handleToggleTreeNode(child, 'layanan')
-                                    }
-                                    className="flex items-center gap-2.5 text-left disabled:opacity-50 cursor-pointer"
-                                  >
-                                    {child.allowed ? (
-                                      <CheckSquare className="w-4 h-4 text-[#175CD3] shrink-0" />
-                                    ) : (
-                                      <Square className="w-4 h-4 text-slate-400 shrink-0" />
-                                    )}
-                                    <div>
-                                      <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-100 font-semibold">
-                                        {child.name}
-                                      </div>
-                                      {child.url && (
-                                        <div className="text-[11px] font-normal text-slate-400">
-                                          /{child.url}
-                                        </div>
+                                <div key={child.id} className="transition-colors">
+                                  <div className="flex items-center justify-between pl-8 sm:pl-10 pr-4 py-2 hover:bg-slate-50/60 dark:hover:bg-slate-800/30">
+                                    <div className="flex items-center gap-1.5">
+                                      {hasSubChildren && (
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            setExpandedServices((prev) => ({
+                                              ...prev,
+                                              [child.id]: !prev[child.id],
+                                            }))
+                                          }
+                                          className="p-0.5 rounded hover:bg-slate-200/70 dark:hover:bg-slate-700 text-slate-500 cursor-pointer"
+                                        >
+                                          {isSubExpanded ? (
+                                            <ChevronDown className="w-3.5 h-3.5" />
+                                          ) : (
+                                            <ChevronRight className="w-3.5 h-3.5" />
+                                          )}
+                                        </button>
                                       )}
+                                      <button
+                                        type="button"
+                                        disabled={childToggling}
+                                        onClick={() =>
+                                          handleToggleTreeNode(child, 'layanan')
+                                        }
+                                        className="flex items-center gap-2.5 text-left disabled:opacity-50 cursor-pointer"
+                                      >
+                                        {child.is_partial ? (
+                                          <MinusSquare className="w-4 h-4 text-amber-600 shrink-0" />
+                                        ) : child.allowed ? (
+                                          <CheckSquare className="w-4 h-4 text-[#175CD3] shrink-0" />
+                                        ) : (
+                                          <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                                        )}
+                                        <div>
+                                          <div className="flex items-center gap-1.5 flex-wrap">
+                                            <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-100 font-semibold">
+                                              {child.name}
+                                            </div>
+                                            {hasSubChildren && (
+                                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200/60 dark:bg-indigo-950/40 dark:text-indigo-300">
+                                                Hub ({child.children.length} Sub-Layanan)
+                                              </span>
+                                            )}
+                                          </div>
+                                          {child.url && (
+                                            <div className="text-[11px] font-normal text-slate-400">
+                                              /{child.url}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </button>
                                     </div>
-                                  </button>
-                                  <span
-                                    className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                                      child.allowed
-                                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
-                                        : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
-                                    }`}
-                                  >
-                                    {child.allowed ? 'Diizinkan' : 'Dibatasi'}
-                                  </span>
+                                    <span
+                                      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
+                                        child.allowed
+                                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+                                          : child.is_partial
+                                          ? 'bg-amber-50 text-amber-700 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40'
+                                          : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      {child.allowed
+                                        ? 'Diizinkan'
+                                        : child.is_partial
+                                        ? 'Sebagian'
+                                        : 'Dibatasi'}
+                                    </span>
+                                  </div>
+
+                                  {hasSubChildren && isSubExpanded && (
+                                    <div className="divide-y divide-slate-100/70 dark:divide-slate-800/70 bg-slate-50/50 dark:bg-slate-800/20 border-t border-slate-100 dark:border-slate-800">
+                                      {child.children.map((subChild) => {
+                                        const subToggling = togglingNodeId === subChild.id
+                                        return (
+                                          <div
+                                            key={subChild.id}
+                                            className="flex items-center justify-between pl-14 sm:pl-16 pr-4 py-2 hover:bg-slate-100/60 dark:hover:bg-slate-800/50 transition-colors"
+                                          >
+                                            <button
+                                              type="button"
+                                              disabled={subToggling}
+                                              onClick={() =>
+                                                handleToggleTreeNode(subChild, 'subservice')
+                                              }
+                                              className="flex items-center gap-2 text-left disabled:opacity-50 cursor-pointer"
+                                            >
+                                              <CornerDownRight className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                                              {subChild.allowed ? (
+                                                <CheckSquare className="w-4 h-4 text-[#175CD3] shrink-0" />
+                                              ) : (
+                                                <Square className="w-4 h-4 text-slate-400 shrink-0" />
+                                              )}
+                                              <div>
+                                                <div className="text-xs text-slate-800 dark:text-slate-100 font-semibold">
+                                                  {subChild.name}
+                                                </div>
+                                                {subChild.url && (
+                                                  <div className="text-[10.5px] font-normal text-slate-400">
+                                                    /{subChild.url}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            </button>
+                                            <span
+                                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border ${
+                                                subChild.allowed
+                                                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/40'
+                                                  : 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+                                              }`}
+                                            >
+                                              {subChild.allowed ? 'Diizinkan' : 'Dibatasi'}
+                                            </span>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
                               )
                             })}
