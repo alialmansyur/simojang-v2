@@ -7,6 +7,15 @@ import 'react-toastify/dist/ReactToastify.css'
 import './styles/global.css'
 import { installAuthFetchInterceptor } from './services/api'
 
+// Auto-heal path: jika URL dibuka tanpa base prefix (misal http://localhost:8401/layanan/konsultasi)
+const rawBase = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+if (rawBase && rawBase !== '' && !window.location.pathname.startsWith(rawBase + '/') && window.location.pathname !== rawBase) {
+  const normalizedPath = window.location.pathname.startsWith('/')
+    ? window.location.pathname
+    : '/' + window.location.pathname
+  window.location.replace(rawBase + normalizedPath + window.location.search + window.location.hash)
+}
+
 installAuthFetchInterceptor()
 
 createRoot(document.getElementById('root')).render(
