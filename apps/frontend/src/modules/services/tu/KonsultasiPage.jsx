@@ -1,4 +1,17 @@
-import { MessageSquare, Users, Video, Calendar, Pencil, Trash2, Eye, CheckCircle2 } from 'lucide-react'
+import {
+  MessageSquare,
+  Users,
+  Video,
+  Calendar,
+  Pencil,
+  Trash2,
+  Eye,
+  CheckCircle2,
+  Share2,
+  Headphones,
+  PhoneCall,
+  Building2,
+} from 'lucide-react'
 import { TuCrudLayoutShell } from '../../../components/shared/services/tu/TuCrudLayoutShell'
 import { TuDataOriginIcon } from '../../../components/shared/services/tu/TuDataOriginIcon'
 import { TuTanggalCell, TuPetugasCell } from '../../../components/shared/services/tu/TuTableCells'
@@ -28,36 +41,36 @@ export default function KonsultasiPage() {
 
   const renderKpis = (summary) => [
     {
-      id: 'total_konsultasi',
-      label: 'TOTAL KONSULTASI',
-      value: summary?.total_konsultasi ?? 0,
+      id: 'total_pelayanan',
+      label: 'TOTAL SESI KONSULTASI',
+      value: summary?.total_pelayanan ?? summary?.total_konsultasi ?? 0,
       unit: 'Sesi',
-      context: 'Rekapitulasi fasilitasi',
-      badge: 'Total',
+      context: 'Akumulasi konsultasi',
+      badge: 'Total Sesi',
       badgeColor: 'blue',
       icon: MessageSquare,
       iconColor: 'bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400',
     },
     {
-      id: 'tatap_muka',
-      label: 'TATAP MUKA / OFFLINE',
-      value: summary?.tatap_muka ?? 0,
-      unit: 'Sesi',
-      context: 'Meja lobi pelayanan',
-      badge: 'Ruang Konsul',
+      id: 'total_data',
+      label: 'TOTAL KEGIATAN',
+      value: summary?.total_data ?? 0,
+      unit: 'Kegiatan',
+      context: 'Frekuensi fasilitasi',
+      badge: 'Kegiatan',
       badgeColor: 'emerald',
       icon: Users,
       iconColor: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
     },
     {
-      id: 'virtual_zoom',
-      label: 'KONSULTASI VIRTUAL',
-      value: summary?.virtual_zoom ?? 0,
-      unit: 'Sesi',
-      context: 'Fasilitasi Zoom Daring',
-      badge: 'Virtual',
+      id: 'total_kanal',
+      label: 'KANAL LAYANAN AKTIF',
+      value: summary?.total_kanal ?? 0,
+      unit: 'Kanal',
+      context: 'Media konsultasi',
+      badge: 'Kanal',
       badgeColor: 'indigo',
-      icon: Video,
+      icon: Share2,
       iconColor: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400',
     },
     {
@@ -109,14 +122,41 @@ export default function KonsultasiPage() {
 
         {/* Kolom 2: KANAL LAYANAN */}
         <td className="px-4 py-3.5 whitespace-nowrap">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-slate-100/80 dark:bg-slate-800/70 text-slate-700 dark:text-slate-300 border border-slate-200/50 dark:border-slate-700/50">
-            {item.pelayanan?.toLowerCase().includes('zoom') ? (
-              <Video className="w-3 h-3 text-indigo-500" />
-            ) : (
-              <Users className="w-3 h-3 text-slate-400" />
-            )}
-            <span>{item.pelayanan || '-'}</span>
-          </span>
+          {(() => {
+            const p = (item.pelayanan || '').toLowerCase()
+            let icon = <Users className="w-3.5 h-3.5 text-slate-500" />
+            let badgeStyle =
+              'bg-slate-100/90 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200/70 dark:border-slate-700/60'
+
+            if (p.includes('whatsapp') || p.includes('wa')) {
+              icon = <PhoneCall className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+              badgeStyle =
+                'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200/70 dark:border-emerald-800/50'
+            } else if (p.includes('sosial') || p.includes('instagram') || p.includes('medsos')) {
+              icon = <Share2 className="w-3.5 h-3.5 text-pink-600 dark:text-pink-400" />
+              badgeStyle =
+                'bg-pink-50 dark:bg-pink-950/40 text-pink-700 dark:text-pink-300 border-pink-200/70 dark:border-pink-800/50'
+            } else if (p.includes('helpdesk')) {
+              icon = <Headphones className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+              badgeStyle =
+                'bg-blue-50 dark:bg-blue-950/40 text-[#175CD3] dark:text-blue-300 border-blue-200/70 dark:border-blue-800/50'
+            } else if (p.includes('ptsp')) {
+              icon = <Building2 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+              badgeStyle =
+                'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200/70 dark:border-amber-800/50'
+            } else if (p.includes('zoom') || p.includes('virtual')) {
+              icon = <Video className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              badgeStyle =
+                'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200/70 dark:border-indigo-800/50'
+            }
+
+            return (
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold border ${badgeStyle}`}>
+                {icon}
+                <span>{item.pelayanan || '-'}</span>
+              </span>
+            )
+          })()}
         </td>
 
         {/* Kolom 3: STATUS */}
@@ -196,9 +236,12 @@ export default function KonsultasiPage() {
       searchPlaceholder="Cari kanal, topik konsultasi, pemohon..."
       categories={[
         { id: '', label: 'Semua Kanal' },
-        { id: 'Konsultasi Tatap Muka', label: 'Tatap Muka' },
-        { id: 'Virtual Zoom Meeting', label: 'Virtual Zoom' },
-        { id: 'Telepon / Helpdesk', label: 'Helpdesk' },
+        { id: 'WhatsApp', label: 'WhatsApp' },
+        { id: 'Helpdesk', label: 'Helpdesk' },
+        { id: 'Media Sosial', label: 'Media Sosial' },
+        { id: 'PTSP', label: 'PTSP' },
+        { id: 'Tatap Muka', label: 'Tatap Muka' },
+        { id: 'Virtual Zoom', label: 'Virtual Zoom' },
       ]}
     />
   )

@@ -1,13 +1,25 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Loader2, MessageSquare } from 'lucide-react'
+import { SearchableSelect } from '../../../../components/ui/SearchableSelect'
 import { storeKonsulData } from '../../../../services/api/tuServicesApi'
+
+export const KANAL_LAYANAN_OPTIONS = [
+  { value: 'WhatsApp', label: 'WhatsApp' },
+  { value: 'Helpdesk', label: 'Helpdesk' },
+  { value: 'Media Sosial', label: 'Media Sosial' },
+  { value: 'PTSP', label: 'PTSP (Pelayanan Terpadu Satu Pintu)' },
+  { value: 'Tatap Muka', label: 'Tatap Muka / Offline' },
+  { value: 'Virtual Zoom', label: 'Virtual Zoom Meeting' },
+  { value: 'Email', label: 'Email Resmi' },
+  { value: 'Surat', label: 'Surat Permohonan' },
+]
 
 export function KonsulFormModal({ isOpen, onClose, onSuccess, initialData }) {
   const [period, setPeriod] = useState(new Date().toISOString().slice(0, 7))
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10))
   const [endDate, setEndDate] = useState(new Date().toISOString().slice(0, 10))
-  const [media, setMedia] = useState('Konsultasi Tatap Muka')
+  const [media, setMedia] = useState('WhatsApp')
   const [summary, setSummary] = useState('')
   const [notes, setNotes] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -18,19 +30,30 @@ export function KonsulFormModal({ isOpen, onClose, onSuccess, initialData }) {
       setPeriod(initialData.period || new Date().toISOString().slice(0, 7))
       setStartDate(initialData.period_start_date || new Date().toISOString().slice(0, 10))
       setEndDate(initialData.period_end_date || new Date().toISOString().slice(0, 10))
-      setMedia(initialData.pelayanan || 'Konsultasi Tatap Muka')
+      setMedia(initialData.pelayanan || 'WhatsApp')
       setSummary(initialData.jumlah || '')
       setNotes(initialData.keterangan || '')
     } else {
       setPeriod(new Date().toISOString().slice(0, 7))
       setStartDate(new Date().toISOString().slice(0, 10))
       setEndDate(new Date().toISOString().slice(0, 10))
-      setMedia('Konsultasi Tatap Muka')
+      setMedia('WhatsApp')
       setSummary('')
       setNotes('')
     }
     setErrorMsg('')
   }, [initialData, isOpen])
+
+  const kanalOptions = useMemo(() => {
+    if (!media) return KANAL_LAYANAN_OPTIONS
+    const exists = KANAL_LAYANAN_OPTIONS.some(
+      (opt) => opt.value.toLowerCase() === String(media).toLowerCase()
+    )
+    if (!exists) {
+      return [{ value: media, label: media }, ...KANAL_LAYANAN_OPTIONS]
+    }
+    return KANAL_LAYANAN_OPTIONS
+  }, [media])
 
   if (!isOpen) return null
 
@@ -114,17 +137,20 @@ export function KonsulFormModal({ isOpen, onClose, onSuccess, initialData }) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Kanal Layanan</label>
-              <select
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Kanal Layanan <span className="text-rose-500">*</span>
+              </label>
+              <SearchableSelect
+                options={kanalOptions}
                 value={media}
-                onChange={(e) => setMedia(e.target.value)}
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold"
-              >
-                <option value="Konsultasi Tatap Muka">Konsultasi Tatap Muka</option>
-                <option value="Virtual Zoom Meeting">Virtual Zoom Meeting</option>
-                <option value="Telepon / Helpdesk">Telepon / Helpdesk</option>
-                <option value="Surat Resmi Permohonan">Surat Resmi Permohonan</option>
-              </select>
+                onChange={(val) => {
+                  const resolved = typeof val === 'object' && val !== null ? val.value : val
+                  setMedia(resolved ? String(resolved) : '')
+                }}
+                placeholder="-- Pilih atau cari kanal --"
+                isClearable={false}
+                required
+              />
             </div>
           </div>
 
