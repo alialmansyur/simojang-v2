@@ -27,6 +27,15 @@ CREATE TABLE IF NOT EXISTS `cfg_cat_pengelola` (
   KEY `idx_cat_pengelola_active` (`is_active`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
+INSERT INTO `cfg_cat_pengelola` (`nip`, `nama`, `keterangan`, `is_active`, `created_by`, `created_at`, `updated_at`) VALUES
+('199707252024211004', 'ALI AL MANSYUR, A.Md.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW()),
+('198707302008122001', 'WALETTA DINDA MARINA, S.T.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW()),
+('199612052024211008', 'RIJAL FADILAH, A.Md.Kom.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW()),
+('199011092022032007', 'NOVA LASTRIANA, S.Kom.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW()),
+('199506062024212040', 'YANI SRI MULYANTI, A.Md.Ak.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW()),
+('199509302024212031', 'DINA NURHASANAH, A.Md.', 'Pengelola Resmi CAT', 1, 'system', NOW(), NOW())
+ON DUPLICATE KEY UPDATE `nama` = VALUES(`nama`), `keterangan` = VALUES(`keterangan`), `is_active` = 1, `updated_at` = NOW();
+
 -- 1.2 Tabel Laporan & Berita Acara CAT (Snapshot Dokumen & TTE)
 CREATE TABLE IF NOT EXISTS `txn_cat_laporan` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -162,6 +171,72 @@ ALTER TABLE `txn_dms_entry`
   ADD COLUMN IF NOT EXISTS `jumlah_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_sangat_lengkap`,
   ADD COLUMN IF NOT EXISTS `jumlah_cukup_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_lengkap`,
   ADD COLUMN IF NOT EXISTS `jumlah_kurang_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_cukup_lengkap`;
+
+-- 1.10 Normalisasi Data & Skema Pegawai Internal (Statistik Internal)
+UPDATE `data_pegawai` SET `status_pegawai_id` = '1' WHERE UPPER(TRIM(`status_pegawai_id`)) = 'PNS' OR `status_pegawai_id` = '1';
+UPDATE `data_pegawai` SET `status_pegawai_id` = '2' WHERE UPPER(TRIM(`status_pegawai_id`)) = 'PPPK' OR `status_pegawai_id` = '2';
+UPDATE `data_pegawai` SET `status_pegawai_id` = '3' WHERE UPPER(TRIM(`status_pegawai_id`)) IN ('PPPK PW', 'PPPK-PW', 'PARUH WAKTU') OR `status_pegawai_id` = '3' OR `status_pegawai_id` LIKE '%PW%';
+UPDATE `data_pegawai` SET `status_pegawai_id` = '4' WHERE UPPER(TRIM(`status_pegawai_id`)) = 'PPNPN' OR `status_pegawai_id` = '4';
+UPDATE `data_pegawai` SET `status_pegawai_id` = '5' WHERE UPPER(TRIM(`status_pegawai_id`)) = 'MAGANG' OR `status_pegawai_id` = '5';
+UPDATE `data_pegawai` SET `status_pegawai_id` = NULL WHERE `status_pegawai_id` NOT REGEXP '^[0-9]+$';
+ALTER TABLE `data_pegawai` MODIFY COLUMN `status_pegawai_id` INT(11) NULL DEFAULT NULL;
+UPDATE `data_pegawai` SET `pangkat_id` = NULL WHERE `pangkat_id` = 0;
+UPDATE `data_pegawai` SET `menikah` = 'Belum Menikah' WHERE TRIM(`menikah`) = 'Belum Kawin';
+UPDATE `data_pegawai` SET `menikah` = 'Duda / Janda' WHERE TRIM(`menikah`) IN ('Janda', 'Janda / Duda', 'Duda');
+UPDATE `data_pegawai` SET `menikah` = NULL WHERE TRIM(`menikah`) = '';
+UPDATE `data_pegawai` SET `gender` = '1' WHERE LOWER(TRIM(`gender`)) IN ('l', 'lk', 'pria', 'laki-laki');
+UPDATE `data_pegawai` SET `gender` = '2' WHERE LOWER(TRIM(`gender`)) IN ('p', 'pr', 'wanita', 'perempuan');
+
+-- 1.11 Penyelarasan Dokumen PNBP CAT (Hapus Faktur & Konsolidasi ke Kwitansi Jamuan)
+UPDATE `txn_pnbp_documents` SET `doc_type` = 'kwitansi_jamuan' WHERE `doc_type` = 'faktur';
+ALTER TABLE `txn_pnbp_documents` MODIFY COLUMN `doc_type` ENUM('sp','st','nominatif','kwitansi','hadir','kwitansi_jamuan','surat_jalan','hadir_jamuan') NOT NULL;
+
+-- 1.12 Perbaikan Tabel Legacy Pembinaan Disiplin & Pengaduan (Mengatasi Galat MariaDB Error 4078 UUID cast)
+DROP TABLE IF EXISTS `txn_pembinaan_disiplin`;
+CREATE TABLE IF NOT EXISTS `txn_pembinaan_disiplin` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `uid` varchar(50) NOT NULL DEFAULT uuid(),
+  `period` varchar(50) DEFAULT NULL,
+  `period_date` date DEFAULT NULL,
+  `period_start_date` date DEFAULT NULL,
+  `period_end_date` date DEFAULT NULL,
+  `instansi_id` bigint(20) NOT NULL DEFAULT 0,
+  `jenis_kegiatan` enum('SOSIALISASI','ASISTENSI','PENDAMPINGAN') NOT NULL,
+  `media_id` bigint(20) DEFAULT NULL,
+  `media_url` text NOT NULL,
+  `jumlah_konsultasi` int(11) DEFAULT 0,
+  `keterangan` text DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `instansi_id` (`instansi_id`) USING BTREE,
+  KEY `media_id` (`media_id`) USING BTREE,
+  KEY `idx_txn_pembinaan_disiplin_uid` (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DROP TABLE IF EXISTS `txn_pembinaan_pengaduan`;
+CREATE TABLE IF NOT EXISTS `txn_pembinaan_pengaduan` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `uid` varchar(50) NOT NULL DEFAULT uuid(),
+  `period` varchar(50) DEFAULT NULL,
+  `period_date` date DEFAULT NULL,
+  `period_start_date` date DEFAULT NULL,
+  `period_end_date` date DEFAULT NULL,
+  `instansi_id` bigint(20) NOT NULL DEFAULT 0,
+  `media_id` bigint(20) NOT NULL DEFAULT 0,
+  `media_url` text NOT NULL,
+  `jumlah_pengaduan` int(11) DEFAULT 0,
+  `tanggal` date NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `instansi_id` (`instansi_id`) USING BTREE,
+  KEY `media_id` (`media_id`) USING BTREE,
+  KEY `idx_txn_pembinaan_pengaduan_uid` (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- ----------------------------------------------------------------------------------------
 -- 2. ALTER TABLE: Penambahan Kolom Hierarki pada Tabel Layanan & Tim Kerja
@@ -323,6 +398,24 @@ ON DUPLICATE KEY UPDATE
     `name` = VALUES(`name`), `url` = VALUES(`url`), `icon` = VALUES(`icon`), 
     `parent_id` = VALUES(`parent_id`), `is_show` = VALUES(`is_show`), 
     `is_order` = VALUES(`is_order`), `is_external` = VALUES(`is_external`);
+
+-- 4.6.1 Seeding Sub-Layanan Hierarki pada data_timkerja_layanan (9 Sub-Layanan Hub)
+INSERT INTO `data_timkerja_layanan` (`id`, `uuid`, `timkerja_id`, `parent_id`, `level_id`, `permission_id`, `is_subservice`, `nama_layanan`, `deskripsi`, `alias`, `url`, `is_count`, `is_show`, `is_maintenance`) VALUES
+(44, UUID(), 5, 28, 3, 444, 1, 'Rekap Data Sesi CAT', 'Input, monitoring, dan sinkronisasi sesi ujian CAT serta presensi peserta.', 'CAT-REKAP', 'apps-cat-rekap', 0, 1, 0),
+(45, UUID(), 5, 28, 3, 445, 1, 'Rekapitulasi Capaian CAT', 'Matriks ringkasan capaian kehadiran, kelulusan, dan evaluasi CAT per instansi.', 'CAT-REKAPITULASI', 'apps-cat-rekapitulasi', 0, 1, 0),
+(46, UUID(), 5, 28, 3, 446, 1, 'Laporan & Berita Acara CAT', 'Pembuatan laporan pelaksanaan CAT, berita acara profiling ASN, formulir sarpras, dan TTE.', 'CAT-LAPORAN', 'apps-cat-laporan', 0, 1, 0),
+(47, UUID(), 5, 28, 3, 447, 1, 'Pengelola Layanan CAT', 'Manajemen jadwal seleksi, penugasan tim kerja lapangan, dokumen PNBP, dan master data CAT.', 'CAT-PENGELOLA', 'apps-cat-pengelola', 0, 1, 0),
+(48, UUID(), 6, 29, 3, 448, 1, 'Master Data Anggaran', 'Pengelolaan pagu anggaran DIPA, akun belanja, pohon anggaran, dan komponen program.', 'ANGGARAN-MASTER', 'apps-anggaran-master', 0, 1, 0),
+(49, UUID(), 6, 29, 3, 449, 1, 'Realisasi Anggaran', 'Pencatatan realisasi pencairan anggaran DIPA, persentase serapan, dan sisa pagu belanja.', 'ANGGARAN-REALISASI', 'apps-anggaran-realisasi', 0, 1, 0),
+(50, UUID(), 6, 35, 3, 450, 1, 'Data Pegawai Internal', 'Pengelolaan profil ASN Kanreg III, pemantauan BUP pensiun, status keaktifan, dan impor Excel.', 'STATISTIK-PEGAWAI-INT', 'apps-statistik-internal-pegawai', 0, 1, 0),
+(51, UUID(), 6, 35, 3, 451, 1, 'Peta Jabatan & Bezzeting', 'Analisis kebutuhan formasi riil pegawai terisi (bezzeting), kelas jabatan, dan lowongan.', 'STATISTIK-PETA-JABATAN', 'apps-statistik-internal-peta', 0, 1, 0),
+(52, UUID(), 6, 35, 3, 452, 1, 'Master Data Kepegawaian', 'Konfigurasi 8 tabel referensi kepegawaian internal (Pendidikan, Unit SK, Jenis Jabatan, Agama, dll).', 'STATISTIK-MASTER-DATA', 'apps-statistik-internal-master', 0, 1, 0)
+ON DUPLICATE KEY UPDATE
+    `timkerja_id` = VALUES(`timkerja_id`), `parent_id` = VALUES(`parent_id`),
+    `level_id` = VALUES(`level_id`), `permission_id` = VALUES(`permission_id`),
+    `is_subservice` = VALUES(`is_subservice`), `nama_layanan` = VALUES(`nama_layanan`),
+    `deskripsi` = VALUES(`deskripsi`), `alias` = VALUES(`alias`), `url` = VALUES(`url`),
+    `is_show` = VALUES(`is_show`);
 
 UPDATE `data_timkerja_layanan` SET `permission_id` = (400 + `id`) WHERE `level_id` = 3;
 
