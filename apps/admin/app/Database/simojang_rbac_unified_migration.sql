@@ -346,7 +346,7 @@ WHERE `role_id` = 2
   );
 
 -- ----------------------------------------------------------------------------------------
--- 6. NORMALISASI TAHAPAN PROGRES MANAJEMEN TALENTA: data_support_mt
+-- 6. NORMALISASI TAHAPAN PROGRES & SEEDING DATA MT (37 INSTANSI JABAR & BANTEN)
 -- ----------------------------------------------------------------------------------------
 TRUNCATE TABLE `data_support_mt`;
 INSERT INTO `data_support_mt` (`id`, `step_name`, `description`, `percentage`, `sort_order`) VALUES
@@ -355,8 +355,87 @@ INSERT INTO `data_support_mt` (`id`, `step_name`, `description`, `percentage`, `
 (3, 'Sudah ekspose', 'Instansi telah melaksanakan ekspose kesiapan manajemen talenta', 50, 3),
 (4, 'Siap Ekspose', 'Instansi telah siap untuk melaksanakan ekspose manajemen talenta', 25, 4);
 
-UPDATE `txn_mt` SET `rw_mt_id` = 1 WHERE `rw_mt_id` > 4;
-UPDATE `txn_mt_detail` SET `rw_mt_id` = 1 WHERE `rw_mt_id` > 4;
+ALTER TABLE `txn_mt_detail` MODIFY COLUMN `description` VARCHAR(255) NULL DEFAULT NULL;
+DELETE FROM `txn_mt_detail`;
+DELETE FROM `txn_mt`;
+
+INSERT INTO `txn_mt` (`id`, `uid`, `action`, `period`, `period_date`, `instansi_id`, `rw_mt_id`, `created_by`, `created_at`, `updated_at`) VALUES
+(1, UUID(), 'import', '2022-01', '2022-01-15', 6100, 1, 'system', NOW(), NOW()),
+(2, UUID(), 'import', '2024-01', '2024-01-15', 6108, 1, 'system', NOW(), NOW()),
+(3, UUID(), 'import', '2026-01', '2026-01-15', 6117, 1, 'system', NOW(), NOW()),
+(4, UUID(), 'import', '2026-01', '2026-01-15', 6104, 2, 'system', NOW(), NOW()),
+(5, UUID(), 'import', '2026-01', '2026-01-15', 6101, 2, 'system', NOW(), NOW()),
+(6, UUID(), 'import', '2026-01', '2026-01-15', 6112, 2, 'system', NOW(), NOW()),
+(7, UUID(), 'import', '2026-01', '2026-01-15', 6103, 2, 'system', NOW(), NOW()),
+(8, UUID(), 'import', '2025-01', '2025-01-15', 6113, 1, 'system', NOW(), NOW()),
+(9, UUID(), 'import', '2024-01', '2024-01-15', 6110, 1, 'system', NOW(), NOW()),
+(10, UUID(), 'import', '2025-01', '2025-01-15', 6115, 1, 'system', NOW(), NOW()),
+(11, UUID(), 'import', '2023-01', '2023-01-15', 6105, 1, 'system', NOW(), NOW()),
+(12, UUID(), 'import', '2025-01', '2025-01-15', 6114, 1, 'system', NOW(), NOW()),
+(13, UUID(), 'import', '2025-01', '2025-01-15', 6116, 1, 'system', NOW(), NOW()),
+(14, UUID(), 'import', '2024-01', '2024-01-15', 6118, 1, 'system', NOW(), NOW()),
+(15, UUID(), 'import', '2026-01', '2026-01-15', 6106, 3, 'system', NOW(), NOW()),
+(16, UUID(), 'import', '2026-01', '2026-01-15', 6107, 2, 'system', NOW(), NOW()),
+(17, UUID(), 'import', '2026-01', '2026-01-15', 6102, 2, 'system', NOW(), NOW()),
+(18, UUID(), 'import', '2022-01', '2022-01-15', 6109, 1, 'system', NOW(), NOW()),
+(19, UUID(), 'import', '2026-01', '2026-01-15', 6111, 1, 'system', NOW(), NOW()),
+(20, UUID(), 'import', '2022-01', '2022-01-15', 6171, 1, 'system', NOW(), NOW()),
+(21, UUID(), 'import', '2026-01', '2026-01-15', 6179, 2, 'system', NOW(), NOW()),
+(22, UUID(), 'import', '2026-01', '2026-01-15', 6175, 2, 'system', NOW(), NOW()),
+(23, UUID(), 'import', '2023-01', '2023-01-15', 6172, 1, 'system', NOW(), NOW()),
+(24, UUID(), 'import', '2026-01', '2026-01-15', 6177, 3, 'system', NOW(), NOW()),
+(25, UUID(), 'import', '2025-01', '2025-01-15', 6174, 1, 'system', NOW(), NOW()),
+(26, UUID(), 'import', '2026-01', '2026-01-15', 6176, 1, 'system', NOW(), NOW()),
+(27, UUID(), 'import', '2025-01', '2025-01-15', 6173, 1, 'system', NOW(), NOW()),
+(28, UUID(), 'import', '2025-01', '2025-01-15', 6178, 1, 'system', NOW(), NOW()),
+(29, UUID(), 'import', '2025-01', '2025-01-15', 6200, 1, 'system', NOW(), NOW()),
+(30, UUID(), 'import', '2026-01', '2026-01-15', 6203, 3, 'system', NOW(), NOW()),
+(31, UUID(), 'import', '2026-01', '2026-01-15', 6202, 3, 'system', NOW(), NOW()),
+(32, UUID(), 'import', '2026-01', '2026-01-15', 6201, 2, 'system', NOW(), NOW()),
+(33, UUID(), 'import', '2024-01', '2024-01-15', 6204, 1, 'system', NOW(), NOW()),
+(34, UUID(), 'import', '2026-01', '2026-01-15', 6272, 1, 'system', NOW(), NOW()),
+(35, UUID(), 'import', '2025-01', '2025-01-15', 6273, 1, 'system', NOW(), NOW()),
+(36, UUID(), 'import', '2022-01', '2022-01-15', 6271, 1, 'system', NOW(), NOW()),
+(37, UUID(), 'import', '2026-01', '2026-01-15', 6274, 3, 'system', NOW(), NOW());
+
+INSERT INTO `txn_mt_detail` (`mt_id`, `activity_type`, `rw_mt_id`, `description`, `created_by`, `created_at`) VALUES
+(1, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2022)', 'system', NOW()),
+(2, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2024)', 'system', NOW()),
+(3, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2026)', 'system', NOW()),
+(4, 'import', 2, 'SIMATA BKN • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(5, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(6, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(7, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(8, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(9, 'import', 1, 'SIMATA BKN • Proses Implementasi (Rekom: 2024)', 'system', NOW()),
+(10, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(11, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2023)', 'system', NOW()),
+(12, 'import', 1, 'SIMATA BKN • Proses Implementasi (Rekom: 2025)', 'system', NOW()),
+(13, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(14, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2024)', 'system', NOW()),
+(15, 'import', 3, 'Seleksi Terbuka • Pemenuhan Data (Rekom: Proses)', 'system', NOW()),
+(16, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(17, 'import', 2, 'SIMATA BKN • Proses Implementasi (Rekom: 2026)', 'system', NOW()),
+(18, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2022)', 'system', NOW()),
+(19, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2026)', 'system', NOW()),
+(20, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2022)', 'system', NOW()),
+(21, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(22, 'import', 2, 'Seleksi Terbuka • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(23, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2023)', 'system', NOW()),
+(24, 'import', 3, 'Seleksi Terbuka • Pemenuhan Data (Rekom: Proses)', 'system', NOW()),
+(25, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(26, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2026)', 'system', NOW()),
+(27, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2025)', 'system', NOW()),
+(28, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(29, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2025)', 'system', NOW()),
+(30, 'import', 3, 'Seleksi Terbuka • Pemenuhan Data (Rekom: Proses)', 'system', NOW()),
+(31, 'import', 3, 'Seleksi Terbuka • Pemenuhan Data (Rekom: Proses)', 'system', NOW()),
+(32, 'import', 2, 'SIMATA BKN • Proses Implementasi (Rekom: 2026)', 'system', NOW()),
+(33, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2024)', 'system', NOW()),
+(34, 'import', 1, 'SIMATA BKN • Pemenuhan Data (Rekom: 2026)', 'system', NOW()),
+(35, 'import', 1, 'SIMATA BKN • Sudah Implementasi (Rekom: 2025)', 'system', NOW()),
+(36, 'import', 1, 'Sistem Mandiri • Pemenuhan Data (Rekom: 2022)', 'system', NOW()),
+(37, 'import', 3, 'Seleksi Terbuka • Pemenuhan Data (Rekom: Proses)', 'system', NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
 
