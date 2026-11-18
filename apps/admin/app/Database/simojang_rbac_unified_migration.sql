@@ -80,7 +80,45 @@ CREATE TABLE IF NOT EXISTS `txn_cat_user_signers` (
   KEY `idx_cat_user_signers_scope` (`seleksi_id`,`tilok_id`,`instansi_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- 1.4 Tabel Petugas Tim Kerja CAT Lapangan
+-- 1.4 Tabel Jadwal Pelaksanaan Kegiatan CAT (Master Jadwal Tilok)
+CREATE TABLE IF NOT EXISTS `txn_cat_jadwal` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `uid` varchar(64) NOT NULL,
+  `jenis_periode_id` int(11) unsigned DEFAULT NULL,
+  `jenis_tes_id` int(11) unsigned NOT NULL,
+  `seleksi_id` int(11) unsigned NOT NULL,
+  `tilok_id` int(11) unsigned NOT NULL,
+  `instansi_id` varchar(50) DEFAULT NULL,
+  `nama_jadwal` varchar(255) DEFAULT NULL,
+  `tanggal_mulai` date NOT NULL,
+  `tanggal_selesai` date NOT NULL,
+  `st_status` enum('menunggu','terhubung') NOT NULL DEFAULT 'menunggu',
+  `st_document_id` bigint(20) unsigned DEFAULT NULL,
+  `nomor_st` varchar(120) DEFAULT NULL,
+  `tanggal_st` date DEFAULT NULL,
+  `status` enum('draft','aktif','selesai','batal') NOT NULL DEFAULT 'aktif',
+  `catatan` text DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` datetime DEFAULT NULL,
+  `updated_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cat_jadwal_uid` (`uid`),
+  KEY `idx_cat_jadwal_hierarchy` (`jenis_tes_id`,`seleksi_id`,`tilok_id`),
+  KEY `idx_cat_jadwal_dates` (`tanggal_mulai`,`tanggal_selesai`),
+  KEY `idx_cat_jadwal_st_status` (`st_status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.5 Tabel Pemetaan Instansi pada Jadwal CAT
+CREATE TABLE IF NOT EXISTS `txn_cat_jadwal_instansi` (
+  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  `jadwal_id` bigint(20) unsigned NOT NULL,
+  `instansi_id` varchar(50) NOT NULL,
+  `created_at` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_cat_jadwal_instansi` (`jadwal_id`,`instansi_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- 1.6 Tabel Petugas Tim Kerja CAT Lapangan
 CREATE TABLE IF NOT EXISTS `txn_cat_tim` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
   `jadwal_id` bigint(20) unsigned NOT NULL,
@@ -103,26 +141,17 @@ CREATE TABLE IF NOT EXISTS `txn_cat_tim` (
   KEY `idx_cat_tim_nip` (`nip`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- 1.5 Tabel Pemetaan Instansi pada Jadwal CAT
-CREATE TABLE IF NOT EXISTS `txn_cat_jadwal_instansi` (
-  `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `jadwal_id` bigint(20) unsigned NOT NULL,
-  `instansi_id` varchar(50) NOT NULL,
-  `created_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_cat_jadwal_instansi` (`jadwal_id`,`instansi_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- 1.6 Penyesuaian Kolom Status Batal pada Jadwal CAT
+-- 1.7 Penyesuaian Kolom Status Batal pada Jadwal CAT (Idempotent jika tabel sudah ada versi lama)
 ALTER TABLE `txn_cat_jadwal` MODIFY COLUMN `status` ENUM('draft','aktif','selesai','batal') NOT NULL DEFAULT 'aktif';
 
--- 1.7 Penyesuaian Dokumen PNBP CAT (Upload & Personel Eksternal)
+-- 1.8 Penyesuaian Dokumen PNBP CAT (Upload, Personel Eksternal & Relasi Jadwal)
+ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `jadwal_id` BIGINT(20) UNSIGNED NULL DEFAULT NULL AFTER `instansi_id`;
 ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `source_mode` ENUM('builder','upload') NOT NULL DEFAULT 'builder' AFTER `status`;
 ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `original_filename` VARCHAR(255) NULL DEFAULT NULL AFTER `pdf_file_path`;
 ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `nip`;
 ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `instansi_asal` VARCHAR(255) NULL DEFAULT NULL AFTER `nama`;
 
--- 1.8 Penyesuaian Kolom Digital Document Management System (DMS)
+-- 1.9 Penyesuaian Kolom Digital Document Management System (DMS)
 ALTER TABLE `txn_dms_entry`
   ADD COLUMN IF NOT EXISTS `skor_arsip` DECIMAL(5,2) NULL DEFAULT 0.00 AFTER `total`,
   ADD COLUMN IF NOT EXISTS `keterangan` VARCHAR(50) NULL DEFAULT 'Lengkap' AFTER `skor_arsip`,
@@ -149,6 +178,10 @@ ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `parent_id` BIGINT(
 ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `is_subservice` TINYINT(1) NOT NULL DEFAULT 0 AFTER `parent_id`;
 ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `level_id` TINYINT(4) NOT NULL DEFAULT 2 AFTER `parent_id`;
 ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `permission_id` BIGINT UNSIGNED NULL DEFAULT NULL AFTER `level_id`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `is_maintenance` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_show`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `maintenance_msg` VARCHAR(255) NULL DEFAULT NULL AFTER `is_maintenance`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `maintenance_updated_at` DATETIME NULL DEFAULT NULL AFTER `maintenance_msg`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `maintenance_updated_by` INT(11) NULL DEFAULT NULL AFTER `maintenance_updated_at`;
 
 -- ----------------------------------------------------------------------------------------
 -- 3. PEMBERSIHAN & NORMALISASI: data_timkerja_layanan
@@ -348,7 +381,47 @@ WHERE `role_id` = 2
 -- ----------------------------------------------------------------------------------------
 -- 6. NORMALISASI TAHAPAN PROGRES & SEEDING DATA MT (37 INSTANSI JABAR & BANTEN)
 -- ----------------------------------------------------------------------------------------
-TRUNCATE TABLE `data_support_mt`;
+CREATE TABLE IF NOT EXISTS `data_support_mt` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `step_name` varchar(100) NOT NULL,
+  `description` text DEFAULT NULL,
+  `percentage` int(11) NOT NULL,
+  `sort_order` int(11) NOT NULL,
+  PRIMARY KEY (`id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `txn_mt` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `uid` varchar(50) NOT NULL DEFAULT uuid(),
+  `action` varchar(8) NOT NULL DEFAULT 'create',
+  `period` varchar(30) DEFAULT NULL,
+  `period_date` date DEFAULT NULL,
+  `instansi_id` bigint(20) NOT NULL DEFAULT 0,
+  `rw_mt_id` int(11) NOT NULL,
+  `created_by` varchar(30) NOT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `instansi_id` (`instansi_id`) USING BTREE,
+  KEY `idx_txn_mt_created` (`created_at`),
+  KEY `idx_txn_mt_rw_mt_id` (`rw_mt_id`),
+  KEY `idx_txn_mt_uid` (`uid`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE IF NOT EXISTS `txn_mt_detail` (
+  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `mt_id` bigint(20) DEFAULT NULL,
+  `activity_type` varchar(30) NOT NULL DEFAULT '0',
+  `rw_mt_id` bigint(20) DEFAULT NULL,
+  `description` varchar(255) DEFAULT NULL,
+  `created_by` varchar(50) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `mt_id` (`mt_id`),
+  KEY `rw_mt_id` (`rw_mt_id`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+DELETE FROM `data_support_mt`;
 INSERT INTO `data_support_mt` (`id`, `step_name`, `description`, `percentage`, `sort_order`) VALUES
 (1, 'Sudah Pengisian Jabatan', 'Instansi telah melakukan pengisian jabatan berbasis manajemen talenta', 100, 1),
 (2, 'Sudah Mendapat rekomendasi', 'Instansi telah mendapatkan rekomendasi penerapan manajemen talenta', 75, 2),
