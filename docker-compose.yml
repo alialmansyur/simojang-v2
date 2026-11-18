@@ -14,8 +14,8 @@ services:
       context: .
       dockerfile: docker/nginx/Dockerfile
       args:
-        - VITE_BASE_PATH=${VITE_BASE_PATH:-/}
-        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-}
+        - VITE_BASE_PATH=${VITE_BASE_PATH:-/simojang/}
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-/simojang-api}
     container_name: simojang-v2-nginx
     restart: unless-stopped
     ports:

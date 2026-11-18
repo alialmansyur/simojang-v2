@@ -26,6 +26,10 @@ ENV TZ=Asia/Jakarta
 # Salin hasil build SPA frontend
 COPY --from=frontend-builder /build/dist /usr/share/nginx/frontend
 
+# Buat symlink simojang & simojang-dev agar path subfolder valid secara fisik di filesystem
+RUN ln -s /usr/share/nginx/frontend /usr/share/nginx/frontend/simojang \
+    && ln -s /usr/share/nginx/frontend /usr/share/nginx/frontend/simojang-dev
+
 # Salin aset statis backend (logo instansi/pnbp script) & siapkan mount point penyimpanan upload terpusat
 COPY apps/admin/public/apps/assets /var/www/html/public/apps/assets
 RUN mkdir -p /var/www/html/writable/uploads/public
