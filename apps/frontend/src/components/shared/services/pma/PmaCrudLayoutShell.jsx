@@ -33,6 +33,9 @@ export function PmaCrudLayoutShell({
   FormComponent = null,
   categories = [],
   defaultCategory = '',
+  showYearFilter = false,
+  defaultYear = 'ALL',
+  yearOptions = ['ALL', '2026', '2025', '2024', '2023', '2022'],
   searchPlaceholder = 'Cari data, nama instansi, materi...',
   formSupportProps = {},
   tableHeaderWeightClass = 'font-bold',
@@ -47,6 +50,7 @@ export function PmaCrudLayoutShell({
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedMonths, setSelectedMonths] = useState([])
+  const [selectedYear, setSelectedYear] = useState(defaultYear)
   const [activeCategory, setActiveCategory] = useState(defaultCategory)
 
   // State: Modals & Actions
@@ -100,6 +104,7 @@ export function PmaCrudLayoutShell({
       const data = await fetchSummaryFn({
         bulan: selectedMonths,
         period_months: selectedMonths,
+        period_year: selectedYear,
         ...categoryParams,
       })
       setSummary(data)
@@ -108,7 +113,7 @@ export function PmaCrudLayoutShell({
     } finally {
       setIsSummaryLoading(false)
     }
-  }, [fetchSummaryFn, selectedMonths, categoryParams])
+  }, [fetchSummaryFn, selectedMonths, selectedYear, categoryParams])
 
   // Load Table Data
   const loadData = useCallback(
@@ -130,6 +135,7 @@ export function PmaCrudLayoutShell({
         const result = await fetchDataFn({
           bulan: selectedMonths,
           period_months: selectedMonths,
+          period_year: selectedYear,
           ...categoryParams,
           start,
           length: pageSize,
@@ -157,7 +163,7 @@ export function PmaCrudLayoutShell({
         }
       }
     },
-    [fetchDataFn, selectedMonths, categoryParams, page, pageSize, debouncedSearch]
+    [fetchDataFn, selectedMonths, selectedYear, categoryParams, page, pageSize, debouncedSearch]
   )
 
   useEffect(() => {
@@ -193,6 +199,11 @@ export function PmaCrudLayoutShell({
     setPage(1)
   }
 
+  const handleYearChange = (year) => {
+    setSelectedYear(year)
+    setPage(1)
+  }
+
   const handleCategoryChange = (cat) => {
     setActiveCategory(cat)
     setPage(1)
@@ -205,14 +216,16 @@ export function PmaCrudLayoutShell({
     return (
       Boolean(debouncedSearch.trim()) ||
       selectedMonths.length > 0 ||
+      Boolean(selectedYear && selectedYear !== defaultYear) ||
       Boolean(activeCategory && activeCategory !== 'all' && activeCategory !== defaultCategory)
     )
-  }, [debouncedSearch, selectedMonths, activeCategory, defaultCategory])
+  }, [debouncedSearch, selectedMonths, selectedYear, defaultYear, activeCategory, defaultCategory])
 
   const handleResetFilters = () => {
     setSearchTerm('')
     setDebouncedSearch('')
     setSelectedMonths([])
+    setSelectedYear(defaultYear)
     setActiveCategory(defaultCategory)
     setPage(1)
   }
@@ -497,6 +510,27 @@ export function PmaCrudLayoutShell({
         categoryCounts={categoryCounts}
         placeholder={searchPlaceholder}
         borderless
+        extraControls={
+          showYearFilter ? (
+            <div className="relative shrink-0 w-full sm:w-auto">
+              <select
+                value={selectedYear}
+                onChange={(e) => handleYearChange(e.target.value)}
+                className="w-full sm:w-auto px-3.5 py-2 rounded-xl border border-slate-200/60 dark:border-slate-700/50 bg-slate-50/40 dark:bg-slate-800/40 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold hover:bg-slate-100/70 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-[#175CD3]/20 focus:border-[#175CD3] transition-all cursor-pointer shadow-2xs"
+                title="Pilih Periode Tahun"
+              >
+                <option value="ALL">Semua Periode Tahun</option>
+                {yearOptions
+                  .filter((y) => String(y).toUpperCase() !== 'ALL')
+                  .map((yr) => (
+                    <option key={yr} value={yr}>
+                      Tahun {yr}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          ) : null
+        }
       />
 
       {/* 4. Data Table (Standard Card Container with Encapsulated Error Banner, Header, Rows, & Footer) */}

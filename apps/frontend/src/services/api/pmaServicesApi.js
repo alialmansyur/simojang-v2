@@ -106,9 +106,9 @@ export function fetchDisiplinOptions() {
 // 1. MANAJEMEN TALENTA (Layanan 13)
 // =========================================================================
 
-export function fetchMtSummary({ bulan = [], period_year = new Date().getFullYear(), category = '' } = {}) {
+export function fetchMtSummary({ bulan = [], period_year = 'ALL', category = '' } = {}) {
   const payload = {
-    period_year: String(period_year || new Date().getFullYear()),
+    period_year: String(period_year || 'ALL'),
   }
   if (category && category !== 'all') {
     payload.category = String(category)
@@ -118,9 +118,9 @@ export function fetchMtSummary({ bulan = [], period_year = new Date().getFullYea
   return postSummary('/fetch/summary-mt', fd, 'Gagal memuat ringkasan Manajemen Talenta.')
 }
 
-export function fetchMtData({ bulan = [], period_year = new Date().getFullYear(), category = '', start = 0, length = 10, search = '', signal } = {}) {
+export function fetchMtData({ bulan = [], period_year = 'ALL', category = '', start = 0, length = 10, search = '', signal } = {}) {
   const payload = {
-    period_year: String(period_year || new Date().getFullYear()),
+    period_year: String(period_year || 'ALL'),
     start: String(start),
     length: String(length),
     'search[value]': search,

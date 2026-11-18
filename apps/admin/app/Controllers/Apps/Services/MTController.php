@@ -138,8 +138,8 @@ class MTController extends BaseController
             $bulan = [];
         }
         $bulan = array_values(array_filter(array_map('intval', $bulan), static fn($m) => $m >= 1 && $m <= 12));
-        $periodYearRaw = $this->request->getPost('period_year');
-        $periodYear = is_numeric($periodYearRaw) ? (int) $periodYearRaw : (int) date('Y');
+        $periodYearRaw = trim((string) ($this->request->getPost('period_year') ?? 'ALL'));
+        $periodYear = is_numeric($periodYearRaw) ? (int) $periodYearRaw : 0;
         $category = strtolower(trim((string) ($this->request->getPost('category') ?? '')));
 
         $db = \Config\Database::connect();
@@ -163,7 +163,7 @@ class MTController extends BaseController
                 ), 1) AS avg_progress
             ");
 
-        if (!in_array(strtolower((string)$periodYearRaw), ['all', '', '0'], true) && $periodYear > 2000) {
+        if (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && $periodYear > 2000) {
             $builder->where('YEAR(COALESCE(a.period_date, a.created_at))', $periodYear, false);
         }
 
@@ -375,7 +375,10 @@ class MTController extends BaseController
     public function getData(){
         $bulan = $this->request->getPost('bulan');
         $category = $this->request->getPost('category');
-        $periodYear = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $periodYearRaw = trim((string) ($this->request->getPost('period_year') ?? 'ALL'));
+        if ($periodYearRaw === '') {
+            $periodYearRaw = 'ALL';
+        }
 
         if (!is_array($bulan)) {
             $bulan = [];
@@ -386,13 +389,13 @@ class MTController extends BaseController
         $builder = $this->mtModel->getBuilder('recap', [
             'bulan'       => $bulan,
             'category'    => $category,
-            'period_year' => $periodYear,
+            'period_year' => $periodYearRaw,
         ]);
 
         $columns    = $this->mtModel->getColumns('recap', [
             'bulan'       => $bulan,
             'category'    => $category,
-            'period_year' => $periodYear,
+            'period_year' => $periodYearRaw,
         ]);
         $result     = $this->dataTables->render($builder, $columns);
         return $this->response->setJSON($result);

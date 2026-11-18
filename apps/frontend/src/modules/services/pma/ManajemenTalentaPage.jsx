@@ -361,6 +361,9 @@ export default function ManajemenTalentaPage() {
       renderDetail={renderDetail}
       FormComponent={MtFormModal}
       categories={categories}
+      showYearFilter={true}
+      defaultYear="ALL"
+      yearOptions={['ALL', '2026', '2025', '2024', '2023', '2022']}
       searchPlaceholder="Cari nama instansi, NIP, pengunggah..."
       tableHeaderWeightClass="font-bold"
       tableBodyClassName="font-semibold"
