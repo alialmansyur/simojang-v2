@@ -39,7 +39,8 @@ class MTModel extends Model
     {
         $bulan = $params['bulan'] ?? [];
         $category = strtolower(trim((string) ($params['category'] ?? '')));
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = $params['period_year'] ?? date('Y');
+        $periodYear = is_numeric($periodYearRaw) ? (int) $periodYearRaw : (int) date('Y');
 
         $builder = $this->db->table('txn_mt a')
             ->select("
@@ -82,7 +83,7 @@ class MTModel extends Model
             ->groupBy('a.id')
             ->orderBy('a.created_at', 'DESC');
 
-        if ($periodYear > 2000) {
+        if (!in_array(strtolower((string)$periodYearRaw), ['all', '', '0'], true) && $periodYear > 2000) {
             $builder->where('YEAR(COALESCE(a.period_date, a.created_at)) =', $periodYear, false);
         }
 

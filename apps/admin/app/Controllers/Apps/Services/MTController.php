@@ -138,7 +138,8 @@ class MTController extends BaseController
             $bulan = [];
         }
         $bulan = array_values(array_filter(array_map('intval', $bulan), static fn($m) => $m >= 1 && $m <= 12));
-        $periodYear = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $periodYearRaw = $this->request->getPost('period_year');
+        $periodYear = is_numeric($periodYearRaw) ? (int) $periodYearRaw : (int) date('Y');
         $category = strtolower(trim((string) ($this->request->getPost('category') ?? '')));
 
         $db = \Config\Database::connect();
@@ -162,7 +163,7 @@ class MTController extends BaseController
                 ), 1) AS avg_progress
             ");
 
-        if ($periodYear > 2000) {
+        if (!in_array(strtolower((string)$periodYearRaw), ['all', '', '0'], true) && $periodYear > 2000) {
             $builder->where('YEAR(COALESCE(a.period_date, a.created_at))', $periodYear, false);
         }
 
