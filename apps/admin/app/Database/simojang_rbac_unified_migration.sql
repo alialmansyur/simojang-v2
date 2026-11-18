@@ -117,50 +117,26 @@ CREATE TABLE IF NOT EXISTS `txn_cat_jadwal_instansi` (
 ALTER TABLE `txn_cat_jadwal` MODIFY COLUMN `status` ENUM('draft','aktif','selesai','batal') NOT NULL DEFAULT 'aktif';
 
 -- 1.7 Penyesuaian Dokumen PNBP CAT (Upload & Personel Eksternal)
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_documents' AND column_name = 'source_mode');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_documents` ADD COLUMN `source_mode` ENUM(\'builder\',\'upload\') NOT NULL DEFAULT \'builder\' AFTER `status`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_documents' AND column_name = 'original_filename');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_documents` ADD COLUMN `original_filename` VARCHAR(255) NULL DEFAULT NULL AFTER `pdf_file_path`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_doc_personel' AND column_name = 'is_external');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `nip`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'txn_pnbp_doc_personel' AND column_name = 'instansi_asal');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN `instansi_asal` VARCHAR(255) NULL DEFAULT NULL AFTER `nama`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `source_mode` ENUM('builder','upload') NOT NULL DEFAULT 'builder' AFTER `status`;
+ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `original_filename` VARCHAR(255) NULL DEFAULT NULL AFTER `pdf_file_path`;
+ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `nip`;
+ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `instansi_asal` VARCHAR(255) NULL DEFAULT NULL AFTER `nama`;
 
 -- ----------------------------------------------------------------------------------------
 -- 2. ALTER TABLE: Penambahan Kolom Hierarki pada Tabel Layanan & Tim Kerja
 -- ----------------------------------------------------------------------------------------
 
--- data_timkerja
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'data_timkerja' AND column_name = 'permission_id');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja` ADD COLUMN `permission_id` BIGINT UNSIGNED NULL DEFAULT NULL AFTER `is_show`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- 2.1 auth_permissions
+ALTER TABLE `auth_permissions` ADD COLUMN IF NOT EXISTS `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_order`;
 
--- data_timkerja_layanan: parent_id
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'data_timkerja_layanan' AND column_name = 'parent_id');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja_layanan` ADD COLUMN `parent_id` BIGINT(20) NULL DEFAULT NULL AFTER `timkerja_id`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- 2.2 data_timkerja
+ALTER TABLE `data_timkerja` ADD COLUMN IF NOT EXISTS `permission_id` BIGINT UNSIGNED NULL DEFAULT NULL AFTER `is_show`;
 
--- data_timkerja_layanan: is_subservice
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'data_timkerja_layanan' AND column_name = 'is_subservice');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja_layanan` ADD COLUMN `is_subservice` TINYINT(1) NOT NULL DEFAULT 0 AFTER `parent_id`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- data_timkerja_layanan: level_id
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'data_timkerja_layanan' AND column_name = 'level_id');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja_layanan` ADD COLUMN `level_id` TINYINT(4) NOT NULL DEFAULT 2 AFTER `parent_id`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
-
--- data_timkerja_layanan: permission_id
-SET @col_exists = (SELECT COUNT(*) FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 'data_timkerja_layanan' AND column_name = 'permission_id');
-SET @sql = IF(@col_exists = 0, 'ALTER TABLE `data_timkerja_layanan` ADD COLUMN `permission_id` BIGINT UNSIGNED NULL DEFAULT NULL AFTER `level_id`', 'SELECT 1');
-PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
+-- 2.3 data_timkerja_layanan
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `parent_id` BIGINT(20) NULL DEFAULT NULL AFTER `timkerja_id`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `is_subservice` TINYINT(1) NOT NULL DEFAULT 0 AFTER `parent_id`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `level_id` TINYINT(4) NOT NULL DEFAULT 2 AFTER `parent_id`;
+ALTER TABLE `data_timkerja_layanan` ADD COLUMN IF NOT EXISTS `permission_id` BIGINT UNSIGNED NULL DEFAULT NULL AFTER `level_id`;
 
 -- ----------------------------------------------------------------------------------------
 -- 3. PEMBERSIHAN & NORMALISASI: data_timkerja_layanan
