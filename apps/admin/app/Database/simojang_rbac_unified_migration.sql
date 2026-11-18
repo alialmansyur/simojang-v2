@@ -122,6 +122,18 @@ ALTER TABLE `txn_pnbp_documents` ADD COLUMN IF NOT EXISTS `original_filename` VA
 ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `is_external` TINYINT(1) NOT NULL DEFAULT 0 AFTER `nip`;
 ALTER TABLE `txn_pnbp_doc_personel` ADD COLUMN IF NOT EXISTS `instansi_asal` VARCHAR(255) NULL DEFAULT NULL AFTER `nama`;
 
+-- 1.8 Penyesuaian Kolom Digital Document Management System (DMS)
+ALTER TABLE `txn_dms_entry`
+  ADD COLUMN IF NOT EXISTS `skor_arsip` DECIMAL(5,2) NULL DEFAULT 0.00 AFTER `total`,
+  ADD COLUMN IF NOT EXISTS `keterangan` VARCHAR(50) NULL DEFAULT 'Lengkap' AFTER `skor_arsip`,
+  ADD COLUMN IF NOT EXISTS `total_pns` INT(11) NULL DEFAULT 0 AFTER `keterangan`,
+  ADD COLUMN IF NOT EXISTS `status_cpns` INT(11) NULL DEFAULT 0 AFTER `total_pns`,
+  ADD COLUMN IF NOT EXISTS `status_pns` INT(11) NULL DEFAULT 0 AFTER `status_cpns`,
+  ADD COLUMN IF NOT EXISTS `jumlah_sangat_lengkap` INT(11) NULL DEFAULT 0 AFTER `status_pns`,
+  ADD COLUMN IF NOT EXISTS `jumlah_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_sangat_lengkap`,
+  ADD COLUMN IF NOT EXISTS `jumlah_cukup_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_lengkap`,
+  ADD COLUMN IF NOT EXISTS `jumlah_kurang_lengkap` INT(11) NULL DEFAULT 0 AFTER `jumlah_cukup_lengkap`;
+
 -- ----------------------------------------------------------------------------------------
 -- 2. ALTER TABLE: Penambahan Kolom Hierarki pada Tabel Layanan & Tim Kerja
 -- ----------------------------------------------------------------------------------------
