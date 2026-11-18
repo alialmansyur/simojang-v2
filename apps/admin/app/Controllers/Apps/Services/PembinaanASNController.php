@@ -220,7 +220,10 @@ class PembinaanASNController extends BaseController
     {
 
         $kategori = (int) ($this->request->getPost('kategori_id') ?? 0);
-        $tahun = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $rawTahun = $this->request->getPost('period_year');
+        $tahun = ($rawTahun !== null && $rawTahun !== '' && strtoupper(trim((string)$rawTahun)) !== 'ALL' && is_numeric($rawTahun))
+            ? (int) $rawTahun
+            : 0;
         $jenis = strtoupper(trim((string) ($this->request->getPost('jenis_layanan') ?? 'ALL')));
         $months = $this->normalizeMonthsFromPost('period_months');
 
@@ -241,7 +244,10 @@ class PembinaanASNController extends BaseController
     {
 
         $kategori = (int) ($this->request->getPost('kategori_id') ?? 0);
-        $tahun = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $rawTahun = $this->request->getPost('period_year');
+        $tahun = ($rawTahun !== null && $rawTahun !== '' && strtoupper(trim((string)$rawTahun)) !== 'ALL' && is_numeric($rawTahun))
+            ? (int) $rawTahun
+            : 0;
         $jenis = strtoupper(trim((string) ($this->request->getPost('jenis_layanan') ?? 'ALL')));
         $months = $this->normalizeMonthsFromPost('period_months');
 
@@ -271,7 +277,10 @@ class PembinaanASNController extends BaseController
     {
 
         $instansiId = trim((string) ($this->request->getPost('instansi_id') ?? ''));
-        $tahun = (int) ($this->request->getPost('period_year') ?? date('Y'));
+        $rawTahun = $this->request->getPost('period_year');
+        $tahun = ($rawTahun !== null && $rawTahun !== '' && strtoupper(trim((string)$rawTahun)) !== 'ALL' && is_numeric($rawTahun))
+            ? (int) $rawTahun
+            : 0;
         $jenis = strtoupper(trim((string) ($this->request->getPost('jenis_layanan') ?? 'ALL')));
         $kategori = (int) ($this->request->getPost('kategori_id') ?? 0);
         $months = $this->normalizeMonthsFromPost('period_months');

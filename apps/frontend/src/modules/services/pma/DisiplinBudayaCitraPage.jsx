@@ -344,8 +344,7 @@ export default function DisiplinBudayaCitraPage() {
 
   const categories = [
     { value: 'ASISTENSI', label: 'Asistensi' },
-    { value: 'KONSULTASI', label: 'Konsultasi' },
-    { value: 'REGULASI', label: 'Sosialisasi Regulasi' },
+    { value: 'KONSULTASI', label: 'Pendampingan / Koordinasi / Konsultasi' },
   ]
 
   return (
@@ -367,6 +366,8 @@ export default function DisiplinBudayaCitraPage() {
       renderDetail={renderDetail}
       FormComponent={DisiplinCitraFormModal}
       categories={categories}
+      showYearFilter={true}
+      defaultYear="ALL"
       tableHeaderWeightClass="font-bold"
       tableBodyClassName="font-semibold"
       searchPlaceholder="Cari topik kegiatan, surat, NIP, pengunggah..."

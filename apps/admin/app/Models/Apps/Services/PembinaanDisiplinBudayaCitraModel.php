@@ -83,7 +83,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
     public function getDataRecap($params = [])
     {
         $kategoriId = (int) ($params['kategori_id'] ?? 0);
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
 
@@ -103,8 +104,11 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 DATE_FORMAT(MAX(a.updated_at), '%d %M %Y %H:%i:%s') AS updated_at_label
             ")
             ->join('data_instansi b', 'b.kodeins = a.instansi_id', 'left')
-            ->join('data_support_pembinaan_disiplin_kategori c', 'c.id = a.kategori_id', 'left')
-            ->where('a.period_year', $periodYear);
+            ->join('data_support_pembinaan_disiplin_kategori c', 'c.id = a.kategori_id', 'left');
+
+        if ($periodYear > 0) {
+            $builder->where('a.period_year', $periodYear);
+        }
 
         if (!empty($periodMonths)) {
             $builder->whereIn('MONTH(a.period_date)', $periodMonths, false);
@@ -130,7 +134,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
     public function getDataList(array $params = [])
     {
         $kategoriId = (int) ($params['kategori_id'] ?? 0);
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
 
@@ -180,8 +185,11 @@ class PembinaanDisiplinBudayaCitraModel extends Model
         ";
 
         $builder = $this->db->table("({$sql}) recap")
-            ->where('period_year', $periodYear)
             ->orderBy('updated_at', 'DESC');
+
+        if ($periodYear > 0) {
+            $builder->where('period_year', $periodYear);
+        }
 
         if (!empty($periodMonths)) {
             $builder->whereIn('MONTH(period_date)', $periodMonths, false);
@@ -200,7 +208,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
     public function getDetailByInstansi(array $params = []): array
     {
         $instansiId = trim((string) ($params['instansi_id'] ?? ''));
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $kategoriId = (int) ($params['kategori_id'] ?? 0);
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
@@ -234,8 +243,11 @@ class PembinaanDisiplinBudayaCitraModel extends Model
             ")
             ->join('data_instansi b', 'b.kodeins = a.instansi_id', 'left')
             ->join('data_support_pembinaan_disiplin_kategori c', 'c.id = a.kategori_id', 'left')
-            ->where('a.instansi_id', $instansiId)
-            ->where('a.period_year', $periodYear);
+            ->where('a.instansi_id', $instansiId);
+
+        if ($periodYear > 0) {
+            $builder->where('a.period_year', $periodYear);
+        }
 
         if (!empty($periodMonths)) {
             $builder->whereIn('MONTH(a.period_date)', $periodMonths, false);
@@ -339,7 +351,8 @@ class PembinaanDisiplinBudayaCitraModel extends Model
     public function getSummary(array $params = []): array
     {
         $kategoriId = (int) ($params['kategori_id'] ?? 0);
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
 
@@ -355,8 +368,11 @@ class PembinaanDisiplinBudayaCitraModel extends Model
                 SUM(CASE WHEN a.source_konsultasi = 'PPT' THEN 1 ELSE 0 END) AS total_ppt,
                 MAX(a.updated_at) AS last_update
             ")
-            ->join('data_support_pembinaan_disiplin_kategori c', 'c.id = a.kategori_id', 'left')
-            ->where('a.period_year', $periodYear);
+            ->join('data_support_pembinaan_disiplin_kategori c', 'c.id = a.kategori_id', 'left');
+
+        if ($periodYear > 0) {
+            $builder->where('a.period_year', $periodYear);
+        }
 
         if (!empty($periodMonths)) {
             $builder->whereIn('MONTH(a.period_date)', $periodMonths, false);
@@ -388,11 +404,15 @@ class PembinaanDisiplinBudayaCitraModel extends Model
     public function getJenisBreakdown(array $params = []): array
     {
         $kategoriId = (int) ($params['kategori_id'] ?? 0);
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenisFilter = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
 
-        $join = 'a.kategori_id = c.id AND a.period_year = ' . $this->db->escape($periodYear);
+        $join = 'a.kategori_id = c.id';
+        if ($periodYear > 0) {
+            $join .= ' AND a.period_year = ' . $this->db->escape($periodYear);
+        }
         if (!empty($periodMonths)) {
             $join .= ' AND MONTH(a.period_date) IN (' . implode(',', $periodMonths) . ')';
         }
@@ -422,12 +442,16 @@ class PembinaanDisiplinBudayaCitraModel extends Model
 
     public function getKategoriBreakdown(array $params = []): array
     {
-        $periodYear = (int) ($params['period_year'] ?? date('Y'));
+        $periodYearRaw = trim((string) ($params['period_year'] ?? 'ALL'));
+        $periodYear = (!in_array(strtolower($periodYearRaw), ['all', '', '0', 'null'], true) && is_numeric($periodYearRaw)) ? (int) $periodYearRaw : 0;
         $jenis = strtoupper(trim((string) ($params['jenis_layanan'] ?? 'ALL')));
         $jenisEscaped = $this->db->escape($jenis);
         $periodMonths = array_values(array_filter(array_map('intval', (array) ($params['period_months'] ?? [])), static fn($m) => $m >= 1 && $m <= 12));
 
-        $join = 'a.kategori_id = c.id AND a.period_year = ' . $this->db->escape($periodYear);
+        $join = 'a.kategori_id = c.id';
+        if ($periodYear > 0) {
+            $join .= ' AND a.period_year = ' . $this->db->escape($periodYear);
+        }
         if (!empty($periodMonths)) {
             $join .= ' AND MONTH(a.period_date) IN (' . implode(',', $periodMonths) . ')';
         }
