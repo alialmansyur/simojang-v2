@@ -7,20 +7,16 @@ import 'react-toastify/dist/ReactToastify.css'
 import './styles/global.css'
 import { installAuthFetchInterceptor } from './services/api'
 
-// Auto-heal path: jika URL dibuka tanpa base prefix (misal http://localhost:8401/layanan/konsultasi)
-const rawBase = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
-if (rawBase && rawBase !== '' && !window.location.pathname.startsWith(rawBase + '/') && window.location.pathname !== rawBase) {
-  const normalizedPath = window.location.pathname.startsWith('/')
-    ? window.location.pathname
-    : '/' + window.location.pathname
-  window.location.replace(rawBase + normalizedPath + window.location.search + window.location.hash)
-}
-
 installAuthFetchInterceptor()
+
+// Basename dinamis: jika dibuka via subpath /simojang (kanreg3.id/simojang/), gunakan /simojang
+// Jika dibuka di root lokal http://localhost:8401/, gunakan root /
+const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/'
+const dynamicBasename = currentPath.startsWith('/simojang') ? '/simojang' : '/'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <BrowserRouter basename={import.meta.env.BASE_URL}>
+    <BrowserRouter basename={dynamicBasename}>
       <AppRouter />
       <ToastContainer position="top-center" autoClose={3000} hideProgressBar />
     </BrowserRouter>

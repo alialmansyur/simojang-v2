@@ -120,10 +120,10 @@ export function extractErrorMessage(body, fallbackMessage, status = 0) {
 
 export function handleUnauthorizedSession({ skipRedirect = false } = {}) {
   clearAuthSession()
-  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+  const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+  const base = currentPath.startsWith('/simojang') ? '/simojang' : ''
   const loginPath = `${base}/login`
   if (typeof window !== 'undefined') {
-    const currentPath = window.location.pathname
     const isAlreadyOnLogin = currentPath === loginPath || currentPath.endsWith('/login')
     if (!skipRedirect && !isAlreadyOnLogin) {
       window.location.replace(`${loginPath}?reason=expired`)
