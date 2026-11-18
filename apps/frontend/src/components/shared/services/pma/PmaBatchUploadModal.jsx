@@ -210,7 +210,11 @@ export function PmaBatchUploadModal({
               </div>
             </div>
             <a
-              href={resolveAssetUrl(activeTemplateUrl)}
+              href={resolveAssetUrl(
+                (activeTemplateUrl || '/templates/general/template-general.xlsx') +
+                  ((activeTemplateUrl || '').includes('?') ? '&' : '?') +
+                  `v=${Date.now()}`
+              )}
               download={activeTemplateName}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-emerald-600 dark:hover:text-emerald-400 shadow-2xs transition-all shrink-0 cursor-pointer"
             >

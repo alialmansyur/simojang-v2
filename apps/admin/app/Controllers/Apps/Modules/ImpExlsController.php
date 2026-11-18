@@ -132,25 +132,38 @@ class ImpExlsController extends BaseController
         ]);
     }
 
+    private function cleanInt($val): ?int
+    {
+        if ($val === null) {
+            return null;
+        }
+        $str = trim((string) $val);
+        if ($str === '') {
+            return null;
+        }
+        $clean = preg_replace('/[^0-9-]/', '', $str);
+        return $clean !== '' ? (int) $clean : null;
+    }
+
     private function getMapperForJenis($jenis, $sessname, $logID){
         if ($jenis === '2') {
             return function ($row) use ($sessname, $logID) {
-                $instansiID = $this->apps->getInstansiID($row[1]);
+                $instansiID = $this->apps->getInstansiID($row[1] ?? '');
                 return [
                     'upload_id'         => $logID,
                     'instansi_id'       => $instansiID,
-                    'formasi'           => $row[2],
-                    'belum_terisi'      => $row[3],
-                    'pembatalan_pertek' => $row[4],
-                    'usul_masuk'        => $row[5],
-                    'ms'                => $row[6],
-                    'bts'               => $row[7],
-                    'tms'               => $row[8],
-                    'sisa'              => $row[11],
-                    'sudah_cetak'       => $row[13],
-                    'belum_cetak'       => $row[15],
+                    'formasi'           => $this->cleanInt($row[2] ?? null),
+                    'belum_terisi'      => $this->cleanInt($row[3] ?? null),
+                    'pembatalan_pertek' => $this->cleanInt($row[4] ?? null),
+                    'usul_masuk'        => $this->cleanInt($row[5] ?? null),
+                    'ms'                => $this->cleanInt($row[6] ?? null),
+                    'bts'               => $this->cleanInt($row[7] ?? null),
+                    'tms'               => $this->cleanInt($row[8] ?? null),
+                    'sisa'              => $this->cleanInt($row[11] ?? null),
+                    'sudah_cetak'       => $this->cleanInt($row[13] ?? null),
+                    'belum_cetak'       => $this->cleanInt($row[15] ?? null),
                     // 'serah_terima_sk'  => ExcelUploader::excelDate($row[9]),
-                    'keterangan'        => $row[17],
+                    'keterangan'        => $row[17] ?? null,
                     'sk_cpppk_proses' => !empty($row[18]) ? 'Y' : 'N',
                     'sk_cpppk_done'   => !empty($row[19]) ? 'Y' : 'N',
                     'usul_input'      => !empty($row[20]) ? 'Y' : 'N',
@@ -167,20 +180,20 @@ class ImpExlsController extends BaseController
 
         if (in_array($jenis, ['3','4','5','6','7','8','9','10','11','12'])) {
             return function ($row) use ($sessname, $logID) {
-                $instansiID = $this->apps->getInstansiID($row[1]);
+                $instansiID = $this->apps->getInstansiID($row[1] ?? '');
                 return [
                     'upload_id'    => $logID,
                     'instansi_id'  => $instansiID,
-                    'target_tahun' => $row[2],
-                    'target_bulan' => $row[3],
-                    'usul_masuk'   => $row[4],
-                    'ms'           => $row[5],
-                    'bts'          => $row[6],
-                    'tms'          => $row[7],
-                    'sisa'         => $row[8],
-                    'sla_bawah'    => $row[9],
-                    'sla_atas'     => $row[10],
-                    'keterangan'   => $row[11],
+                    'target_tahun' => $this->cleanInt($row[2] ?? null),
+                    'target_bulan' => $this->cleanInt($row[3] ?? null),
+                    'usul_masuk'   => $this->cleanInt($row[4] ?? null),
+                    'ms'           => $this->cleanInt($row[5] ?? null),
+                    'bts'          => $this->cleanInt($row[6] ?? null),
+                    'tms'          => $this->cleanInt($row[7] ?? null),
+                    'sisa'         => $this->cleanInt($row[8] ?? null),
+                    'sla_bawah'    => $this->cleanInt($row[9] ?? null),
+                    'sla_atas'     => $this->cleanInt($row[10] ?? null),
+                    'keterangan'   => $row[11] ?? null,
                     'created_by'   => $sessname,
                 ];
             };

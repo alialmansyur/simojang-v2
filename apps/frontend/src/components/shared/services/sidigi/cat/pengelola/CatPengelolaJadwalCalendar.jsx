@@ -9,6 +9,7 @@ import {
   FileStack,
   FileCheck2,
   BarChart3,
+  Link2,
   Edit3,
   Trash2,
   Clock,
@@ -57,6 +58,7 @@ export function CatPengelolaJadwalCalendar({
   onEdit,
   onDelete,
   onLinkSt,
+  onOpenAssignRekap,
   onOpenRekap,
   onOpenTim,
   onOpenDokumen,
@@ -487,6 +489,14 @@ export function CatPengelolaJadwalCalendar({
                     </div>
 
                     <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onOpenAssignRekap?.(row)}
+                        className="p-1 rounded-lg text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40 cursor-pointer"
+                        title="Lihat & Tautkan Rekap Lapangan"
+                      >
+                        <Link2 className="w-3.5 h-3.5" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => onLinkSt?.(row)}

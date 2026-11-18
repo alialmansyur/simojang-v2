@@ -1,10 +1,13 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { X, CalendarClock, FileCheck2, Info } from 'lucide-react'
+import { X, CalendarClock, FileCheck2, Info, Plus } from 'lucide-react'
 import { SearchableSelect } from '../../../../../ui/SearchableSelect'
+import { CatQuickAddEventModal } from '../CatQuickAddEventModal'
+import { CatQuickAddTilokModal } from '../CatQuickAddTilokModal'
+import { CatQuickAddInstansiModal } from '../CatQuickAddInstansiModal'
 import {
   fetchCatMasterJenisTes,
   fetchCatPengelolaMasterJenisPeriode,
@@ -12,6 +15,9 @@ import {
   fetchCatPengelolaMasterTilok,
   fetchCatInstansiMasterOptions,
   saveCatPengelolaJadwal,
+  saveCatKegiatanSeleksi,
+  saveCatTilok,
+  saveCatTilokInstansi,
 } from '../../../../../../services/api/sidigiCatServicesApi'
 
 const jadwalSchema = z.object({
@@ -36,6 +42,7 @@ export function CatPengelolaJadwalModal({
   onSuccess,
   editingItem = null,
   initialDates = null,
+  initialFilter = null,
 }) {
   const [jenisTesList, setJenisTesList] = useState([])
   const [jenisPeriodeList, setJenisPeriodeList] = useState([])
@@ -47,6 +54,11 @@ export function CatPengelolaJadwalModal({
   const [loadingMaster, setLoadingMaster] = useState(false)
   const [submitError, setSubmitError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Quick Add State
+  const [isAddEventOpen, setIsAddEventOpen] = useState(false)
+  const [isAddTilokOpen, setIsAddTilokOpen] = useState(false)
+  const [isAddInstansiOpen, setIsAddInstansiOpen] = useState(false)
 
   const {
     register,
@@ -78,27 +90,33 @@ export function CatPengelolaJadwalModal({
   const watchedJenisTes = watch('jenis_tes_id')
   const watchedJenisPeriode = watch('jenis_periode_id')
   const watchedSeleksi = watch('seleksi_id')
+  const watchedTilok = watch('tilok_id')
   const watchedStMenyusul = watch('st_menyusul')
+
+  const loadMasterData = useCallback(async () => {
+    try {
+      setLoadingMaster(true)
+      const [jt, jp, sel, tlk, ins] = await Promise.all([
+        fetchCatMasterJenisTes('').catch(() => []),
+        fetchCatPengelolaMasterJenisPeriode({}).catch(() => []),
+        fetchCatPengelolaMasterKegiatan({}).catch(() => []),
+        fetchCatPengelolaMasterTilok({}).catch(() => []),
+        fetchCatInstansiMasterOptions('').catch(() => []),
+      ])
+      setJenisTesList(Array.isArray(jt) ? jt : [])
+      setJenisPeriodeList(Array.isArray(jp) ? jp : [])
+      setSeleksiList(Array.isArray(sel) ? sel : [])
+      setTilokList(Array.isArray(tlk) ? tlk : [])
+      setInstansiList(Array.isArray(ins) ? ins : [])
+    } finally {
+      setLoadingMaster(false)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isOpen) return
-    setLoadingMaster(true)
-    Promise.all([
-      fetchCatMasterJenisTes('').catch(() => []),
-      fetchCatPengelolaMasterJenisPeriode({}).catch(() => []),
-      fetchCatPengelolaMasterKegiatan({}).catch(() => []),
-      fetchCatPengelolaMasterTilok({}).catch(() => []),
-      fetchCatInstansiMasterOptions('').catch(() => []),
-    ])
-      .then(([jt, jp, sel, tlk, ins]) => {
-        setJenisTesList(Array.isArray(jt) ? jt : [])
-        setJenisPeriodeList(Array.isArray(jp) ? jp : [])
-        setSeleksiList(Array.isArray(sel) ? sel : [])
-        setTilokList(Array.isArray(tlk) ? tlk : [])
-        setInstansiList(Array.isArray(ins) ? ins : [])
-      })
-      .finally(() => setLoadingMaster(false))
-  }, [isOpen])
+    loadMasterData()
+  }, [isOpen, loadMasterData])
 
   useEffect(() => {
     if (!isOpen) return
@@ -133,12 +151,22 @@ export function CatPengelolaJadwalModal({
       setSelectedInstansiIds(multi)
       setPrimaryInstansiId(editingItem.instansi_id ? String(editingItem.instansi_id) : multi[0] || '')
     } else {
+      let initialJpId = ''
+      if (initialFilter?.jenisTesId && initialFilter?.tahun && jenisPeriodeList.length > 0) {
+        const m = jenisPeriodeList.find(
+          (jp) =>
+            String(jp.jenis_tes_id) === String(initialFilter.jenisTesId) &&
+            String(jp.periode) === String(initialFilter.tahun)
+        )
+        if (m) initialJpId = String(m.id)
+      }
+
       reset({
         uid: '',
-        jenis_tes_id: '',
-        jenis_periode_id: '',
-        seleksi_id: '',
-        tilok_id: '',
+        jenis_tes_id: initialFilter?.jenisTesId ? String(initialFilter.jenisTesId) : '',
+        jenis_periode_id: initialJpId,
+        seleksi_id: initialFilter?.seleksiId ? String(initialFilter.seleksiId) : '',
+        tilok_id: initialFilter?.tilokId ? String(initialFilter.tilokId) : '',
         nama_jadwal: '',
         tanggal_mulai: initialDates?.startDate || '',
         tanggal_selesai: initialDates?.endDate || initialDates?.startDate || '',
@@ -151,7 +179,7 @@ export function CatPengelolaJadwalModal({
       setSelectedInstansiIds([])
       setPrimaryInstansiId('')
     }
-  }, [isOpen, editingItem, initialDates, reset])
+  }, [isOpen, editingItem, initialDates, initialFilter, jenisPeriodeList, reset])
 
   // Auto-resolve jenis_periode_id when editing legacy jadwal rows that only saved jenis_tes_id + seleksi_periode
   useEffect(() => {
@@ -166,6 +194,73 @@ export function CatPengelolaJadwalModal({
       setValue('jenis_periode_id', String(matched.id))
     }
   }, [isOpen, editingItem, watchedJenisPeriode, jenisPeriodeList, setValue])
+
+  // Auto-resolve jenis_periode_id and prefill values for new jadwal from initialFilter
+  useEffect(() => {
+    if (!isOpen || editingItem) return
+
+    // 1. Prefill jenis_tes_id if empty but present in initialFilter
+    if (initialFilter?.jenisTesId && !watchedJenisTes) {
+      setValue('jenis_tes_id', String(initialFilter.jenisTesId))
+    }
+
+    // 2. Prefill jenis_periode_id if empty
+    if (!watchedJenisPeriode && jenisPeriodeList.length > 0) {
+      const targetJt = String(watchedJenisTes || initialFilter?.jenisTesId || '')
+      const targetPeriod = String(initialFilter?.tahun || '')
+      if (targetJt) {
+        let matched = null
+        if (targetPeriod) {
+          matched = jenisPeriodeList.find(
+            (jp) => String(jp.jenis_tes_id) === targetJt && String(jp.periode) === targetPeriod
+          )
+        }
+        if (!matched) {
+          const candidates = jenisPeriodeList.filter((jp) => String(jp.jenis_tes_id) === targetJt)
+          if (candidates.length === 1) matched = candidates[0]
+        }
+        if (matched) {
+          setValue('jenis_periode_id', String(matched.id))
+        }
+      }
+    }
+
+    // 3. Prefill seleksi_id if empty but present in initialFilter
+    if (initialFilter?.seleksiId && !watchedSeleksi) {
+      setValue('seleksi_id', String(initialFilter.seleksiId))
+    }
+
+    // 4. Prefill tilok_id if empty but present in initialFilter
+    if (initialFilter?.tilokId && !watchedTilok) {
+      setValue('tilok_id', String(initialFilter.tilokId))
+    }
+  }, [
+    isOpen,
+    editingItem,
+    initialFilter,
+    watchedJenisTes,
+    watchedJenisPeriode,
+    watchedSeleksi,
+    watchedTilok,
+    jenisPeriodeList,
+    setValue,
+  ])
+
+  // Auto-suggest nama_jadwal if user hasn't typed one and seleksi is chosen
+  useEffect(() => {
+    if (!isOpen || editingItem) return
+    const currentName = watch('nama_jadwal')
+    if (currentName) return
+
+    if (watchedSeleksi && seleksiList.length > 0) {
+      const sel = seleksiList.find((s) => String(s.id) === String(watchedSeleksi))
+      const tlk = tilokList.find((t) => String(t.id) === String(watchedTilok))
+      if (sel) {
+        const suggestion = tlk ? `${sel.nama_seleksi} - ${tlk.nama_tilok}` : sel.nama_seleksi
+        setValue('nama_jadwal', suggestion)
+      }
+    }
+  }, [isOpen, editingItem, watchedSeleksi, watchedTilok, seleksiList, tilokList, setValue, watch])
 
   const selectedJp = useMemo(
     () => jenisPeriodeList.find((jp) => String(jp.id) === String(watchedJenisPeriode)) || null,
@@ -318,6 +413,21 @@ export function CatPengelolaJadwalModal({
             </div>
           )}
 
+          {!editingItem &&
+            Boolean(
+              initialFilter?.tahun ||
+                initialFilter?.jenisTesId ||
+                initialFilter?.seleksiId ||
+                initialFilter?.tilokId
+            ) && (
+              <div className="p-3 rounded-xl bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-xs text-[#175CD3] dark:text-blue-300 flex items-center gap-2">
+                <Info className="w-4 h-4 shrink-0 text-[#175CD3] dark:text-blue-400" />
+                <span>
+                  Parameter formulir otomatis diisi berdasarkan <strong>Filter Parameter Pelaksanaan</strong> yang sedang aktif. Anda tetap dapat mengubahnya sesuai kebutuhan.
+                </span>
+              </div>
+            )}
+
           {/* Tier 1 & 2: Jenis Tes -> Periode */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
@@ -380,9 +490,21 @@ export function CatPengelolaJadwalModal({
           {/* Tier 3 & 4: Kegiatan -> Tilok */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
-                3. Kegiatan / Seleksi <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between gap-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  3. Kegiatan / Seleksi <span className="text-rose-500">*</span>
+                </label>
+                {watchedJenisTes && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddEventOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#175CD3] dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Tambah Baru</span>
+                  </button>
+                )}
+              </div>
               <Controller
                 name="seleksi_id"
                 control={control}
@@ -408,9 +530,21 @@ export function CatPengelolaJadwalModal({
             </div>
 
             <div className="space-y-1">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
-                4. Titik Lokasi (Tilok) <span className="text-rose-500">*</span>
-              </label>
+              <div className="flex items-center justify-between gap-1">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-200">
+                  4. Titik Lokasi (Tilok) <span className="text-rose-500">*</span>
+                </label>
+                {watchedSeleksi && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddTilokOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#175CD3] dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Tambah Baru</span>
+                  </button>
+                )}
+              </div>
               <Controller
                 name="tilok_id"
                 control={control}
@@ -503,9 +637,21 @@ export function CatPengelolaJadwalModal({
               <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">
                 Instansi Terkait (Opsional — Bisa Kosong atau Banyak Instansi)
               </label>
-              <span className="text-[11px] text-slate-500">
-                {selectedInstansiIds.length} dipilih
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500">
+                  {selectedInstansiIds.length} dipilih
+                </span>
+                {watchedTilok && (
+                  <button
+                    type="button"
+                    onClick={() => setIsAddInstansiOpen(true)}
+                    className="inline-flex items-center gap-1 text-[11px] font-bold text-[#175CD3] dark:text-blue-400 hover:underline cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Daftarkan ke Tilok</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <SearchableSelect
@@ -629,6 +775,46 @@ export function CatPengelolaJadwalModal({
           </div>
         </form>
       </div>
+
+      {/* QUICK ADD EVENT MODAL */}
+      <CatQuickAddEventModal
+        isOpen={isAddEventOpen}
+        onClose={() => setIsAddEventOpen(false)}
+        onSuccess={async () => {
+          await loadMasterData()
+        }}
+        jenisTesId={watchedJenisTes}
+        periodeTahun={selectedJp?.periode || new Date().getFullYear()}
+        onSubmitFn={saveCatKegiatanSeleksi}
+      />
+
+      {/* QUICK ADD TILOK MODAL */}
+      <CatQuickAddTilokModal
+        isOpen={isAddTilokOpen}
+        onClose={() => setIsAddTilokOpen(false)}
+        onSuccess={async () => {
+          await loadMasterData()
+        }}
+        jenisPeriodeId={watchedJenisPeriode}
+        jenisTesId={watchedJenisTes}
+        seleksiId={watchedSeleksi}
+        periodeTahun={selectedJp?.periode || new Date().getFullYear()}
+        onSubmitFn={saveCatTilok}
+      />
+
+      {/* QUICK ADD INSTANSI MODAL */}
+      <CatQuickAddInstansiModal
+        isOpen={isAddInstansiOpen}
+        onClose={() => setIsAddInstansiOpen(false)}
+        onSuccess={async () => {
+          await loadMasterData()
+        }}
+        tilokId={watchedTilok}
+        tilokNama={
+          tilokList.find((t) => String(t.id) === String(watchedTilok))?.nama_tilok || ''
+        }
+        onSubmitFn={saveCatTilokInstansi}
+      />
     </div>,
     document.body
   )

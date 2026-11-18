@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import { X, Save, Loader2, AlertCircle } from 'lucide-react'
 import { SearchableSelect } from '../../../SearchableSelect'
 import {
@@ -71,10 +72,15 @@ export function PnbpFormModal({
         keterangan: keterangan || 'Dokumen Pertanggungjawaban Seleksi PNBP CAT',
       })
 
+      const successMsg = 'Dokumen pertanggungjawaban PNBP CAT berhasil dibuat.'
+      toast.success(successMsg)
+
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menyimpan dokumen PNBP.')
+      const errMsg = err.message || 'Gagal menyimpan dokumen PNBP.'
+      setErrorMsg(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsSubmitting(false)
     }

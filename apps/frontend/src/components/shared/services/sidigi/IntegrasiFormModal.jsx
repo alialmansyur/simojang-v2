@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import { X, Save, Loader2, AlertCircle, Link as LinkIcon, Video } from 'lucide-react'
 import { SearchableSelect } from '../../../SearchableSelect'
 import {
@@ -102,10 +103,17 @@ export function IntegrasiFormModal({
         video_url: videoUrl || buktiDukung || 'https://siasn.bkn.go.id',
       })
 
+      const successMsg = editingItem
+        ? 'Status integrasi instansi berhasil diperbarui.'
+        : 'Pencatatan tahapan integrasi berhasil disimpan.'
+      toast.success(successMsg)
+
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menyimpan status integrasi.')
+      const errMsg = err.message || 'Gagal menyimpan status integrasi.'
+      setErrorMsg(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsSubmitting(false)
     }

@@ -152,7 +152,7 @@ export default function NspkPage() {
     },
   ]
 
-  // 6 Kolom Standar (Bold Typography, 100% data aktual txn_nspk)
+  // 5 Kolom Standar (Bold Typography, 100% data aktual txn_nspk)
   const columns = [
     {
       header: (
@@ -174,14 +174,6 @@ export default function NspkPage() {
       header: (
         <div className="flex items-center gap-1.5 cursor-default font-bold">
           <span>PREDIKAT LEVEL</span>
-          <ArrowUpDown className="w-3 h-3 text-slate-400" />
-        </div>
-      ),
-    },
-    {
-      header: (
-        <div className="flex items-center gap-1.5 cursor-default font-bold">
-          <span>NILAI INDEKS AKTUAL</span>
           <ArrowUpDown className="w-3 h-3 text-slate-400" />
         </div>
       ),
@@ -212,14 +204,6 @@ export default function NspkPage() {
     const levelKey = String(item.level || 'B').toUpperCase()
     const lc = levelMap[levelKey] || levelMap.B
     const kodeInstansi = item.kodeins || item.instansi_id
-    const hasActualNilai =
-      item.nilai !== null && item.nilai !== undefined && String(item.nilai).trim() !== ''
-    const formattedNilai = hasActualNilai
-      ? Number(item.nilai).toLocaleString('id-ID', {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })
-      : null
 
     return (
       <tr
@@ -267,29 +251,11 @@ export default function NspkPage() {
           <span
             className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border whitespace-nowrap ${lc.color}`}
           >
-            Level {levelKey} — {lc.label}
+            Level {levelKey}
           </span>
         </td>
 
-        {/* Kolom 4 — NILAI INDEKS AKTUAL */}
-        <td className="py-3.5 px-4 sm:px-5 font-semibold">
-          {formattedNilai ? (
-            <div>
-              <span className="font-extrabold text-sm text-slate-900 dark:text-white tabular-nums">
-                {formattedNilai}
-              </span>
-              <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 ml-1">
-                / 100
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs font-semibold text-slate-400 dark:text-slate-500">
-              Belum Tercatat
-            </span>
-          )}
-        </td>
-
-        {/* Kolom 5 — TANGGAL */}
+        {/* Kolom 4 — TANGGAL */}
         <td className="py-3.5 px-4 sm:px-5 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -297,7 +263,7 @@ export default function NspkPage() {
           </div>
         </td>
 
-        {/* Kolom 6 — PETUGAS */}
+        {/* Kolom 5 — PETUGAS */}
         <td className="py-3.5 px-4 sm:px-5 whitespace-nowrap text-xs text-slate-700 dark:text-slate-200">
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -310,7 +276,7 @@ export default function NspkPage() {
           </div>
         </td>
 
-        {/* Kolom 7 — AKSI */}
+        {/* Kolom 6 — AKSI */}
         <td className="py-3.5 px-4 sm:px-5 font-medium">
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap text-right">
             <button

@@ -65,6 +65,84 @@ class DMSData extends BaseController
 
         $insertID = $this->apps->storeData($dataLog, 'txn_dms');
 
+        $firstDataRow = $rows[2] ?? [];
+        $headerRow = $rows[1] ?? [];
+        $headerStr = strtolower(implode(' ', array_map('strval', $headerRow)));
+
+        $isCapaianFormat = str_contains($headerStr, 'skor')
+            || str_contains($headerStr, 'keterangan')
+            || (isset($firstDataRow[1]) && !is_numeric($firstDataRow[1]) && isset($firstDataRow[2]) && is_numeric(str_replace(',', '.', (string) $firstDataRow[2])));
+
+        if ($isCapaianFormat) {
+            $entryBatch = [];
+            foreach (array_slice($rows, 2) as $row) {
+                $noRaw = trim((string) ($row[0] ?? ''));
+                if ($noRaw === '' || !is_numeric($noRaw)) {
+                    continue;
+                }
+
+                $instansiName = trim((string) ($row[1] ?? ''));
+                if ($instansiName === '') {
+                    continue;
+                }
+
+                $insId = $this->resolveInstansiIdFromName($instansiName);
+                if (!$insId) {
+                    continue;
+                }
+
+                $skorArsip     = (float) str_replace(',', '.', (string) ($row[2] ?? 0));
+                $keterangan    = trim((string) ($row[3] ?? 'Lengkap'));
+                $totalPns      = (int) ExcelUploader::cleanNumber($row[4] ?? 0);
+                $statusCpns    = (int) ExcelUploader::cleanNumber($row[5] ?? 0);
+                $statusPns     = (int) ExcelUploader::cleanNumber($row[6] ?? 0);
+                $sangatLengkap = (int) ExcelUploader::cleanNumber($row[7] ?? 0);
+                $lengkap       = (int) ExcelUploader::cleanNumber($row[8] ?? 0);
+                $cukupLengkap  = (int) ExcelUploader::cleanNumber($row[9] ?? 0);
+                $kurangLengkap = (int) ExcelUploader::cleanNumber($row[10] ?? 0);
+
+                $entryBatch[] = [
+                    'action'                => 'upload',
+                    'scema_group'           => substr('dms_log_' . $insertID, 0, 18),
+                    'instansi_id'           => $insId,
+                    'period'                => substr($period, 0, 30),
+                    'period_date'           => $syncdate1,
+                    'period_start_date'     => $syncdate1,
+                    'period_end_date'       => $syncdate2,
+                    'jenis'                 => 'Capaian Digitalisasi Arsip',
+                    'total'                 => $totalPns,
+                    'skor_arsip'            => $skorArsip,
+                    'keterangan'            => $keterangan,
+                    'total_pns'             => $totalPns,
+                    'status_cpns'           => $statusCpns,
+                    'status_pns'            => $statusPns,
+                    'jumlah_sangat_lengkap' => $sangatLengkap,
+                    'jumlah_lengkap'        => $lengkap,
+                    'jumlah_cukup_lengkap'  => $cukupLengkap,
+                    'jumlah_kurang_lengkap' => $kurangLengkap,
+                    'created_by'            => $username,
+                ];
+            }
+
+            if (!empty($entryBatch)) {
+                $this->apps->insertBatchData($entryBatch, 'txn_dms_entry');
+                $this->apps->storeData(
+                    [
+                        'layanan_id' => 26,
+                        'tanggal'    => date('Y-m-d'),
+                        'created_by' => $username,
+                    ],
+                    'activity_daily_logs'
+                );
+            }
+
+            return $this->response->setJSON([
+                'status'  => 'success',
+                'message' => 'Upload data capaian arsip DMS berhasil diproses. ' . count($entryBatch) . ' instansi diperbarui.',
+                'total'   => count($entryBatch),
+            ]);
+        }
+
         $syncDate        = date('Y-m-d H:i:s');
         $mappingFunction = $this->getMapperForJenis('DMS', $insertID, $syncDate, $instansi);
 
@@ -155,7 +233,7 @@ class DMSData extends BaseController
                 ]);
             }
 
-            $this->apps->updateData([
+            $updateFields = [
                 'instansi_id'       => $instansi,
                 'period'            => substr($periode, 0, 30),
                 'period_date'       => $startdate,
@@ -164,7 +242,37 @@ class DMSData extends BaseController
                 'jenis'             => $firstJenis,
                 'total'             => $firstTotal,
                 'updated_at'        => date('Y-m-d H:i:s'),
-            ], $key, 'txn_dms_entry');
+            ];
+
+            if ($this->request->getPost('skor_arsip') !== null) {
+                $updateFields['skor_arsip'] = (float) str_replace(',', '.', (string) $this->request->getPost('skor_arsip'));
+            }
+            if ($this->request->getPost('keterangan')) {
+                $updateFields['keterangan'] = trim((string) $this->request->getPost('keterangan'));
+            }
+            if ($this->request->getPost('total_pns') !== null) {
+                $updateFields['total_pns'] = (int) $this->request->getPost('total_pns');
+            }
+            if ($this->request->getPost('status_cpns') !== null) {
+                $updateFields['status_cpns'] = (int) $this->request->getPost('status_cpns');
+            }
+            if ($this->request->getPost('status_pns') !== null) {
+                $updateFields['status_pns'] = (int) $this->request->getPost('status_pns');
+            }
+            if ($this->request->getPost('jumlah_sangat_lengkap') !== null) {
+                $updateFields['jumlah_sangat_lengkap'] = (int) $this->request->getPost('jumlah_sangat_lengkap');
+            }
+            if ($this->request->getPost('jumlah_lengkap') !== null) {
+                $updateFields['jumlah_lengkap'] = (int) $this->request->getPost('jumlah_lengkap');
+            }
+            if ($this->request->getPost('jumlah_cukup_lengkap') !== null) {
+                $updateFields['jumlah_cukup_lengkap'] = (int) $this->request->getPost('jumlah_cukup_lengkap');
+            }
+            if ($this->request->getPost('jumlah_kurang_lengkap') !== null) {
+                $updateFields['jumlah_kurang_lengkap'] = (int) $this->request->getPost('jumlah_kurang_lengkap');
+            }
+
+            $this->apps->updateData($updateFields, $key, 'txn_dms_entry');
 
             return $this->response->setJSON([
                 'status'  => 'success',
@@ -187,16 +295,25 @@ class DMSData extends BaseController
             }
 
             $dataBatch[] = [
-                'action'            => 'manual',
-                'scema_group'       => $scema_group,
-                'instansi_id'       => $instansi,
-                'period'            => substr($periode, 0, 30),
-                'period_date'       => $startdate,
-                'period_start_date' => $startdate,
-                'period_end_date'   => $enddate,
-                'jenis'             => $n,
-                'total'             => $val,
-                'created_by'        => $username,
+                'action'                => 'manual',
+                'scema_group'           => $scema_group,
+                'instansi_id'           => $instansi,
+                'period'                => substr($periode, 0, 30),
+                'period_date'           => $startdate,
+                'period_start_date'     => $startdate,
+                'period_end_date'       => $enddate,
+                'jenis'                 => $n,
+                'total'                 => $val,
+                'skor_arsip'            => (float) str_replace(',', '.', (string) ($this->request->getPost('skor_arsip') ?? 0)),
+                'keterangan'            => trim((string) ($this->request->getPost('keterangan') ?? 'Lengkap')),
+                'total_pns'             => (int) ($this->request->getPost('total_pns') ?? $val),
+                'status_cpns'           => (int) ($this->request->getPost('status_cpns') ?? 0),
+                'status_pns'            => (int) ($this->request->getPost('status_pns') ?? $val),
+                'jumlah_sangat_lengkap' => (int) ($this->request->getPost('jumlah_sangat_lengkap') ?? 0),
+                'jumlah_lengkap'        => (int) ($this->request->getPost('jumlah_lengkap') ?? 0),
+                'jumlah_cukup_lengkap'  => (int) ($this->request->getPost('jumlah_cukup_lengkap') ?? 0),
+                'jumlah_kurang_lengkap' => (int) ($this->request->getPost('jumlah_kurang_lengkap') ?? 0),
+                'created_by'            => $username,
             ];
         }
 
@@ -332,5 +449,33 @@ class DMSData extends BaseController
             'status'  => true,
             'summary' => $this->dmsmodel->getSummary($bulan, $jenis),
         ]);
+    }
+
+    private function resolveInstansiIdFromName($name)
+    {
+        $name = trim((string) $name);
+        if ($name === '') {
+            return null;
+        }
+        if (is_numeric($name)) {
+            return (int) $name;
+        }
+
+        $norm = strtolower(str_replace('.', '', $name));
+        $db = \Config\Database::connect();
+
+        $row = $db->table('data_instansi')
+            ->select('kodeins, nama')
+            ->where("LOWER(REPLACE(nama, '.', '')) LIKE " . $db->escape('%' . $norm . '%'))
+            ->where("(kodeins LIKE '61%' OR kodeins LIKE '62%')")
+            ->orderBy('kodeins', 'ASC')
+            ->get()
+            ->getRow();
+
+        if ($row) {
+            return (int) $row->kodeins;
+        }
+
+        return (int) ($this->apps->getInstansiID($name) ?: 0);
     }
 }

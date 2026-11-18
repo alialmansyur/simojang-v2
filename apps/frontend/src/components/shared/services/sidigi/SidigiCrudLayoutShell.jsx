@@ -286,6 +286,30 @@ export function SidigiCrudLayoutShell({
     }
   }
 
+  const handleDeleteDetailRow = async (row) => {
+    const key = row.id || row.log_id
+    if (!key || !deleteDataFn) return
+    try {
+      await deleteDataFn(key, activeCategory)
+      toast.success('Riwayat periode berhasil dihapus.')
+      if (fetchDetailFn && selectedItem) {
+        const parentKey = selectedItem.id || selectedItem.disparitas_log_id || selectedItem.takah_log_id || selectedItem.dms_log_id || selectedItem.asn_log_id
+        const details = await fetchDetailFn(parentKey)
+        setDetailData(Array.isArray(details) && details.length > 0 ? details : [])
+      }
+      loadData()
+      loadSummary()
+    } catch (err) {
+      toast.error(err.message || 'Gagal menghapus riwayat.')
+    }
+  }
+
+  const handleEditDetailRow = (row) => {
+    setIsDetailOpen(false)
+    setEditingItem(row)
+    setIsFormOpen(true)
+  }
+
   const kpis = renderKpis ? renderKpis(summary, isSummaryLoading) : []
 
   return (
@@ -544,6 +568,8 @@ export function SidigiCrudLayoutShell({
         isLoading={detailLoading}
         type={detailType}
         selectedItem={selectedItem}
+        onEditRow={handleEditDetailRow}
+        onDeleteRow={handleDeleteDetailRow}
       />
 
       {/* Delete Confirmation Modal */}

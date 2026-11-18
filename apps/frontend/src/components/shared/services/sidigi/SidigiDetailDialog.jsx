@@ -16,6 +16,8 @@ import {
   Network,
   FileText,
   ExternalLink,
+  Edit3,
+  Trash2,
 } from 'lucide-react'
 
 const STAT_COLUMNS_MAP = {
@@ -111,6 +113,8 @@ export function SidigiDetailDialog({
   isLoading = false,
   type = 'generic',
   selectedItem = null,
+  onEditRow = null,
+  onDeleteRow = null,
 }) {
   const [searchTerm, setSearchTerm] = useState('')
   const [page, setPage] = useState(1)
@@ -496,17 +500,23 @@ export function SidigiDetailDialog({
               </table>
             </div>
           ) : type === 'dms' ? (
-            /* DMS Manual Entry Aggregate Table */
+            /* DMS Capaian / Manual Entry Aggregate Table */
             <div className="overflow-x-auto clean-scrollbar border border-slate-200/60 dark:border-slate-800 rounded-2xl">
               <table className="w-full text-left border-collapse text-xs whitespace-nowrap">
                 <thead>
                   <tr className="bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/60 dark:border-slate-800 text-[11px] font-bold text-slate-600 dark:text-slate-300 uppercase">
                     <th className="py-3 px-4">No</th>
                     <th className="py-3 px-4">Instansi Daerah</th>
-                    <th className="py-3 px-4">Jenis Dokumen Arsip</th>
-                    <th className="py-3 px-4">Periode</th>
-                    <th className="py-3 px-4 text-right">Total Dokumen</th>
-                    <th className="py-3 px-4">Petugas</th>
+                    <th className="py-3 px-4">Periode Data</th>
+                    <th className="py-3 px-4">Skor Arsip & Predikat</th>
+                    <th className="py-3 px-4">Populasi Pegawai</th>
+                    <th className="py-3 px-4 text-center">Sangat Lengkap</th>
+                    <th className="py-3 px-4 text-center">Lengkap</th>
+                    <th className="py-3 px-4 text-center">Cukup Lengkap</th>
+                    <th className="py-3 px-4 text-center">Kurang Lengkap</th>
+                    {(onEditRow || onDeleteRow) && (
+                      <th className="py-3 px-4 text-center">Aksi</th>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60 font-semibold">
@@ -518,18 +528,70 @@ export function SidigiDetailDialog({
                       <td className="py-3 px-4 font-bold text-slate-900 dark:text-white">
                         {row.nama_instansi || 'Instansi Daerah'}
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-700 dark:text-slate-300">
-                        {row.jenis || '-'}
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                        <span className="font-bold text-xs">{row.period || '-'}</span>
+                        <span className="text-[10px] text-slate-500 block">
+                          {formatDate(row.period_date || row.created_at)}
+                        </span>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-400">
-                        {row.period || '-'}
+                      <td className="py-3 px-4">
+                        {row.skor_arsip !== undefined && row.skor_arsip !== null ? (
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-[#175CD3] dark:text-blue-400">
+                              {Number(row.skor_arsip).toFixed(1)}%
+                            </span>
+                            <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200/60">
+                              {row.keterangan || '-'}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-500">{row.jenis || '-'}</span>
+                        )}
                       </td>
-                      <td className="py-3 px-4 text-right font-bold text-[#175CD3] dark:text-blue-400">
-                        {formatNumber(row.total || 0)} Dokumen
+                      <td className="py-3 px-4 text-slate-700 dark:text-slate-300">
+                        <span className="font-bold">{formatNumber(row.total_pns || row.total || 0)}</span>
+                        <span className="text-[10px] text-slate-500 block">
+                          {formatNumber(row.status_cpns || 0)} CPNS • {formatNumber(row.status_pns || row.total_pns || 0)} PNS
+                        </span>
                       </td>
-                      <td className="py-3 px-4 font-semibold text-slate-600 dark:text-slate-300">
-                        {row.created_by || row.upload_by || '-'}
+                      <td className="py-3 px-4 text-center tabular-nums text-emerald-600 dark:text-emerald-400 font-bold">
+                        {formatNumber(row.jumlah_sangat_lengkap || 0)}
                       </td>
+                      <td className="py-3 px-4 text-center tabular-nums text-blue-600 dark:text-blue-400 font-bold">
+                        {formatNumber(row.jumlah_lengkap || 0)}
+                      </td>
+                      <td className="py-3 px-4 text-center tabular-nums text-amber-600 dark:text-amber-400 font-bold">
+                        {formatNumber(row.jumlah_cukup_lengkap || 0)}
+                      </td>
+                      <td className="py-3 px-4 text-center tabular-nums text-rose-600 dark:text-rose-400 font-bold">
+                        {formatNumber(row.jumlah_kurang_lengkap || 0)}
+                      </td>
+                      {(onEditRow || onDeleteRow) && (
+                        <td className="py-3 px-4 text-center">
+                          <div className="flex items-center justify-center gap-1">
+                            {onEditRow && (
+                              <button
+                                type="button"
+                                onClick={() => onEditRow(row)}
+                                className="p-1 rounded-md text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                                title="Edit Riwayat Periode Ini"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            {onDeleteRow && (
+                              <button
+                                type="button"
+                                onClick={() => onDeleteRow(row)}
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title="Hapus Riwayat Periode Ini"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

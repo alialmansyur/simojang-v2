@@ -172,17 +172,25 @@ class DMSModel extends Model
             ")
             ->join('data_instansi b', 'b.kodeins = a.instansi_id', 'left')
             ->where('a.created_at >=', date('Y-01-01 00:00:00'))
-            ->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00')
-            ->groupBy('a.id')
-            ->orderBy('a.created_at', 'DESC');
+            ->where('a.created_at <', (date('Y') + 1) . '-01-01 00:00:00');
 
         if (!empty($bulan)) {
             $builder->whereIn('MONTH(COALESCE(NULLIF(a.period_date, "0000-00-00"), DATE(a.created_at)))', $bulan, false);
+        } else {
+            // Tampilkan snapshot nilai terakhir per instansi
+            $builder->join(
+                '(SELECT instansi_id, MAX(id) AS max_id FROM txn_dms_entry WHERE instansi_id > 0 GROUP BY instansi_id) latest',
+                'latest.max_id = a.id',
+                'inner'
+            );
         }
 
         if ($jenis !== '' && strtolower($jenis) !== 'all') {
             $builder->where('a.jenis', $jenis);
         }
+
+        $builder->orderBy('a.skor_arsip', 'DESC')
+            ->orderBy('a.total_pns', 'DESC');
 
         return $builder;
     }
@@ -195,39 +203,13 @@ class DMSModel extends Model
             ->get()
             ->getRowArray();
 
-        if ($entry && str_starts_with((string) ($entry['scema_group'] ?? ''), 'dms_log_')) {
-            $logId = (int) str_replace('dms_log_', '', (string) $entry['scema_group']);
-            $instansiId = (int) ($entry['instansi_id'] ?? 0);
-
-            $builder = $this->db->table('txn_dms_detail b')
-                ->select("
-                    b.dms_log_id AS log_id,
-                    a.period,
-                    a.period_start_date,
-                    a.period_end_date,
-                    b.*,
-                    c.logo,
-                    c.kodeins AS kode_instansi,
-                    c.nama AS nama_instansi,
-                    COALESCE(a.created_by, 'system') AS upload_by,
-                    b.created_at AS tanggal_upload,
-                    'detail_nip' AS detail_mode
-                ")
-                ->join('txn_dms a', 'a.id = b.dms_log_id', 'left')
-                ->join('data_instansi c', 'c.kodeins = b.instansi_id', 'left')
-                ->where('b.dms_log_id', $logId);
-
-            if ($instansiId > 0) {
-                $builder->where('b.instansi_id', $instansiId);
-            }
-
-            return $builder;
-        }
-
-        if ($entry && !empty($entry['scema_group'])) {
+        // Tampilkan riwayat historis per periode untuk instansi tersebut
+        if ($entry && !empty($entry['instansi_id'])) {
+            $instansiId = (int) $entry['instansi_id'];
             return $this->db->table('txn_dms_entry a')
                 ->select("
                     a.id AS log_id,
+                    a.id,
                     a.scema_group,
                     a.instansi_id,
                     a.period,
@@ -236,6 +218,15 @@ class DMSModel extends Model
                     a.period_end_date,
                     a.jenis,
                     a.total,
+                    a.skor_arsip,
+                    a.keterangan,
+                    a.total_pns,
+                    a.status_cpns,
+                    a.status_pns,
+                    a.jumlah_sangat_lengkap,
+                    a.jumlah_lengkap,
+                    a.jumlah_cukup_lengkap,
+                    a.jumlah_kurang_lengkap,
                     a.created_by,
                     a.created_at,
                     c.logo,
@@ -243,29 +234,15 @@ class DMSModel extends Model
                     c.nama AS nama_instansi,
                     a.created_by AS upload_by,
                     a.created_at AS tanggal_upload,
-                    'entry_summary' AS detail_mode
+                    'riwayat_instansi' AS detail_mode
                 ")
                 ->join('data_instansi c', 'c.kodeins = a.instansi_id', 'left')
-                ->where('a.scema_group', $entry['scema_group']);
+                ->where('a.instansi_id', $instansiId)
+                ->orderBy('a.period_date', 'DESC')
+                ->orderBy('a.id', 'DESC');
         }
 
-        return $this->db->table('txn_dms a')
-            ->select("
-                a.id AS log_id,
-                a.period_start_date,
-                a.period_end_date,
-                b.*,
-                c.logo,
-                c.kodeins AS kode_instansi,
-                c.nama AS nama_instansi,
-                a.created_by AS upload_by,
-                b.created_at AS tanggal_upload,
-                'detail_nip' AS detail_mode
-            ")
-            ->join('txn_dms_detail b', 'b.dms_log_id = a.id', 'left')
-            ->join('data_instansi c', 'c.kodeins = b.instansi_id', 'left')
-            ->where('b.instansi_id IS NOT NULL', null, false)
-            ->where('a.id', $key);
+        return $this->db->table('(SELECT 1 AS empty_col WHERE 1=0) AS dms_empty');
     }
 
     public function getSummary($bulan = [], string $jenis = '')
@@ -278,6 +255,9 @@ class DMSModel extends Model
             COUNT(DISTINCT instansi_id) AS total_instansi,
             COUNT(DISTINCT period) AS total_periode,
             SUM(COALESCE(total, 0)) AS total_dokumen,
+            ROUND(AVG(NULLIF(skor_arsip, 0)), 1) AS avg_skor,
+            SUM(CASE WHEN keterangan = 'Sangat Lengkap' THEN 1 ELSE 0 END) AS total_sangat_lengkap,
+            SUM(COALESCE(NULLIF(total_pns, 0), total, 0)) AS total_pegawai,
             MAX(COALESCE(updated_at, created_at)) AS last_update
         ", false);
         $builder->where('created_at >=', date('Y-01-01 00:00:00'));

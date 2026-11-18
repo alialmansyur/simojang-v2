@@ -233,7 +233,7 @@ class IntegrasiData extends BaseController
             $username = substr((string) ($sess['username'] ?? 'admin'), 0, 50);
             $now = date('Y-m-d H:i:s');
 
-            foreach (array_slice($rows, 1) as $row) {
+            foreach (array_slice($rows, 2) as $row) {
                 if (empty($row[0])) {
                     continue;
                 }

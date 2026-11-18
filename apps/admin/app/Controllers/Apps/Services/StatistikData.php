@@ -36,16 +36,12 @@ class StatistikData extends BaseController
         $period    = trim((string) ($this->request->getPost('period') ?: date('Y-m')));
         $syncdate1 = trim((string) ($this->request->getPost('syncdate1') ?: ($this->request->getPost('startdate') ?: date('Y-m-d'))));
         $syncdate2 = trim((string) ($this->request->getPost('syncdate2') ?: ($this->request->getPost('enddate') ?: $syncdate1)));
-        $jenis     = trim((string) $this->request->getPost('doc_category'));
+        $jenis     = trim((string) ($this->request->getPost('doc_category') ?: ($this->request->getPost('jenis') ?: $this->request->getPost('category'))));
 
-        $rules = [
-            'doc_category' => 'required',
-        ];
-
-        if (!$this->validate($rules)) {
+        if ($jenis === '' || !in_array($jenis, self::JENIS_LIST, true)) {
             return $this->response->setStatusCode(400)->setJSON([
                 'status'  => false,
-                'message' => $this->validator->getErrors()
+                'message' => 'Kategori demografi ASN wajib dipilih dan harus valid.'
             ]);
         }
 
@@ -95,7 +91,8 @@ class StatistikData extends BaseController
 
         $dataBatch = [];
         foreach (array_slice($rows, 2) as $row) {
-            if (empty($row[0])) {
+            $rawCode = trim((string) ($row[0] ?? ''));
+            if ($rawCode === '' || !is_numeric($rawCode)) {
                 continue;
             }
             $dataBatch[] = $mappingFunction($row);
@@ -214,9 +211,9 @@ class StatistikData extends BaseController
                         'pppk_pw_d2'  => ExcelUploader::cleanNumber($row[24] ?? 0),
                         'pppk_pw_d3'  => ExcelUploader::cleanNumber($row[25] ?? 0),
                         'pppk_pw_s1'  => ExcelUploader::cleanNumber($row[26] ?? 0),
-                        'pppk_pw_s2'  => ExcelUploader::cleanNumber($row[28] ?? 0),
-                        'pppk_pw_s3'  => ExcelUploader::cleanNumber($row[29] ?? 0),
-                        'jumlah'      => ExcelUploader::cleanNumber($row[30] ?? 0),
+                        'pppk_pw_s2'  => ExcelUploader::cleanNumber($row[27] ?? 0),
+                        'pppk_pw_s3'  => ExcelUploader::cleanNumber($row[28] ?? 0),
+                        'jumlah'      => ExcelUploader::cleanNumber($row[29] ?? 0),
                         'tanggal'     => $syncdate
                     ];
                 };

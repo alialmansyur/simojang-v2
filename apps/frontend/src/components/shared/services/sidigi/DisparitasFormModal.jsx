@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import { X, Save, Loader2, AlertCircle } from 'lucide-react'
 import { SearchableSelect } from '../../../SearchableSelect'
 import { fetchInstansiOptions, saveDisparitasData } from '../../../../services/api/sidigiServicesApi'
@@ -101,10 +102,17 @@ export function DisparitasFormModal({
         enddate: endDate,
       })
 
+      const successMsg = editingItem
+        ? 'Data disparitas anomali berhasil diperbarui.'
+        : 'Pencatatan data disparitas anomali berhasil disimpan.'
+      toast.success(successMsg)
+
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menyimpan anomali disparitas.')
+      const errMsg = err.message || 'Gagal menyimpan anomali disparitas.'
+      setErrorMsg(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsSubmitting(false)
     }

@@ -424,12 +424,21 @@ export function saveDmsData(payload) {
     period: payload.period || dateNowMonth(),
     startdate: payload.startdate || dateNowStart(),
     enddate: payload.enddate || dateNowEnd(),
+    skor_arsip: payload.skor_arsip !== undefined ? String(payload.skor_arsip) : undefined,
+    keterangan: payload.keterangan || undefined,
+    total_pns: payload.total_pns !== undefined ? String(payload.total_pns) : undefined,
+    status_cpns: payload.status_cpns !== undefined ? String(payload.status_cpns) : undefined,
+    status_pns: payload.status_pns !== undefined ? String(payload.status_pns) : undefined,
+    jumlah_sangat_lengkap: payload.jumlah_sangat_lengkap !== undefined ? String(payload.jumlah_sangat_lengkap) : undefined,
+    jumlah_lengkap: payload.jumlah_lengkap !== undefined ? String(payload.jumlah_lengkap) : undefined,
+    jumlah_cukup_lengkap: payload.jumlah_cukup_lengkap !== undefined ? String(payload.jumlah_cukup_lengkap) : undefined,
+    jumlah_kurang_lengkap: payload.jumlah_kurang_lengkap !== undefined ? String(payload.jumlah_kurang_lengkap) : undefined,
   })
 
   const items = Array.isArray(payload.items) ? payload.items : [payload]
   items.forEach((item, idx) => {
-    formData.append(`jenis[${idx}]`, item.jenis || 'Arsip Elektronik (PNS)')
-    formData.append(`total[${idx}]`, String(item.total ?? 0))
+    formData.append(`jenis[${idx}]`, item.jenis || 'Capaian Digitalisasi Arsip')
+    formData.append(`total[${idx}]`, String(item.total ?? payload.total_pns ?? 0))
   })
 
   return apiRequest('/store/save-data-dms', {

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import { X, Save, Loader2, AlertCircle } from 'lucide-react'
 import { SearchableSelect } from '../../../SearchableSelect'
 import { fetchInstansiOptions, saveTakahData } from '../../../../services/api/sidigiServicesApi'
@@ -158,10 +159,17 @@ export function TakahFormModal({
         pensiun,
       })
 
+      const successMsg = editingItem
+        ? 'Data arsip Takah berhasil diperbarui.'
+        : 'Pencatatan berkas Takah berhasil disimpan.'
+      toast.success(successMsg)
+
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menyimpan berkas Takah.')
+      const errMsg = err.message || 'Gagal menyimpan berkas Takah.'
+      setErrorMsg(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsSubmitting(false)
     }

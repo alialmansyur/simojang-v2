@@ -7,7 +7,7 @@ export default function SkPensiunPage() {
       serviceTitle="Penetapan SK Pensiun Janda/Duda Pensiunan PNS"
       shortTitle="SK Pensiun Janda/Duda"
       docType="Penetapan SK Pensiun Janda/Duda Pensiunan PNS"
-      sampleFile="/templates/general/template-general.xlsx"
+      sampleFile="/templates/snp/template-sk-pensiun-janda-duda.xlsx"
       sampleFileName="template-sk-pensiun-janda-duda.xlsx"
       description="Pengelolaan dan verifikasi berkas penetapan Surat Keputusan (SK) pensiun janda/duda pensiunan PNS wilayah kerja Kantor Regional III BKN Bandung."
       timKerjaTitle="Status & Pemberhentian"

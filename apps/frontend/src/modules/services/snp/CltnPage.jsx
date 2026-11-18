@@ -15,7 +15,7 @@ export default function CltnPage() {
       docType="Cuti Diluar Tanggungan Negara"
       categories={categories}
       defaultCategory="Pengajuan CLTN"
-      sampleFile="/templates/general/template-general.xlsx"
+      sampleFile="/templates/snp/template-cltn.xlsx"
       sampleFileName="template-cltn.xlsx"
       description="Pengelolaan dan verifikasi berkas pengajuan, perpanjangan, serta pengaktifan kembali dari Cuti di Luar Tanggungan Negara (CLTN)."
       timKerjaTitle="Status & Pemberhentian"

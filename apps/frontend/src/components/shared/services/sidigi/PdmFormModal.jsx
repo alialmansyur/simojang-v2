@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import { X, Save, Loader2, AlertCircle } from 'lucide-react'
 import { savePdmData } from '../../../../services/api/sidigiServicesApi'
 
@@ -93,10 +94,17 @@ export function PdmFormModal({
         items: [{ jenis, acc, btl, tms }],
       })
 
+      const successMsg = editingItem
+        ? 'Data peremajaan ASN berhasil diperbarui.'
+        : 'Pencatatan data peremajaan ASN berhasil disimpan.'
+      toast.success(successMsg)
+
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
-      setErrorMsg(err.message || 'Gagal menyimpan data peremajaan.')
+      const errMsg = err.message || 'Gagal menyimpan data peremajaan.'
+      setErrorMsg(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsSubmitting(false)
     }

@@ -142,7 +142,7 @@ export default function WasdalNetralitasPage() {
     },
   ]
 
-  // 6 Kolom Standar (Bold Typography)
+  // 5 Kolom Standar (Bold Typography)
   const columns = [
     {
       header: (
@@ -164,14 +164,6 @@ export default function WasdalNetralitasPage() {
       header: (
         <div className="flex items-center gap-1.5 cursor-default font-bold">
           <span>JENIS PELANGGARAN</span>
-          <ArrowUpDown className="w-3 h-3 text-slate-400" />
-        </div>
-      ),
-    },
-    {
-      header: (
-        <div className="flex items-center gap-1.5 cursor-default font-bold">
-          <span>TOTAL KASUS</span>
           <ArrowUpDown className="w-3 h-3 text-slate-400" />
         </div>
       ),
@@ -252,17 +244,7 @@ export default function WasdalNetralitasPage() {
           </span>
         </td>
 
-        {/* Kolom 4 — TOTAL KASUS */}
-        <td className="py-3.5 px-4 sm:px-5 font-semibold">
-          <span className="font-extrabold text-sm text-slate-900 dark:text-white tabular-nums">
-            {formatNumber(item.total)}
-          </span>
-          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 ml-1">
-            Kasus
-          </span>
-        </td>
-
-        {/* Kolom 5 — TANGGAL */}
+        {/* Kolom 4 — TANGGAL */}
         <td className="py-3.5 px-4 sm:px-5 whitespace-nowrap text-xs text-slate-600 dark:text-slate-300">
           <div className="flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -270,7 +252,7 @@ export default function WasdalNetralitasPage() {
           </div>
         </td>
 
-        {/* Kolom 6 — PETUGAS */}
+        {/* Kolom 5 — PETUGAS */}
         <td className="py-3.5 px-4 sm:px-5 whitespace-nowrap text-xs text-slate-700 dark:text-slate-200">
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -283,7 +265,7 @@ export default function WasdalNetralitasPage() {
           </div>
         </td>
 
-        {/* Kolom 7 — AKSI */}
+        {/* Kolom 6 — AKSI */}
         <td className="py-3.5 px-4 sm:px-5 font-medium">
           <div className="flex items-center justify-end gap-1.5 whitespace-nowrap text-right">
             <button

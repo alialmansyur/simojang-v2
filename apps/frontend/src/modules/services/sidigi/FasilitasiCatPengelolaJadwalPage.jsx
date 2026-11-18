@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import {
   Plus,
   CalendarClock,
@@ -15,9 +16,13 @@ import {
   Building2,
   AlertCircle,
   Calendar,
+  Link2,
+  Layers,
+  RotateCcw,
+  Search,
 } from 'lucide-react'
+import { SearchableSelect } from '../../../components/shared/SearchableSelect'
 import { PmaKpiGrid } from '../../../components/shared/services/pma/PmaKpiGrid'
-import { ServiceFilterToolbar } from '../../../components/shared/services/ServiceFilterToolbar'
 import { ServiceTablePagination } from '../../../components/shared/services/ServiceTablePagination'
 import { CatPengelolaGateGuard } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaGateGuard'
 import { CatPengelolaHeader } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaHeader'
@@ -25,6 +30,7 @@ import { CatPengelolaJadwalModal } from '../../../components/shared/services/sid
 import { CatPengelolaJadwalCalendar } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaJadwalCalendar'
 import { CatPengelolaLinkStModal } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaLinkStModal'
 import { CatPengelolaConfirmModal } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaConfirmModal'
+import { CatPengelolaAssignRekapModal } from '../../../components/shared/services/sidigi/cat/pengelola/CatPengelolaAssignRekapModal'
 import {
   JADWAL_STATUS_META,
   ST_STATUS_META,
@@ -60,8 +66,15 @@ function JadwalContent() {
   const [editingItem, setEditingItem] = useState(null)
   const [initialModalDates, setInitialModalDates] = useState(null)
   const [linkingJadwal, setLinkingJadwal] = useState(null)
+  const [assignRekapJadwal, setAssignRekapJadwal] = useState(null)
   const [deletingItem, setDeletingItem] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Cascading Filter Dropdown State (Parity dengan /rekap-data via SearchableSelect)
+  const [filterTahun, setFilterTahun] = useState('')
+  const [filterJenisTes, setFilterJenisTes] = useState('')
+  const [filterKegiatan, setFilterKegiatan] = useState('')
+  const [filterTilok, setFilterTilok] = useState('')
 
   const loadData = useCallback(async () => {
     try {
@@ -110,10 +123,127 @@ function JadwalContent() {
     }
   }, [rows])
 
+  // Ekstrak opsi hierarki filter dari master data & data rows untuk SearchableSelect (react-select)
+  const tahunSelectOptions = useMemo(() => {
+    const set = new Set(['2026', '2025', '2024', '2023'])
+    const curYear = new Date().getFullYear().toString()
+    set.add(curYear)
+
+    // Dari master jenis periode (cfg_cat_jenis_periode / txn_cat_jenis_periode)
+    jenisPeriodeList.forEach((jp) => {
+      if (jp.periode) set.add(String(jp.periode))
+    })
+
+    // Dari data jadwal aktual
+    rows.forEach((r) => {
+      const t =
+        r.jenis_periode_tahun ||
+        r.seleksi_periode ||
+        (r.tanggal_mulai ? r.tanggal_mulai.substring(0, 4) : null)
+      if (t) set.add(String(t))
+    })
+
+    return Array.from(set)
+      .sort((a, b) => Number(b) - Number(a))
+      .map((t) => ({ value: String(t), label: `Tahun ${t}` }))
+  }, [rows, jenisPeriodeList])
+
+  const jenisTesSelectOptions = useMemo(() => {
+    const map = new Map()
+    rows.forEach((r) => {
+      const id = String(r.jenis_tes_id || '')
+      if (id && !map.has(id)) {
+        map.set(id, r.jenis_tes_nama || r.jenis_tes_kode || `Jenis Tes ${id}`)
+      }
+    })
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+  }, [rows])
+
+  const kegiatanSelectOptions = useMemo(() => {
+    const map = new Map()
+    rows.forEach((r) => {
+      const matchTahun =
+        !filterTahun ||
+        String(
+          r.jenis_periode_tahun ||
+            r.seleksi_periode ||
+            r.tanggal_mulai?.substring(0, 4)
+        ) === String(filterTahun)
+      const matchJenis =
+        !filterJenisTes || String(r.jenis_tes_id) === String(filterJenisTes)
+      if (matchTahun && matchJenis && r.seleksi_id) {
+        const id = String(r.seleksi_id)
+        if (!map.has(id)) {
+          map.set(id, r.nama_seleksi || `Kegiatan ${id}`)
+        }
+      }
+    })
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+  }, [rows, filterTahun, filterJenisTes])
+
+  const tilokSelectOptions = useMemo(() => {
+    const map = new Map()
+    rows.forEach((r) => {
+      const matchTahun =
+        !filterTahun ||
+        String(
+          r.jenis_periode_tahun ||
+            r.seleksi_periode ||
+            r.tanggal_mulai?.substring(0, 4)
+        ) === String(filterTahun)
+      const matchJenis =
+        !filterJenisTes || String(r.jenis_tes_id) === String(filterJenisTes)
+      const matchKegiatan =
+        !filterKegiatan || String(r.seleksi_id) === String(filterKegiatan)
+      if (matchTahun && matchJenis && matchKegiatan && (r.tilok_id || r.tilok_uid)) {
+        const key = String(r.tilok_id || r.tilok_uid)
+        if (!map.has(key)) {
+          map.set(key, r.nama_tilok || `Tilok ${key}`)
+        }
+      }
+    })
+    return Array.from(map.entries()).map(([value, label]) => ({ value, label }))
+  }, [rows, filterTahun, filterJenisTes, filterKegiatan])
+
+  const handleResetFilter = useCallback(() => {
+    setFilterTahun('')
+    setFilterJenisTes('')
+    setFilterKegiatan('')
+    setFilterTilok('')
+    setPage(1)
+  }, [])
+
   const filteredRows = useMemo(() => {
     let list = rows
     if (activeCategory && activeCategory !== 'all') {
       list = list.filter((r) => r.status === activeCategory)
+    }
+
+    if (filterTahun) {
+      list = list.filter(
+        (r) =>
+          String(
+            r.jenis_periode_tahun ||
+              r.seleksi_periode ||
+              r.tanggal_mulai?.substring(0, 4)
+          ) === String(filterTahun)
+      )
+    }
+
+    if (filterJenisTes) {
+      list = list.filter((r) => String(r.jenis_tes_id) === String(filterJenisTes))
+    }
+
+    if (filterKegiatan) {
+      list = list.filter((r) => String(r.seleksi_id) === String(filterKegiatan))
+    }
+
+    if (filterTilok) {
+      list = list.filter(
+        (r) =>
+          String(r.tilok_id) === String(filterTilok) ||
+          String(r.tilok_uid) === String(filterTilok)
+      )
     }
 
     const q = searchTerm.trim().toLowerCase()
@@ -135,7 +265,15 @@ function JadwalContent() {
     }
 
     return list
-  }, [rows, activeCategory, searchTerm])
+  }, [
+    rows,
+    activeCategory,
+    filterTahun,
+    filterJenisTes,
+    filterKegiatan,
+    filterTilok,
+    searchTerm,
+  ])
 
   const paginatedRows = useMemo(() => {
     const start = (page - 1) * pageSize
@@ -305,20 +443,224 @@ function JadwalContent() {
         </div>
       )}
 
-      {/* Section Filter Toolbar Terpisah (Parity /rekap-data & /master-data) */}
-      <ServiceFilterToolbar
-        showMonthFilter={false}
-        showAllCategory={false}
-        searchTerm={searchTerm}
-        onSearchChange={setSearchTerm}
-        categories={categories}
-        activeCategory={activeCategory}
-        onCategoryChange={setActiveCategory}
-        totalRecords={filteredRows.length}
-        categoryCounts={categoryCounts}
-        extraControls={viewModeControls}
-        placeholder="Cari nama jadwal, tilok, instansi, atau nomor ST..."
-      />
+      {/* UNIFIED SECTION FILTER (GABUNGAN STATUS, PENCARIAN & PARAMETER PELAKSANAAN) */}
+      <div className="no-print bg-white dark:bg-slate-900 rounded-2xl shadow-xs p-4 sm:p-5 space-y-4 border border-slate-200/60 dark:border-slate-800">
+        {/* Tier 1: Pencarian Cepat, Tab Status Jadwal & Mode Tampilan */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Search Box */}
+          <div className="relative flex-1 min-w-[220px] max-w-md">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value)
+                setPage(1)
+              }}
+              placeholder="Cari nama jadwal, tilok, instansi, atau nomor ST..."
+              className="w-full h-[38px] pl-10 pr-8 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-[#175CD3]/20 focus:border-[#175CD3] transition-all"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          {/* Right Controls: Category Pills & View Switcher */}
+          <div className="flex items-center gap-2.5 flex-wrap shrink-0 justify-between sm:justify-end">
+            {/* Status Pills */}
+            <div className="inline-flex items-center p-1 rounded-xl bg-slate-100/80 dark:bg-slate-800/70 border border-slate-200/60 dark:border-slate-700/60 overflow-x-auto clean-scrollbar">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveCategory('all')
+                  setPage(1)
+                }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  activeCategory === 'all'
+                    ? 'bg-white dark:bg-slate-900 text-[#175CD3] dark:text-blue-400 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                Semua ({categoryCounts.all || 0})
+              </button>
+              {categories.map((cat) => {
+                const count = categoryCounts[cat.id] || 0
+                const isActive = activeCategory === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    onClick={() => {
+                      setActiveCategory(cat.id)
+                      setPage(1)
+                    }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      isActive
+                        ? 'bg-white dark:bg-slate-900 text-[#175CD3] dark:text-blue-400 shadow-2xs'
+                        : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    {cat.label} ({count})
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* View Switcher (Tabel / Kalender) */}
+            {viewModeControls}
+          </div>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-slate-100 dark:border-slate-800/70" />
+
+        {/* Tier 2: Filter Parameter Pelaksanaan (Cascading 4 Level) */}
+        <div className="space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                Filter Parameter Pelaksanaan
+              </h2>
+              <span className="text-[11px] text-slate-400 font-normal">
+                (Tahun → Jenis Tes → Kegiatan → Tilok)
+              </span>
+            </div>
+            {Boolean(filterTahun || filterJenisTes || filterKegiatan || filterTilok) && (
+              <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-[11px] font-semibold text-[#175CD3] dark:text-blue-300">
+                <span>Konteks aktif: otomatis terisi saat Buat Jadwal</span>
+              </span>
+            )}
+          </div>
+
+          {/* 4 Cascading Dropdowns dengan SearchableSelect (react-select) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
+            {/* STEP 1: Periode Tahun */}
+            <div className="space-y-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                Periode Tahun
+              </label>
+              <SearchableSelect
+                options={tahunSelectOptions}
+                value={filterTahun}
+                onChange={(val) => {
+                  setFilterTahun(val || '')
+                  setFilterKegiatan('')
+                  setFilterTilok('')
+                  setPage(1)
+                }}
+                placeholder="-- Semua Tahun --"
+                isClearable={true}
+                noOptionsText="Tidak ada tahun"
+              />
+            </div>
+
+            {/* STEP 2: Jenis Tes */}
+            <div className="space-y-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                Jenis Tes
+              </label>
+              <SearchableSelect
+                options={jenisTesSelectOptions}
+                value={filterJenisTes}
+                onChange={(val) => {
+                  setFilterJenisTes(val || '')
+                  setFilterKegiatan('')
+                  setFilterTilok('')
+                  setPage(1)
+                }}
+                placeholder="-- Semua Jenis Tes --"
+                isClearable={true}
+                noOptionsText="Tidak ada jenis tes"
+              />
+            </div>
+
+            {/* STEP 3: Kegiatan Seleksi */}
+            <div className="space-y-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                Kegiatan Seleksi
+              </label>
+              <SearchableSelect
+                options={kegiatanSelectOptions}
+                value={filterKegiatan}
+                onChange={(val) => {
+                  setFilterKegiatan(val || '')
+                  setFilterTilok('')
+                  setPage(1)
+                }}
+                placeholder={
+                  kegiatanSelectOptions.length === 0
+                    ? '-- Tidak ada kegiatan --'
+                    : '-- Pilih Kegiatan (Wajib) --'
+                }
+                isClearable={true}
+                noOptionsText="Tidak ada kegiatan sesuai filter"
+              />
+            </div>
+
+            {/* STEP 4: Titik Lokasi (Tilok) */}
+            <div className="space-y-1">
+              <label className="block font-semibold text-slate-700 dark:text-slate-300 text-[11px]">
+                Titik Lokasi (Tilok)
+              </label>
+              <SearchableSelect
+                options={tilokSelectOptions}
+                value={filterTilok}
+                onChange={(val) => {
+                  setFilterTilok(val || '')
+                  setPage(1)
+                }}
+                placeholder={
+                  !filterKegiatan
+                    ? '-- Pilih Kegiatan Terlebih Dahulu --'
+                    : tilokSelectOptions.length === 0
+                    ? '-- Tidak ada titik lokasi --'
+                    : '-- Pilih Titik Lokasi (Wajib) --'
+                }
+                isClearable={true}
+                noOptionsText="Tidak ada tilok sesuai filter"
+              />
+            </div>
+          </div>
+
+          {/* Action Row */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between pt-1 gap-2 border-slate-100 dark:border-slate-800/60">
+            <span className="text-[11px] text-slate-500 dark:text-slate-400">
+              Menampilkan <strong>{filteredRows.length}</strong> dari {rows.length} total jadwal
+            </span>
+
+            <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+              {Boolean(filterTahun || filterJenisTes || filterKegiatan || filterTilok) && (
+                <button
+                  type="button"
+                  onClick={handleResetFilter}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Reset Filter
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPage(1)
+                  toast.info(`Menampilkan ${filteredRows.length} jadwal sesuai parameter filter.`)
+                }}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                title="Terapkan filter data jadwal"
+              >
+                <Search className="w-4 h-4" />
+                <span>Cari Data</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {viewMode === 'calendar' ? (
         <CatPengelolaJadwalCalendar
@@ -332,6 +674,7 @@ function JadwalContent() {
           }}
           onDelete={(row) => setDeletingItem(row)}
           onLinkSt={(row) => setLinkingJadwal(row)}
+          onOpenAssignRekap={(row) => setAssignRekapJadwal(row)}
           onOpenRekap={(row) => handleOpenCrossModule(row, '/layanan/fasilitasi-cat/rekapitulasi')}
           onOpenTim={(row) => navigate(`/layanan/fasilitasi-cat/pengelola/tim?jadwal_id=${row.id}`)}
           onOpenDokumen={(row) =>
@@ -523,6 +866,14 @@ function JadwalContent() {
                           <div className="inline-flex items-center justify-end gap-1">
                             <button
                               type="button"
+                              onClick={() => setAssignRekapJadwal(row)}
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-950/40 transition-colors cursor-pointer active:scale-95"
+                              title="Lihat & Tautkan Rekap Sesi Lapangan"
+                            >
+                              <Link2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              type="button"
                               onClick={() => setLinkingJadwal(row)}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-950/40 transition-colors cursor-pointer active:scale-95"
                               title="Tautkan / Update Nomor ST"
@@ -595,6 +946,12 @@ function JadwalContent() {
         onSuccess={loadData}
         editingItem={editingItem}
         initialDates={initialModalDates}
+        initialFilter={{
+          tahun: filterTahun,
+          jenisTesId: filterJenisTes,
+          seleksiId: filterKegiatan,
+          tilokId: filterTilok,
+        }}
       />
 
       <CatPengelolaLinkStModal
@@ -602,6 +959,15 @@ function JadwalContent() {
         jadwal={linkingJadwal}
         onClose={() => setLinkingJadwal(null)}
         onSuccess={loadData}
+      />
+
+      <CatPengelolaAssignRekapModal
+        isOpen={Boolean(assignRekapJadwal)}
+        jadwal={assignRekapJadwal}
+        onClose={() => setAssignRekapJadwal(null)}
+        onOpenRekapData={(j) =>
+          handleOpenCrossModule(j, '/layanan/fasilitasi-cat/rekap-data')
+        }
       />
 
       <CatPengelolaConfirmModal

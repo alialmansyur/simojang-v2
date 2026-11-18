@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import { toast } from 'react-toastify'
 import {
   X,
   UploadCloud,
@@ -151,13 +152,17 @@ export function SidigiBatchUploadModal({
         await uploadFn(formData)
       }
 
-      setUploadSuccess('File batch berhasil diunggah dan diproses ke sistem!')
+      const successMsg = 'File batch berhasil diunggah dan diproses ke sistem!'
+      setUploadSuccess(successMsg)
+      toast.success(successMsg)
       setTimeout(() => {
-        if (onSuccess) onSuccess()
+        if (onSuccess) onSuccess(successMsg)
         onClose()
       }, 1000)
     } catch (err) {
-      setUploadError(err.message || 'Gagal mengunggah file. Silakan periksa format Excel Anda.')
+      const errMsg = err.message || 'Gagal mengunggah file. Silakan periksa format Excel Anda.'
+      setUploadError(errMsg)
+      toast.error(errMsg)
     } finally {
       setIsUploading(false)
     }

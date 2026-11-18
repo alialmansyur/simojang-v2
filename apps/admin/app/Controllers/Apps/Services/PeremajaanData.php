@@ -243,8 +243,12 @@ class PeremajaanData extends BaseController
             $username = substr((string) ($sess['username'] ?? 'admin'), 0, 50);
             $scema_group = bin2hex(random_bytes(8));
 
-            foreach (array_slice($rows, 1) as $row) {
+            foreach (array_slice($rows, 2) as $row) {
                 if (empty($row[0]) && empty($row[3])) {
+                    continue;
+                }
+
+                if (stripos((string) ($row[0] ?? ''), 'PERIODE') !== false || stripos((string) ($row[3] ?? ''), 'JENIS') !== false) {
                     continue;
                 }
 
