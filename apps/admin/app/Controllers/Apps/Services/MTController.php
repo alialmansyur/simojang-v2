@@ -39,7 +39,7 @@ class MTController extends BaseController
             'instansi'      => 'required',
             'period'        => 'required',
             'startdate'     => 'required',
-            'stepProgress'  => 'required|integer|greater_than_equal_to[1]|less_than_equal_to[8]',
+            'stepProgress'  => 'required|integer|greater_than_equal_to[1]|less_than_equal_to[4]',
         ];
 
         if (!$this->validate($rules)) {
@@ -146,10 +146,19 @@ class MTController extends BaseController
             ->select("
                 COUNT(a.id) AS total_data,
                 COUNT(DISTINCT a.instansi_id) AS total_instansi,
-                SUM(CASE WHEN a.rw_mt_id >= 7 THEN 1 ELSE 0 END) AS tahap_mandiri,
-                SUM(CASE WHEN a.rw_mt_id < 7 THEN 1 ELSE 0 END) AS tahap_pendampingan,
+                SUM(CASE WHEN a.rw_mt_id = 1 THEN 1 ELSE 0 END) AS pengisian_jabatan,
+                SUM(CASE WHEN a.rw_mt_id = 2 THEN 1 ELSE 0 END) AS dapat_rekomendasi,
+                SUM(CASE WHEN a.rw_mt_id = 3 THEN 1 ELSE 0 END) AS sudah_ekspose,
+                SUM(CASE WHEN a.rw_mt_id = 4 THEN 1 ELSE 0 END) AS siap_ekspose,
+                SUM(CASE WHEN a.rw_mt_id = 1 THEN 1 ELSE 0 END) AS tahap_mandiri,
                 ROUND(AVG(
-                    (SELECT SUM(d.percentage) FROM data_support_mt d WHERE d.id <= a.rw_mt_id)
+                    CASE
+                        WHEN a.rw_mt_id = 1 THEN 100
+                        WHEN a.rw_mt_id = 2 THEN 75
+                        WHEN a.rw_mt_id = 3 THEN 50
+                        WHEN a.rw_mt_id = 4 THEN 25
+                        ELSE 0
+                    END
                 ), 1) AS avg_progress
             ");
 
@@ -161,12 +170,20 @@ class MTController extends BaseController
             $builder->whereIn('MONTH(COALESCE(a.period_date, a.created_at))', $bulan, false);
         }
 
-        if ($category === 'mandiri') {
-            $builder->where('a.rw_mt_id >=', 7);
-        } elseif ($category === 'pendampingan') {
-            $builder->where('a.rw_mt_id <', 7);
-        } elseif (is_numeric($category) && (int) $category >= 1 && (int) $category <= 8) {
+        if ($category === '1' || str_contains($category, 'pengisian')) {
+            $builder->where('a.rw_mt_id', 1);
+        } elseif ($category === '2' || str_contains($category, 'rekomendasi')) {
+            $builder->where('a.rw_mt_id', 2);
+        } elseif ($category === '3' || str_contains($category, 'sudah ekspose')) {
+            $builder->where('a.rw_mt_id', 3);
+        } elseif ($category === '4' || str_contains($category, 'siap')) {
+            $builder->where('a.rw_mt_id', 4);
+        } elseif (is_numeric($category) && (int) $category >= 1 && (int) $category <= 4) {
             $builder->where('a.rw_mt_id', (int) $category);
+        } elseif ($category === 'mandiri') {
+            $builder->where('a.rw_mt_id', 1);
+        } elseif ($category === 'pendampingan') {
+            $builder->where('a.rw_mt_id >=', 2);
         }
 
         $summary = $builder->get()->getRowArray() ?: [];
@@ -175,8 +192,11 @@ class MTController extends BaseController
             'summary' => [
                 'total_data' => (int) ($summary['total_data'] ?? 0),
                 'total_instansi' => (int) ($summary['total_instansi'] ?? 0),
-                'tahap_mandiri' => (int) ($summary['tahap_mandiri'] ?? 0),
-                'tahap_pendampingan' => (int) ($summary['tahap_pendampingan'] ?? 0),
+                'pengisian_jabatan' => (int) ($summary['pengisian_jabatan'] ?? 0),
+                'dapat_rekomendasi' => (int) ($summary['dapat_rekomendasi'] ?? 0),
+                'sudah_ekspose' => (int) ($summary['sudah_ekspose'] ?? 0),
+                'siap_ekspose' => (int) ($summary['siap_ekspose'] ?? 0),
+                'tahap_mandiri' => (int) ($summary['pengisian_jabatan'] ?? 0),
                 'avg_progress' => (float) ($summary['avg_progress'] ?? 0),
             ]
         ]);
@@ -207,48 +227,139 @@ class MTController extends BaseController
             }
 
             $imported = 0;
+            $updated = 0;
             $now = date('Y-m-d H:i:s');
             $user = $session['username'] ?? 'system';
+            $db = \Config\Database::connect();
+
+            // Deteksi header kolom secara dinamis
+            $headerRow = $rows[0] ?? [];
+            $headerLower = array_map(static fn($h) => strtolower(trim((string)$h)), $headerRow);
+
+            $colInstansi = -1;
+            $colStage = -1;
+            $colPeriod = -1;
+            $colDate = -1;
+            $colDesc = -1;
+
+            foreach ($headerLower as $idx => $name) {
+                if (in_array($name, ['kode_instansi', 'instansi_id', 'kodeins'], true) && $colInstansi === -1) {
+                    $colInstansi = $idx;
+                } elseif (in_array($name, ['nama_instansi', 'instansi'], true) && $colInstansi === -1) {
+                    $colInstansi = $idx;
+                } elseif (str_contains($name, 'tahap') || str_contains($name, 'progres') || str_contains($name, 'status')) {
+                    $colStage = $idx;
+                } elseif (str_contains($name, 'periode') || str_contains($name, 'period')) {
+                    $colPeriod = $idx;
+                } elseif (str_contains($name, 'tanggal') || str_contains($name, 'date')) {
+                    $colDate = $idx;
+                } elseif (str_contains($name, 'keterangan') || str_contains($name, 'catatan') || str_contains($name, 'desc')) {
+                    $colDesc = $idx;
+                }
+            }
+
+            // Fallback index kolom
+            if ($colInstansi === -1) {
+                $colInstansi = (isset($headerLower[1]) && (str_contains($headerLower[1], 'instansi') || is_numeric($rows[1][1] ?? ''))) ? 1 : 0;
+            }
+            if ($colStage === -1) {
+                $colStage = count($headerRow) >= 7 ? 3 : 3;
+            }
+            if ($colPeriod === -1) {
+                $colPeriod = count($headerRow) >= 7 ? 4 : 1;
+            }
+            if ($colDate === -1) {
+                $colDate = count($headerRow) >= 7 ? 5 : 2;
+            }
+            if ($colDesc === -1) {
+                $colDesc = count($headerRow) >= 7 ? 6 : -1;
+            }
 
             foreach (array_slice($rows, 1) as $row) {
-                if (empty($row[0])) continue;
-
-                $instansiId = $this->appsModel->getInstansiID($row[0]);
-                if (!$instansiId) {
-                    $instansiId = is_numeric($row[0]) ? (int) $row[0] : 6100;
+                $rawInstansi = trim((string)($row[$colInstansi] ?? ''));
+                if ($rawInstansi === '') {
+                    // Coba periksa kolom sampingnya jika berupa nama instansi
+                    if (isset($row[$colInstansi + 1]) && trim((string)$row[$colInstansi + 1]) !== '') {
+                        $rawInstansi = trim((string)$row[$colInstansi + 1]);
+                    } else {
+                        continue;
+                    }
                 }
 
-                $period = !empty($row[1]) ? trim((string)$row[1]) : date('Y-m');
-                $periodDate = !empty($row[2]) ? ExcelUploader::excelDate($row[2]) : date('Y-m-d');
-                $stepId = !empty($row[3]) ? (int)$row[3] : 1;
-                if ($stepId < 1 || $stepId > 8) $stepId = 1;
+                $instansiId = $this->appsModel->getInstansiID($rawInstansi);
+                if (!$instansiId) {
+                    $instansiId = is_numeric($rawInstansi) ? (int) $rawInstansi : 6100;
+                }
 
-                $insertId = $this->appsModel->storeData([
-                    'instansi_id' => $instansiId,
-                    'period' => $period,
-                    'period_date' => $periodDate,
-                    'rw_mt_id' => $stepId,
-                    'created_by' => $user,
-                    'created_at' => $now,
-                    'updated_at' => $now,
-                ], 'txn_mt');
+                $period = ($colPeriod >= 0 && !empty($row[$colPeriod])) ? trim((string)$row[$colPeriod]) : date('Y-m');
+                $periodDate = ($colDate >= 0 && !empty($row[$colDate])) ? ExcelUploader::excelDate($row[$colDate]) : date('Y-m-d');
+
+                // Mapping 4 Tahapan Progres
+                $rawStage = ($colStage >= 0) ? trim((string)($row[$colStage] ?? '')) : '';
+                $stageLower = strtolower($rawStage);
+                if ($stageLower === '1' || str_contains($stageLower, 'pengisian')) {
+                    $stepId = 1;
+                } elseif ($stageLower === '2' || str_contains($stageLower, 'rekomendasi')) {
+                    $stepId = 2;
+                } elseif ($stageLower === '3' || str_contains($stageLower, 'sudah ekspose')) {
+                    $stepId = 3;
+                } elseif ($stageLower === '4' || str_contains($stageLower, 'siap')) {
+                    $stepId = 4;
+                } elseif (is_numeric($rawStage) && (int)$rawStage >= 1 && (int)$rawStage <= 4) {
+                    $stepId = (int)$rawStage;
+                } else {
+                    $stepId = 1;
+                }
+
+                $customDesc = ($colDesc >= 0 && !empty($row[$colDesc]))
+                    ? trim((string)$row[$colDesc])
+                    : 'Import data MT untuk instansi ID ' . $instansiId;
+
+                // Cek apakah data instansi pada periode tersebut sudah ada
+                $existing = $db->table('txn_mt')
+                    ->where('instansi_id', $instansiId)
+                    ->where('period', $period)
+                    ->get()
+                    ->getRowArray();
+
+                if (!empty($existing)) {
+                    $insertId = (int) $existing['id'];
+                    $this->appsModel->updateData([
+                        'period_date' => $periodDate,
+                        'rw_mt_id'    => $stepId,
+                        'action'      => 'import',
+                        'updated_at'  => $now,
+                    ], $insertId, 'txn_mt');
+                    $updated++;
+                } else {
+                    $insertId = $this->appsModel->storeData([
+                        'instansi_id' => $instansiId,
+                        'period'      => $period,
+                        'period_date' => $periodDate,
+                        'rw_mt_id'    => $stepId,
+                        'action'      => 'import',
+                        'created_by'  => $user,
+                        'created_at'  => $now,
+                        'updated_at'  => $now,
+                    ], 'txn_mt');
+                    $imported++;
+                }
 
                 $this->appsModel->storeData([
                     'activity_type' => 'import',
-                    'mt_id' => $insertId,
-                    'rw_mt_id' => $stepId,
-                    'description' => mb_substr('Import batch data MT untuk instansi ID ' . $instansiId, 0, 50),
-                    'created_by' => $user,
-                    'created_at' => $now,
+                    'mt_id'         => $insertId,
+                    'rw_mt_id'      => $stepId,
+                    'description'   => mb_substr($customDesc, 0, 100),
+                    'created_by'    => $user,
+                    'created_at'    => $now,
                 ], 'txn_mt_detail');
-
-                $imported++;
             }
 
+            $totalAffected = $imported + $updated;
             return $this->response->setJSON([
-                'status' => 'success',
-                'message' => "Berhasil mengimpor {$imported} data Manajemen Talenta.",
-                'total_imported' => $imported,
+                'status'         => 'success',
+                'message'        => "Berhasil memproses {$totalAffected} data Manajemen Talenta ({$imported} baru, {$updated} diperbarui).",
+                'total_imported' => $totalAffected,
             ]);
         } catch (\Throwable $e) {
             return $this->apiException(
@@ -366,9 +477,9 @@ class MTController extends BaseController
                     LIMIT 1
                 ) AS catatan,
                 (
-                    SELECT SUM(d.percentage)
-                    FROM data_support_mt d
-                    WHERE d.id <= a.rw_mt_id
+                    SELECT COALESCE(c2.percentage, 0)
+                    FROM data_support_mt c2
+                    WHERE c2.id = a.rw_mt_id
                 ) AS total_percentase,
                 DATE_FORMAT(a.period_date, '%d %M %Y') AS mulai_implemen,
                 DATE_FORMAT(a.created_at, '%d %M %Y %H:%i') AS dibuat_label,

@@ -73,11 +73,7 @@ class MTModel extends Model
                 DATE_FORMAT(a.period_date, '%d %M %Y') AS mulai_implemen,
                 DATE_FORMAT(a.updated_at, '%d %M %Y %H:%i:%s') AS diperbaharui,
                 CONCAT(
-                    (
-                        SELECT SUM(d.percentage)
-                        FROM data_support_mt d
-                        WHERE d.id <= a.rw_mt_id
-                    ),
+                    COALESCE(c.percentage, 0),
                     '%'
                 ) AS total_percentase
             ")
@@ -95,13 +91,21 @@ class MTModel extends Model
             $builder->whereIn('MONTH(COALESCE(a.period_date, a.created_at))', $bulan, false);
         }
 
-        // 🔹 FILTER KATEGORI TAHAPAN
-        if ($category === 'mandiri') {
-            $builder->where('a.rw_mt_id >=', 7);
-        } elseif ($category === 'pendampingan') {
-            $builder->where('a.rw_mt_id <', 7);
-        } elseif (is_numeric($category) && (int) $category >= 1 && (int) $category <= 8) {
+        // 🔹 FILTER KATEGORI TAHAPAN (1: Sudah Pengisian Jabatan, 2: Sudah Mendapat rekomendasi, 3: Sudah ekspose, 4: Siap Ekspose)
+        if (is_numeric($category) && (int) $category >= 1 && (int) $category <= 4) {
             $builder->where('a.rw_mt_id', (int) $category);
+        } elseif ($category === '1' || str_contains($category, 'pengisian')) {
+            $builder->where('a.rw_mt_id', 1);
+        } elseif ($category === '2' || str_contains($category, 'rekomendasi')) {
+            $builder->where('a.rw_mt_id', 2);
+        } elseif ($category === '3' || str_contains($category, 'sudah ekspose')) {
+            $builder->where('a.rw_mt_id', 3);
+        } elseif ($category === '4' || str_contains($category, 'siap')) {
+            $builder->where('a.rw_mt_id', 4);
+        } elseif ($category === 'mandiri') {
+            $builder->where('a.rw_mt_id', 1);
+        } elseif ($category === 'pendampingan') {
+            $builder->where('a.rw_mt_id >=', 2);
         }
 
         return $builder;

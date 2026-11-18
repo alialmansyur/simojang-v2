@@ -333,6 +333,19 @@ WHERE `role_id` = 2
       62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 93
   );
 
+-- ----------------------------------------------------------------------------------------
+-- 6. NORMALISASI TAHAPAN PROGRES MANAJEMEN TALENTA: data_support_mt
+-- ----------------------------------------------------------------------------------------
+TRUNCATE TABLE `data_support_mt`;
+INSERT INTO `data_support_mt` (`id`, `step_name`, `description`, `percentage`, `sort_order`) VALUES
+(1, 'Sudah Pengisian Jabatan', 'Instansi telah melakukan pengisian jabatan berbasis manajemen talenta', 100, 1),
+(2, 'Sudah Mendapat rekomendasi', 'Instansi telah mendapatkan rekomendasi penerapan manajemen talenta', 75, 2),
+(3, 'Sudah ekspose', 'Instansi telah melaksanakan ekspose kesiapan manajemen talenta', 50, 3),
+(4, 'Siap Ekspose', 'Instansi telah siap untuk melaksanakan ekspose manajemen talenta', 25, 4);
+
+UPDATE `txn_mt` SET `rw_mt_id` = 1 WHERE `rw_mt_id` > 4;
+UPDATE `txn_mt_detail` SET `rw_mt_id` = 1 WHERE `rw_mt_id` > 4;
+
 SET FOREIGN_KEY_CHECKS = 1;
 
 -- ========================================================================================

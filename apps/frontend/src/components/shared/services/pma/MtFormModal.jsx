@@ -239,7 +239,7 @@ export function MtFormModal({
             >
               {stepList.map((step) => (
                 <option key={step.id} value={step.id}>
-                  Tahap {step.id} - {step.text || step.step_name}
+                  {step.id}. {step.text || step.step_name}
                 </option>
               ))}
             </select>

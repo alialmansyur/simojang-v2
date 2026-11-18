@@ -84,12 +84,12 @@ export default function ManajemenTalentaPage() {
       iconColor: 'bg-indigo-50/80 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400',
     },
     {
-      id: 'tahap_mandiri',
-      label: 'TAHAP MANDIRI',
-      value: summary?.tahap_mandiri ?? 0,
+      id: 'pengisian_jabatan',
+      label: 'SUDAH PENGISIAN JABATAN',
+      value: summary?.pengisian_jabatan ?? summary?.tahap_mandiri ?? 0,
       unit: 'Instansi',
-      context: 'Tahap 7 (Training) & 8 (Go-Live)',
-      badge: 'Mandiri',
+      context: 'Tahap 1: Pengisian Jabatan',
+      badge: 'Tahap 1',
       badgeColor: 'emerald',
       icon: CheckCircle,
       iconColor: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
@@ -101,8 +101,8 @@ export default function ManajemenTalentaPage() {
       unit: '',
       isText: true,
       context: 'Capaian tahapan MT wilayah',
-      badge: Number(summary?.avg_progress || 0) >= 80 ? 'Tinggi' : 'Proses',
-      badgeColor: Number(summary?.avg_progress || 0) >= 80 ? 'emerald' : 'amber',
+      badge: Number(summary?.avg_progress || 0) >= 50 ? 'Baik' : 'Pendampingan',
+      badgeColor: Number(summary?.avg_progress || 0) >= 50 ? 'emerald' : 'amber',
       icon: TrendingUp,
       iconColor: 'bg-emerald-50/80 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400',
     },
@@ -119,7 +119,7 @@ export default function ManajemenTalentaPage() {
 
   const renderRow = (item, rowNo, onEdit, onDelete, onViewDetail) => {
     const stepId = Number(item.rw_mt_id || 0)
-    const isMandiri = stepId >= 7
+    const stepTone = stepId === 1 ? 'emerald' : stepId === 2 ? 'blue' : stepId === 3 ? 'indigo' : 'amber'
     const wilayahLabel = formatWilayah(item.wilayah, item.kanreg)
 
     return (
@@ -156,10 +156,10 @@ export default function ManajemenTalentaPage() {
         {/* 3. TAHAPAN & STATUS */}
         <td className="py-3.5 px-4 sm:px-5">
           <PmaStatusBadge
-            tone={isMandiri ? 'emerald' : stepId >= 4 ? 'blue' : 'amber'}
+            tone={stepTone}
             weightClass="font-semibold"
           >
-            Tahap {stepId || '-'}: {item.step_name || '-'}
+            {item.step_name || (stepId ? `Tahap ${stepId}` : '-')}
           </PmaStatusBadge>
         </td>
 
@@ -219,10 +219,15 @@ export default function ManajemenTalentaPage() {
       title: mt.instansi_name || `Instansi Kode: ${mt.instansi_id}`,
       subtitle: `Manajemen Talenta • Periode ${mt.period || '-'} • ${wilayahLabel}`,
       badge: {
-        label: `Tahap ${stepId || '-'}: ${mt.step_name || '-'}`,
-        className: isMandiri
-          ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50'
-          : 'bg-blue-50 text-[#175CD3] border-blue-200/50 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40',
+        label: mt.step_name || (stepId ? `Tahap ${stepId}` : '-'),
+        className:
+          stepId === 1
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50'
+            : stepId === 2
+            ? 'bg-blue-50 text-[#175CD3] border-blue-200/50 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800/40'
+            : stepId === 3
+            ? 'bg-indigo-50 text-indigo-700 border-indigo-200/50 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800/40'
+            : 'bg-amber-50 text-amber-700 border-amber-200/50 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/40',
       },
       summary: [
         {
@@ -331,8 +336,10 @@ export default function ManajemenTalentaPage() {
   }
 
   const categories = [
-    { value: 'mandiri', label: 'Tahap Mandiri' },
-    { value: 'pendampingan', label: 'Pendampingan' },
+    { value: '1', label: '1. Sudah Pengisian Jabatan' },
+    { value: '2', label: '2. Sudah Mendapat rekomendasi' },
+    { value: '3', label: '3. Sudah ekspose' },
+    { value: '4', label: '4. Siap Ekspose' },
   ]
 
   return (
@@ -341,7 +348,7 @@ export default function ManajemenTalentaPage() {
       serviceTitle="Manajemen Talenta"
       shortTitle="Manajemen Talenta"
       timKerjaTitle="Pembinaan Manajemen ASN"
-      description="Tracking dan asistensi implementasi 8 tahapan manajemen talenta instansi daerah wilayah kerja."
+      description="Tracking dan asistensi implementasi 4 tahapan progres manajemen talenta instansi daerah wilayah kerja."
       templateUrl="/templates/pma/template-manajemen-talenta.xlsx"
       templateName="template-manajemen-talenta.xlsx"
       fetchSummaryFn={fetchMtSummary}
