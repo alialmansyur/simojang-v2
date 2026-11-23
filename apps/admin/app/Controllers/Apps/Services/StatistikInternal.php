@@ -510,7 +510,7 @@ class StatistikInternal extends BaseController
         }
 
         $data = $this->simodel->getMasterData('data_pegawai_jabatan', $filters);
-        return $this->response->setJSON($data);
+        return $this->response->setJSON($data); 
     }
 
     public function storeDataMaster()
@@ -542,14 +542,25 @@ class StatistikInternal extends BaseController
 
         // Handle extra columns for data_pegawai_jabatan
         if ($type === 'data_pegawai_jabatan') {
-            $data['kelas_jabatan'] = $this->request->getPost('kelas_jabatan');
-            $data['kebutuhan'] = $this->request->getPost('kebutuhan');
-            $data['is_status'] = $this->request->getPost('is_status') ?: 'KRG';
+            $rawKelas = $this->request->getPost('kelas_jabatan');
+            $rawKebutuhan = $this->request->getPost('kebutuhan');
+
+            $data['kelas_jabatan'] = ($rawKelas !== null && $rawKelas !== '') ? (int) $rawKelas : null;
+            $data['kebutuhan']     = ($rawKebutuhan !== null && $rawKebutuhan !== '') ? max(0, (int) $rawKebutuhan) : 0;
+            $data['is_status']     = $this->request->getPost('is_status') ?: 'KRG';
         }
 
-        if ($id) {
-            $this->apps->updateData($data, $id, $table);
+        $idClean = ($id !== null && trim((string) $id) !== '') ? (string) $id : null;
+
+        if ($idClean !== null) {
+            $this->apps->updateData($data, $idClean, $table);
         } else {
+            // Safety check: jika tabel data_pegawai_jabatan belum auto_increment di production, ambil MAX(id) + 1
+            if ($table === 'data_pegawai_jabatan') {
+                $maxRow = $this->apps->db->table($table)->selectMax('id')->get()->getRowArray();
+                $nextId = max(1, ((int) ($maxRow['id'] ?? 0)) + 1);
+                $data['id'] = $nextId;
+            }
             $this->apps->storeData($data, $table);
         }
 
@@ -573,7 +584,7 @@ class StatistikInternal extends BaseController
             'data_pegawai_jabatan'       => 'data_pegawai_jabatan',
         ];
 
-        if (!isset($map[$type]) || !$id) {
+        if (!isset($map[$type]) || $id === null || trim((string) $id) === '') {
             return $this->response->setStatusCode(400)->setJSON([
                 'status' => 'error',
                 'message' => 'Data tidak valid'

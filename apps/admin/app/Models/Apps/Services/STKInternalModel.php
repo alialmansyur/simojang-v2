@@ -310,7 +310,7 @@ class STKInternalModel extends Model
                 ->join("(
                     SELECT p.jabatan_id, COUNT(p.id) AS k
                     FROM data_pegawai p
-                    WHERE p.is_status = 1 
+                    WHERE p.is_status = 1 AND p.jabatan_id IS NOT NULL AND p.jabatan_id > 0
                     GROUP BY p.jabatan_id
                 ) agg", 'agg.jabatan_id = j.id', 'left');
 

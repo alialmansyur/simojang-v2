@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 import {
   ArrowLeft,
   RefreshCw,
@@ -21,6 +22,7 @@ import {
   storeMasterStatistik,
   deleteMasterStatistik,
 } from '../../../services/api/tuServicesApi'
+import { TuDeleteConfirmDialog } from '../../../components/shared/services/tu/TuDeleteConfirmDialog'
 
 export default function StatistikPetaJabatanPage() {
   const navigate = useNavigate()
@@ -34,10 +36,14 @@ export default function StatistikPetaJabatanPage() {
   const [editingItem, setEditingItem] = useState(null)
   const [formNama, setFormNama] = useState('')
   const [formKelas, setFormKelas] = useState('')
-  const [formKebutuhan, setFormKebutuhan] = useState('')
+  const [formKebutuhan, setFormKebutuhan] = useState('0')
   const [formUnit, setFormUnit] = useState('KRG')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
+
+  // Delete modal state
+  const [deletingItem, setDeletingItem] = useState(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   const loadData = useCallback(async () => {
     try {
@@ -73,7 +79,7 @@ export default function StatistikPetaJabatanPage() {
     setEditingItem(null)
     setFormNama('')
     setFormKelas('')
-    setFormKebutuhan('')
+    setFormKebutuhan('0')
     setFormUnit(selectedUnitStatus || 'KRG')
     setErrorMsg('')
     setIsModalOpen(true)
@@ -82,8 +88,8 @@ export default function StatistikPetaJabatanPage() {
   const handleOpenEdit = (item) => {
     setEditingItem(item)
     setFormNama(item.nama || '')
-    setFormKelas(item.kelas_jabatan || '')
-    setFormKebutuhan(item.formasi ?? item.kebutuhan ?? '')
+    setFormKelas(item.kelas_jabatan !== null && item.kelas_jabatan !== undefined ? String(item.kelas_jabatan) : '')
+    setFormKebutuhan(String(item.kebutuhan ?? item.formasi ?? 0))
     setFormUnit(item.is_status || 'KRG')
     setErrorMsg('')
     setIsModalOpen(true)
@@ -99,15 +105,19 @@ export default function StatistikPetaJabatanPage() {
     try {
       setIsSubmitting(true)
       setErrorMsg('')
-      await storeMasterStatistik({
+      const payload = {
         type: 'data_pegawai_jabatan',
-        id: editingItem?.id || '',
         nama: formNama.trim(),
-        kelas_jabatan: formKelas || null,
-        kebutuhan: formKebutuhan || 0,
+        kelas_jabatan: formKelas !== '' ? formKelas : '',
+        kebutuhan: formKebutuhan !== '' ? String(formKebutuhan) : '0',
         is_status: formUnit,
-      })
+      }
+      if (editingItem?.id !== undefined && editingItem?.id !== null && editingItem?.id !== '') {
+        payload.id = editingItem.id
+      }
+      await storeMasterStatistik(payload)
       setIsModalOpen(false)
+      toast.success(editingItem ? 'Data jabatan berhasil diperbarui.' : 'Jabatan baru berhasil ditambahkan.')
       loadData()
     } catch (err) {
       setErrorMsg(err?.message || 'Gagal menyimpan data jabatan.')
@@ -116,13 +126,22 @@ export default function StatistikPetaJabatanPage() {
     }
   }
 
-  const handleDelete = async (item) => {
-    if (!window.confirm(`Hapus jabatan "${item.nama}"?`)) return
+  const handleDeleteClick = (item) => {
+    setDeletingItem(item)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingItem) return
     try {
-      await deleteMasterStatistik('data_pegawai_jabatan', item.id)
+      setIsDeleting(true)
+      await deleteMasterStatistik('data_pegawai_jabatan', deletingItem.id)
+      toast.success(`Jabatan "${deletingItem.nama}" berhasil dihapus.`)
+      setDeletingItem(null)
       loadData()
     } catch (err) {
-      alert(err?.message || 'Gagal menghapus jabatan.')
+      toast.error(err?.message || 'Gagal menghapus jabatan.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -334,8 +353,8 @@ export default function StatistikPetaJabatanPage() {
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDelete(j)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            onClick={() => handleDeleteClick(j)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
                             title="Hapus Jabatan"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -460,6 +479,16 @@ export default function StatistikPetaJabatanPage() {
           </div>,
           document.body
         )}
+
+      {/* Dialog Konfirmasi Hapus Jabatan */}
+      <TuDeleteConfirmDialog
+        isOpen={Boolean(deletingItem)}
+        onClose={() => !isDeleting && setDeletingItem(null)}
+        onConfirm={handleConfirmDelete}
+        isLoading={isDeleting}
+        title="Konfirmasi Hapus Jabatan"
+        message={`Apakah Anda yakin ingin menghapus jabatan "${deletingItem?.nama}"? Tindakan ini tidak dapat dibatalkan.`}
+      />
     </div>
   )
 }

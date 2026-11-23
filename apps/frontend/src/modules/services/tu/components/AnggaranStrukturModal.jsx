@@ -202,7 +202,7 @@ export function AnggaranStrukturModal({
                 value={level}
                 onChange={(e) => setLevel(e.target.value)}
                 required
-                disabled={mode === 'child' && parentData?.next_level}
+                disabled={mode === 'edit' || (mode === 'child' && Boolean(parentData?.next_level))}
                 className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 disabled:opacity-60"
               >
                 {levelOrder.length > 0 ? (

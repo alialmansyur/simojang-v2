@@ -299,7 +299,8 @@ class AnggaranData extends BaseController
 
     public function storeStruktur()
     {
-        $key = (int) trim((string) $this->request->getPost('key'));
+        $rawKey = $this->request->getPost('key') ?? $this->request->getPost('id');
+        $key = (int) trim((string) $rawKey);
         $tahun = (int) $this->request->getPost('tahun');
         $level = strtolower(trim((string) $this->request->getPost('level')));
         $kode = trim((string) $this->request->getPost('kode'));
