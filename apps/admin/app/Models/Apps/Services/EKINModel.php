@@ -199,7 +199,7 @@ class EKINModel extends Model
             ')
             ->join('txn_ekin_header h', 'h.id = d.ekin_header_id', 'left')
             ->join('txn_ekin a', 'a.id = d.ekin_log_id', 'left')
-            ->join('data_pegawai p', 'p.nip COLLATE utf8mb4_unicode_520_ci = d.nip', 'left');
+            ->join('data_pegawai p', 'p.nip = d.nip', 'left');
 
         if (is_numeric($param) && (int)$param > 0) {
             $builder->groupStart()
