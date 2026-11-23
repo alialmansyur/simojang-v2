@@ -320,6 +320,7 @@ class EKINData extends BaseController
         $draw       = (int) ($this->request->getPost('draw') ?? 0);
         $key        = (int) ($this->request->getPost('key') ?? 0);
         $periodDate = trim((string) ($this->request->getPost('period_date') ?? ''));
+        $subUnit    = trim((string) ($this->request->getPost('sub_unit') ?? ''));
 
         $param = $key > 0 ? $key : $periodDate;
 
@@ -332,7 +333,7 @@ class EKINData extends BaseController
             ]);
         }
 
-        $builder = $this->ekinmodel->getBuilder('detail', $param);
+        $builder = $this->ekinmodel->getBuilder('detail', $param, $subUnit);
         $data = $builder->get()->getResultArray();
         return $this->response->setJSON([
             'status' => 'success',

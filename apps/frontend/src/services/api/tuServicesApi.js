@@ -538,19 +538,26 @@ export async function fetchEkinChild(periodDate) {
   return json?.list || []
 }
 
-export async function fetchEkinDetail(param) {
+export async function fetchEkinDetail(param, subUnit = '') {
   const fd = new FormData()
   if (typeof param === 'number' || (typeof param === 'string' && /^\d+$/.test(param))) {
     fd.append('key', param)
   } else if (typeof param === 'string') {
     fd.append('period_date', param)
   } else if (param && typeof param === 'object') {
-    if (param.key || param.id || param.ekin_log_id) {
-      fd.append('key', param.key || param.id || param.ekin_log_id)
+    if (param.key || param.id || param.ekin_log_id || param.ekin_key) {
+      fd.append('key', param.key || param.id || param.ekin_log_id || param.ekin_key)
     }
     if (param.period_date || param.tanggal_kegiatan) {
       fd.append('period_date', param.period_date || param.tanggal_kegiatan)
     }
+    if (param.sub_unit) {
+      fd.append('sub_unit', param.sub_unit)
+    }
+  }
+
+  if (subUnit) {
+    fd.append('sub_unit', subUnit)
   }
 
   const json = await apiRequest('/fetch/detail-ekin', {

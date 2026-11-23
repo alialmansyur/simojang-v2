@@ -178,14 +178,14 @@ class EKINModel extends Model
         return $builder->get()->getRowArray();
     }
 
-    public function getDataDetail($param){
+    public function getDataDetail($param, string $subUnit = ''){
         $builder = $this->db->table('txn_ekin_detail d')
             ->select('
                 d.id,
                 d.ekin_log_id,
                 d.ekin_header_id,
                 d.nip,
-                p.nama,
+                COALESCE(p.nama, d.nip) AS nama,
                 d.waktu,
                 d.kegiatan,
                 d.realisasi,
@@ -205,6 +205,7 @@ class EKINModel extends Model
             $builder->groupStart()
                 ->where('d.ekin_log_id', (int)$param)
                 ->orWhere('h.ekin_log_id', (int)$param)
+                ->orWhere('h.id', (int)$param)
                 ->orWhere('d.id', (int)$param)
             ->groupEnd();
         } else if (is_string($param) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($param))) {
@@ -212,6 +213,10 @@ class EKINModel extends Model
                 ->where('a.period_date', trim($param))
                 ->orWhere('h.tanggal_kegiatan', trim($param))
             ->groupEnd();
+        }
+
+        if (!empty($subUnit)) {
+            $builder->like('h.sub_unit', trim($subUnit));
         }
 
         return $builder->orderBy('d.id', 'ASC');
