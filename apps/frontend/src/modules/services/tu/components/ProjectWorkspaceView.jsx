@@ -332,6 +332,10 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
             ) : (
               progressList.map((log, idx) => {
                 const photoSrc = getPhotoUrl(log)
+                const targetPct = log.target_percentage !== null && log.target_percentage !== undefined ? parseFloat(log.target_percentage) : null
+                const actualPct = log.actual_percentage !== null && log.actual_percentage !== undefined ? parseFloat(log.actual_percentage) : 0
+                const deviasiVal = targetPct !== null && !isNaN(targetPct) ? (actualPct - targetPct).toFixed(2) : null
+
                 return (
                   <div
                     key={log.id || idx}
@@ -341,7 +345,7 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
                       {/* Photo Thumbnail */}
                       {photoSrc ? (
                         <div
-                          onClick={() => setLightboxPhoto({ url: photoSrc, log })}
+                          onClick={() => setLightboxPhoto({ url: photoSrc, log, targetPct, actualPct, deviasiVal })}
                           className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-slate-200/80 dark:border-slate-700 cursor-pointer group shadow-2xs hover:shadow-xs transition-all"
                           title="Klik untuk memperbesar foto eviden"
                         >
@@ -362,31 +366,51 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
                       )}
 
                       {/* Log Info */}
-                      <div className="space-y-1 min-w-0 flex-1">
-                        <div className="flex items-center gap-2.5 flex-wrap">
+                      <div className="space-y-1.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white truncate">
                             {log.title || 'Pemeriksaan Milestone Berkala'}
                           </span>
-                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/60 font-mono">
-                            {log.actual_percentage}% Selesai
+                          
+                          {/* Target (%) */}
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700 font-mono">
+                            Target: {targetPct !== null ? `${targetPct}%` : '-'}
                           </span>
-                          {log.target_percentage && (
-                            <span className="text-[11px] text-slate-400 font-medium">
-                              (Target: {log.target_percentage}%)
+
+                          {/* Aktual (%) */}
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/60 font-mono">
+                            Aktual: {actualPct}%
+                          </span>
+
+                          {/* Deviasi (+/- %) */}
+                          {deviasiVal !== null && (
+                            <span
+                              className={`px-2 py-0.5 rounded-md text-[10px] font-extrabold border font-mono ${
+                                parseFloat(deviasiVal) >= 0
+                                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60'
+                                  : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200/60'
+                              }`}
+                              title={parseFloat(deviasiVal) >= 0 ? 'Kemajuan Progres (Ahead / On Track)' : 'Keterlambatan Progres (Behind Schedule)'}
+                            >
+                              Deviasi: {parseFloat(deviasiVal) >= 0 ? `+${deviasiVal}%` : `${deviasiVal}%`}
                             </span>
                           )}
                         </div>
+
                         <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
                           {log.notes || 'Pekerjaan berjalan sesuai jadwal teknis.'}
                         </p>
-                        <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                          <span className="flex items-center gap-1">
+
+                        <div className="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
+                          <span className="flex items-center gap-1 font-medium">
                             <Calendar className="w-3.5 h-3.5" />
-                            Tanggal: {formatDate(log.log_date || log.created_at)}
+                            Tanggal Log: {formatDate(log.log_date || log.created_at)}
                           </span>
-                          {log.start_date && log.end_date && (
-                            <span>• Periode: {formatDate(log.start_date)} - {formatDate(log.end_date)}</span>
-                          )}
+                          {log.start_date && log.end_date ? (
+                            <span className="font-medium text-slate-500 dark:text-slate-400">
+                              • Periode: {formatDate(log.start_date)} s.d {formatDate(log.end_date)}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     </div>
@@ -535,18 +559,39 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
               />
             </div>
 
-            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="space-y-1">
                 <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
                   {lightboxPhoto.log?.notes || 'Tidak ada catatan tambahan.'}
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
-                  Tanggal Update: {formatDate(lightboxPhoto.log?.log_date)}
-                </p>
+                <div className="flex items-center gap-3 text-[11px] text-slate-400 flex-wrap">
+                  <span>Tanggal Update: {formatDate(lightboxPhoto.log?.log_date)}</span>
+                  {lightboxPhoto.log?.start_date && lightboxPhoto.log?.end_date && (
+                    <span>• Periode: {formatDate(lightboxPhoto.log.start_date)} s.d {formatDate(lightboxPhoto.log.end_date)}</span>
+                  )}
+                </div>
               </div>
-              <span className="px-3 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/60 font-mono self-start sm:self-center">
-                Capaian: {lightboxPhoto.log?.actual_percentage}%
-              </span>
+              <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+                {lightboxPhoto.targetPct !== null && (
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 font-mono">
+                    Target: {lightboxPhoto.targetPct}%
+                  </span>
+                )}
+                <span className="px-2.5 py-1 rounded-full text-xs font-extrabold bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400 border border-blue-200/60 font-mono">
+                  Aktual: {lightboxPhoto.actualPct}%
+                </span>
+                {lightboxPhoto.deviasiVal !== null && (
+                  <span
+                    className={`px-2.5 py-1 rounded-full text-xs font-extrabold border font-mono ${
+                      parseFloat(lightboxPhoto.deviasiVal) >= 0
+                        ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border-emerald-200/60'
+                        : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border-rose-200/60'
+                    }`}
+                  >
+                    Deviasi: {parseFloat(lightboxPhoto.deviasiVal) >= 0 ? `+${lightboxPhoto.deviasiVal}%` : `${lightboxPhoto.deviasiVal}%`}
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>,

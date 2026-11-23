@@ -6,8 +6,10 @@ import { storeProjectProgress } from '../../../../services/api/tuServicesApi'
 export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, initialData }) {
   const [title, setTitle] = useState('')
   const [logDate, setLogDate] = useState(new Date().toISOString().slice(0, 10))
-  const [actualPercentage, setActualPercentage] = useState('')
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
   const [targetPercentage, setTargetPercentage] = useState('')
+  const [actualPercentage, setActualPercentage] = useState('')
   const [notes, setNotes] = useState('')
   const [foto, setFoto] = useState(null)
   const [previewUrl, setPreviewUrl] = useState('')
@@ -18,15 +20,19 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
     if (initialData) {
       setTitle(initialData.title || '')
       setLogDate(initialData.log_date || new Date().toISOString().slice(0, 10))
-      setActualPercentage(initialData.actual_percentage || '')
-      setTargetPercentage(initialData.target_percentage || '')
+      setStartDate(initialData.start_date || '')
+      setEndDate(initialData.end_date || '')
+      setTargetPercentage(initialData.target_percentage ?? '')
+      setActualPercentage(initialData.actual_percentage ?? '')
       setNotes(initialData.notes || '')
       setPreviewUrl(initialData.foto_url || '')
     } else {
       setTitle('')
       setLogDate(new Date().toISOString().slice(0, 10))
-      setActualPercentage('')
+      setStartDate('')
+      setEndDate('')
       setTargetPercentage('')
+      setActualPercentage('')
       setNotes('')
       setFoto(null)
       setPreviewUrl('')
@@ -44,10 +50,17 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
     }
   }
 
+  // Calculate live deviation
+  const numTarget = targetPercentage !== '' ? parseFloat(targetPercentage) : null
+  const numActual = actualPercentage !== '' ? parseFloat(actualPercentage) : null
+  const deviasi = numTarget !== null && numActual !== null && !isNaN(numTarget) && !isNaN(numActual)
+    ? (numActual - numTarget).toFixed(2)
+    : null
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!actualPercentage) {
-      setErrorMsg('Persentase progres fisik lapangan wajib diisi.')
+    if (!actualPercentage && actualPercentage !== 0) {
+      setErrorMsg('Persentase progres fisik aktual wajib diisi.')
       return
     }
 
@@ -60,8 +73,10 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
       if (initialData?.id) fd.append('id', initialData.id)
       fd.append('title', title.trim())
       fd.append('log_date', logDate)
+      if (startDate) fd.append('start_date', startDate)
+      if (endDate) fd.append('end_date', endDate)
+      fd.append('target_percentage', targetPercentage !== '' ? targetPercentage : '0')
       fd.append('actual_percentage', actualPercentage)
-      if (targetPercentage) fd.append('target_percentage', targetPercentage)
       fd.append('notes', notes.trim())
       if (foto) fd.append('foto', foto)
 
@@ -133,10 +148,11 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Tanggal & Periode Pelaksanaan */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Tanggal Pemeriksaan <span className="text-rose-500">*</span>
+                Tanggal Update <span className="text-rose-500">*</span>
               </label>
               <input
                 type="date"
@@ -148,20 +164,87 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
             </div>
             <div className="space-y-1">
               <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                Progres Riil Lapangan (%) <span className="text-rose-500">*</span>
+                Periode Awal
               </label>
               <input
-                type="number"
-                step="0.1"
-                min="0"
-                max="100"
-                value={actualPercentage}
-                onChange={(e) => setActualPercentage(e.target.value)}
-                placeholder="Misal: 45.5"
-                required
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
               />
             </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Periode Akhir
+              </label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
+              />
+            </div>
+          </div>
+
+          {/* Target (%) vs Realisasi Aktual (%) */}
+          <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-850/60 border border-slate-200/80 dark:border-slate-800 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Target Progres Rencana (%)
+                  </label>
+                  <span className="text-[10px] text-slate-400">Kumulatif</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={targetPercentage}
+                  onChange={(e) => setTargetPercentage(e.target.value)}
+                  placeholder="Contoh: 45.00"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
+                />
+                <span className="text-[10px] text-slate-400 block">Target kurva rencana (%)</span>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                    Realisasi Aktual (%) <span className="text-rose-500">*</span>
+                  </label>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">Fisik Riil</span>
+                </div>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  max="100"
+                  value={actualPercentage}
+                  onChange={(e) => setActualPercentage(e.target.value)}
+                  placeholder="Contoh: 47.50"
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
+                />
+                <span className="text-[10px] text-slate-400 block">Capaian fisik riil lapangan (%)</span>
+              </div>
+            </div>
+
+            {/* Indikator Deviasi Real-time */}
+            {deviasi !== null && (
+              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs">
+                <span className="text-slate-500 font-medium text-[11px]">Kalkulasi Deviasi Progres:</span>
+                {parseFloat(deviasi) >= 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300 border border-emerald-200/60">
+                    +{deviasi}% (Ahead of Schedule / On Track)
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300 border border-rose-200/60">
+                    {deviasi}% (Behind Schedule / Terlambat)
+                  </span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="space-y-1">
