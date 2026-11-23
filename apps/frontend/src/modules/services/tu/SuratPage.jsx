@@ -11,26 +11,11 @@ import {
 } from '../../../services/api/tuServicesApi'
 
 export default function SuratPage() {
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-'
-    try {
-      const d = new Date(dateStr)
-      if (isNaN(d.getTime())) return dateStr
-      return d.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    } catch {
-      return dateStr
-    }
-  }
-
   const renderKpis = (summary) => [
     {
       id: 'total_naskah',
       label: 'TOTAL NASKAH DINAS',
-      value: summary?.total_naskah ?? 0,
+      value: summary?.total_naskah ?? summary?.total_surat ?? 0,
       unit: 'Naskah',
       context: 'Arsip terkelola',
       badge: 'Arsip',
@@ -43,7 +28,7 @@ export default function SuratPage() {
       label: 'SURAT MASUK',
       value: summary?.surat_masuk ?? 0,
       unit: 'Surat',
-      context: 'Surat eksternal masuk',
+      context: 'Naskah masuk dari luar',
       badge: 'Masuk',
       badgeColor: 'emerald',
       icon: FileText,
@@ -54,19 +39,19 @@ export default function SuratPage() {
       label: 'SURAT KELUAR',
       value: summary?.surat_keluar ?? 0,
       unit: 'Surat',
-      context: 'Naskah keluar dinas',
+      context: 'Naskah dinas keluar',
       badge: 'Keluar',
-      badgeColor: 'amber',
+      badgeColor: 'blue',
       icon: Send,
-      iconColor: 'bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400',
+      iconColor: 'bg-blue-50 text-[#175CD3] dark:bg-blue-950/40 dark:text-blue-400',
     },
     {
-      id: 'nota_dinas',
-      label: 'NOTA DINAS INTERNAL',
-      value: summary?.nota_dinas ?? 0,
-      unit: 'Nota',
-      context: 'Tata naskah internal',
-      badge: 'Internal',
+      id: 'total_klasifikasi',
+      label: 'TOTAL KLASIFIKASI',
+      value: summary?.total_klasifikasi ?? 0,
+      unit: 'Kategori',
+      context: 'Klasifikasi aktif',
+      badge: 'Kearsipan',
       badgeColor: 'indigo',
       icon: Archive,
       iconColor: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/40 dark:text-indigo-400',
@@ -84,13 +69,16 @@ export default function SuratPage() {
   ]
 
   const renderRow = (item, rowNo, onEdit, onDelete, onViewDetail) => {
-    const jenisNaskah = item.jenis_naskah || (item.jenis_id === 2 ? 'Nota Dinas' : 'Surat Keluar')
-    let jenisBadge = 'bg-indigo-50 text-indigo-700 border-indigo-200/60 dark:bg-indigo-950/40 dark:text-indigo-300'
-    if (jenisNaskah === 'Nota Dinas') {
-      jenisBadge = 'bg-blue-50 text-[#175CD3] border-blue-200/50 dark:bg-blue-950/40 dark:text-blue-300'
-    } else if (jenisNaskah === 'Surat Edaran') {
-      jenisBadge = 'bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-300'
-    }
+    const jenisId = Number(item.jenis_id)
+    const isMasuk = jenisId === 1 || item.jenis_naskah === 'Surat Masuk'
+    const jenisNaskah = item.jenis_naskah || (isMasuk ? 'Surat Masuk' : 'Surat Keluar')
+    const jenisBadge = isMasuk
+      ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+      : 'bg-blue-50 text-[#175CD3] border-blue-200/50 dark:bg-blue-950/40 dark:text-blue-300'
+
+    const klasifikasiDisplay = item.klasifikasi_kode
+      ? `${item.klasifikasi_kode} - ${item.klasifikasi_nama}`
+      : (item.klasifikasi_nama || '-')
 
     return (
       <tr key={item.id || rowNo} className="hover:bg-slate-50/75 dark:hover:bg-slate-800/30 transition-colors">
@@ -123,7 +111,7 @@ export default function SuratPage() {
 
         {/* Kolom 3: KLASIFIKASI */}
         <td className="px-4 py-3.5 whitespace-nowrap font-semibold text-slate-700 dark:text-slate-200">
-          {item.klasifikasi_nama || '-'}
+          {klasifikasiDisplay}
         </td>
 
         {/* Kolom 4: JUMLAH BERKAS */}
@@ -182,7 +170,7 @@ export default function SuratPage() {
       layananId={32}
       serviceTitle="Pengelolaan Persuratan"
       shortTitle="Tata Naskah & Surat"
-      description="Pengelolaan tata naskah dinas dan kearsipan."
+      description="Pengelolaan tata naskah dinas dan kearsipan Kantor Regional III BKN."
       templateUrl="/templates/tu/template-surat.xlsx"
       templateName="template-surat.xlsx"
       fetchSummaryFn={fetchSuratSummary}
@@ -196,8 +184,8 @@ export default function SuratPage() {
       searchPlaceholder="Cari nomor surat, klasifikasi, jenis naskah..."
       categories={[
         { id: '', label: 'Semua Naskah' },
-        { id: '1', label: 'Surat Keluar' },
-        { id: '2', label: 'Nota Dinas' },
+        { id: '1', label: 'Surat Masuk' },
+        { id: '2', label: 'Surat Keluar' },
       ]}
     />
   )

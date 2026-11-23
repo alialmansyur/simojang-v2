@@ -182,6 +182,7 @@ $routes->group('', ['filter' => ['jwtauth', 'rbac', 'serviceaccess']], function 
     // Fetch Data LOV Options
     $routes->post('/instansi-list', 'Apps\FetchData::getInstansi');
     $routes->post('/naskah-list', 'Apps\FetchData::getNaskah');
+    $routes->post('/jenis-naskah-list', 'Apps\FetchData::getJenisNaskah');
     $routes->post('/timkerja-list', 'Apps\FetchData::getTK');
     $routes->post('/event-list', 'Apps\FetchData::getEvent');
     $routes->post('/step-mt-list', 'Apps\FetchData::getStepMT');

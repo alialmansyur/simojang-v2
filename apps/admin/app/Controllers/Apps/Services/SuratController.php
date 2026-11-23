@@ -26,8 +26,6 @@ class SuratController extends BaseController
         $sess = session()->get();
     }
 
-
-
     public function storeData(){
         $sess       = session()->get();
         $key        = $this->request->getPost('key');
@@ -107,6 +105,7 @@ class SuratController extends BaseController
     public function getData(){
         $sess = session()->get();
         $bulan = $this->request->getPost('bulan');
+        $jenisId = $this->request->getPost('jenis_id') ?? $this->request->getPost('kategori') ?? $this->request->getPost('category');
 
         if (!is_array($bulan)) {
             $bulan = [];
@@ -119,7 +118,8 @@ class SuratController extends BaseController
         }
 
         $builder = $this->srtmodel->getBuilder('recap', [
-            'bulan'     => $bulan
+            'bulan'    => $bulan,
+            'jenis_id' => $jenisId,
         ]);
 
         $columns    = $this->srtmodel->getColumns('recap');
@@ -130,16 +130,14 @@ class SuratController extends BaseController
     public function getSummary()
     {
         $bulan = $this->request->getPost('bulan');
+        $jenisId = $this->request->getPost('jenis_id') ?? $this->request->getPost('kategori') ?? $this->request->getPost('category');
         if (!is_array($bulan)) {
             $bulan = [];
         }
 
         return $this->response->setJSON([
             'status' => 'success',
-            'summary' => $this->srtmodel->getSummary($bulan),
+            'summary' => $this->srtmodel->getSummary($bulan, $jenisId),
         ]);
     }
-
 }
-
-

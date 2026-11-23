@@ -248,11 +248,50 @@ export function deleteHumasData(id) {
 // 04. LAYANAN 32 — PENGELOLAAN PERSURATAN
 // =========================================================================
 export function fetchSuratSummary(filters = {}) {
-  return postSimpleSummary('/fetch/summary-surat', filters, 'Gagal memuat ringkasan persuratan.')
+  const fd = new FormData()
+  if (filters.bulan && filters.bulan.length) fd.append('bulan', filters.bulan.join(','))
+  if (filters.jenis_id) fd.append('jenis_id', filters.jenis_id)
+  return postSummary('/fetch/summary-surat', fd, 'Gagal memuat ringkasan persuratan.')
 }
 
 export function fetchSuratData(params = {}) {
-  return postList('/fetch/data-surat', params, {}, 'Gagal memuat data persuratan.')
+  const extra = {}
+  if (params.jenis_id) extra.jenis_id = params.jenis_id
+  if (params.kategori) extra.jenis_id = params.kategori
+  if (params.bulan && params.bulan.length) extra.bulan = params.bulan
+  return postList('/fetch/data-surat', params, extra, 'Gagal memuat data persuratan.')
+}
+
+export async function fetchJenisNaskahList() {
+  try {
+    const json = await apiRequest('/jenis-naskah-list', {
+      method: 'POST',
+      fallbackMessage: 'Gagal memuat daftar jenis naskah.',
+    })
+    return Array.isArray(json) ? json : (json?.data || [])
+  } catch (err) {
+    console.warn('Fallback jenis naskah:', err)
+    return [
+      { id: '1', value: '1', label: 'Surat Masuk', kode: 'SM', nama: 'Surat Masuk' },
+      { id: '2', value: '2', label: 'Surat Keluar', kode: 'SK', nama: 'Surat Keluar' },
+    ]
+  }
+}
+
+export async function fetchNaskahList(jenisId = null) {
+  try {
+    const fd = new FormData()
+    if (jenisId) fd.append('jenis_id', jenisId)
+    const json = await apiRequest('/naskah-list', {
+      method: 'POST',
+      body: fd,
+      fallbackMessage: 'Gagal memuat daftar klasifikasi naskah.',
+    })
+    return Array.isArray(json) ? json : (json?.data || [])
+  } catch (err) {
+    console.warn('Fallback naskah list:', err)
+    return []
+  }
 }
 
 export function storeSuratData(data) {

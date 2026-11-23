@@ -505,19 +505,29 @@ class AppsModel extends Model
     public function getNaskahData($search = null, $jenisId = null)
     {
         $builder = $this->db->table('data_support_naskah_klasifikasi')
-            ->select('id, nama');
+            ->select('id, kode, nama, jenis_id, retensi_tahun');
 
         if (!empty($jenisId)) {
             $builder->where('jenis_id', $jenisId);
         }
 
         if (!empty($search)) {
-            $builder->like('nama', $search);
+            $builder->groupStart()
+                ->like('nama', $search)
+                ->orLike('kode', $search)
+            ->groupEnd();
         }
 
         return $builder
-            ->orderBy('nama', 'ASC')
-            ->limit(20)
+            ->orderBy('id', 'ASC')
+            ->get()
+            ->getResultArray();
+    }
+
+    public function getJenisNaskahData()
+    {
+        return $this->db->table('data_support_naskah_jenis')
+            ->orderBy('id', 'ASC')
             ->get()
             ->getResultArray();
     }

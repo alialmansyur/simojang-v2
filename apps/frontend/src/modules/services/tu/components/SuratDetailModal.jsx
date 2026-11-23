@@ -3,6 +3,12 @@ import { createPortal } from 'react-dom'
 import {
   X,
   Mail,
+  Send,
+  FileText,
+  Layers,
+  Calendar,
+  User,
+  Tag,
 } from 'lucide-react'
 
 export function SuratDetailModal({ isOpen, onClose, data }) {
@@ -32,7 +38,15 @@ export function SuratDetailModal({ isOpen, onClose, data }) {
     }
   }
 
-  const jenisNaskah = data.jenis_naskah || (Number(data.jenis_id) === 2 ? 'Nota Dinas' : 'Surat Keluar')
+  const isMasuk = Number(data.jenis_id) === 1 || data.jenis_naskah === 'Surat Masuk'
+  const jenisNaskah = data.jenis_naskah || (isMasuk ? 'Surat Masuk' : 'Surat Keluar')
+  const jenisBadge = isMasuk
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-300'
+    : 'bg-blue-50 text-[#175CD3] border-blue-200/50 dark:bg-blue-950/40 dark:text-blue-300'
+
+  const klasifikasiDisplay = data.klasifikasi_kode
+    ? `${data.klasifikasi_kode} - ${data.klasifikasi_nama}`
+    : (data.klasifikasi_nama || '-')
 
   return createPortal(
     <div
@@ -45,20 +59,20 @@ export function SuratDetailModal({ isOpen, onClose, data }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-[#F8FAFC] dark:bg-slate-900/60 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center shrink-0">
-              <Mail className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#175CD3] dark:text-blue-400 border border-blue-200/60 dark:border-blue-800/60 flex items-center justify-center shrink-0">
+              {isMasuk ? <FileText className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> : <Send className="w-5 h-5 text-[#175CD3] dark:text-blue-400" />}
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white truncate max-w-sm sm:max-w-md">
-                  {data.nomor_surat || data.perihal || jenisNaskah}
+                  {data.nomor_surat || data.perihal || `Tata Naskah Periode ${data.period || '-'}`}
                 </h2>
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200/60 text-indigo-700 dark:text-indigo-300">
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${jenisBadge}`}>
                   {jenisNaskah}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Periode: <span className="font-semibold text-slate-700 dark:text-slate-300">{data.period || '-'}</span>
+                Target Periode: <span className="font-semibold text-slate-700 dark:text-slate-300">{data.period || '-'}</span>
               </p>
             </div>
           </div>
@@ -76,56 +90,56 @@ export function SuratDetailModal({ isOpen, onClose, data }) {
           {/* Bento Grid 4 Cards */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
-              <span className="text-[11px] text-slate-400 font-semibold block">Periode Naskah</span>
+              <span className="text-[11px] text-slate-400 font-semibold block">Periode</span>
               <span className="text-sm font-bold text-slate-900 dark:text-white mt-0.5 block">
                 {data.period || '-'}
               </span>
-              <span className="text-[10px] text-slate-400">Arsip Kearsipan</span>
+              <span className="text-[10px] text-slate-400">Target Arsip</span>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
-              <span className="text-[11px] text-slate-400 font-semibold block">Volume Naskah</span>
+              <span className="text-[11px] text-slate-400 font-semibold block">Volume Berkas</span>
               <span className="text-sm font-bold text-slate-900 dark:text-white font-mono mt-0.5 block">
-                {data.total ?? 0} Naskah
+                {data.total ?? 0} Dokumen
               </span>
               <span className="text-[10px] text-indigo-600 font-semibold">Tercatat Sistem</span>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
               <span className="text-[11px] text-slate-400 font-semibold block">Tanggal Mulai</span>
               <span className="text-xs font-bold text-slate-900 dark:text-white mt-1 block">
-                {formatDate(data.period_start_date || data.created_at)}
+                {formatDate(data.period_start_date || data.period_date || data.created_at)}
               </span>
-              <span className="text-[10px] text-slate-400">Periode Awal</span>
+              <span className="text-[10px] text-slate-400">Awal Pencatatan</span>
             </div>
             <div className="p-3.5 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
               <span className="text-[11px] text-slate-400 font-semibold block">Tanggal Akhir</span>
               <span className="text-xs font-bold text-slate-900 dark:text-white mt-1 block">
                 {formatDate(data.period_end_date || data.period_start_date)}
               </span>
-              <span className="text-[10px] text-slate-400">Periode Akhir</span>
+              <span className="text-[10px] text-slate-400">Akhir Pencatatan</span>
             </div>
           </div>
 
           {/* Detail Ringkasan */}
           <div className="p-4 rounded-2xl border border-slate-200/70 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
             <h4 className="font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider text-[11px] pb-1 border-b border-slate-100 dark:border-slate-800">
-              Informasi Persuratan
+              Informasi Persuratan & Tata Naskah
             </h4>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <span className="text-slate-400 block text-[11px]">Jenis Naskah:</span>
+                <span className="text-slate-400 block text-[11px]">Jenis Naskah Dinas:</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{jenisNaskah}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[11px]">Nomor Surat / Agenda:</span>
-                <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">{data.nomor_surat || data.nomor || '-'}</span>
+                <span className="text-slate-400 block text-[11px]">Klasifikasi Kearsipan:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{klasifikasiDisplay}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[11px]">Perihal / Keterangan:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{data.perihal || data.uraian || data.keterangan || '-'}</span>
+                <span className="text-slate-400 block text-[11px]">Petugas Pengolah / PIC:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{data.created_by || data.pic || 'Pengolah Arsip'}</span>
               </div>
               <div>
-                <span className="text-slate-400 block text-[11px]">Petugas Pengolah:</span>
-                <span className="font-semibold text-slate-800 dark:text-slate-200">{data.created_by || '-'}</span>
+                <span className="text-slate-400 block text-[11px]">Waktu Pembuatan Record:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{formatDate(data.created_at)}</span>
               </div>
             </div>
           </div>

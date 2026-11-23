@@ -135,16 +135,44 @@ class FetchData extends BaseController
 
     public function getNaskah()
     {
-        $search  = trim($this->request->getPost('search'));
+        $search  = trim((string) $this->request->getPost('search'));
         $jenisId = $this->request->getPost('jenis_id');
 
         $data = $this->apps->getNaskahData($search, $jenisId);
 
         $options = [];
         foreach ($data as $row) {
+            $kode = trim((string) ($row['kode'] ?? ''));
+            $nama = trim((string) ($row['nama'] ?? ''));
+            $displayText = $kode ? "{$kode} - {$nama}" : $nama;
             $options[] = [
-                'id'   => $row['id'],
-                'text' => $row['nama']
+                'id'            => (string) $row['id'],
+                'value'         => (string) $row['id'],
+                'label'         => $displayText,
+                'text'          => $displayText,
+                'kode'          => $kode,
+                'nama'          => $nama,
+                'jenis_id'      => (string) ($row['jenis_id'] ?? ''),
+                'retensi_tahun' => $row['retensi_tahun'] ?? null,
+            ];
+        }
+
+        return $this->response->setJSON($options);
+    }
+
+    public function getJenisNaskah()
+    {
+        $data = $this->apps->getJenisNaskahData();
+
+        $options = [];
+        foreach ($data as $row) {
+            $options[] = [
+                'id'         => (string) $row['id'],
+                'value'      => (string) $row['id'],
+                'label'      => $row['nama'],
+                'text'       => $row['nama'],
+                'kode'       => $row['kode'],
+                'keterangan' => $row['keterangan'] ?? '',
             ];
         }
 
