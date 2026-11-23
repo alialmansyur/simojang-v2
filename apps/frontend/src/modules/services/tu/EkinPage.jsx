@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react'
+import { toast } from 'react-toastify'
 import {
   Users,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
 import { TuCrudLayoutShell } from '../../../components/shared/services/tu/TuCrudLayoutShell'
 import { TuDataOriginIcon } from '../../../components/shared/services/tu/TuDataOriginIcon'
 import { TuTanggalCell, TuPetugasCell } from '../../../components/shared/services/tu/TuTableCells'
+import { TuDeleteConfirmDialog } from '../../../components/shared/services/tu/TuDeleteConfirmDialog'
 import { EkinUploadModal } from './components/EkinUploadModal'
 import { EkinDetailModal } from './components/EkinDetailModal'
 import { EkinFormModal } from './components/EkinFormModal'
@@ -43,6 +45,11 @@ export default function EkinPage() {
   const [manualEditItem, setManualEditItem] = useState(null)
   const [isManualModalOpen, setIsManualModalOpen] = useState(false)
 
+  // State: Delete child upload confirmation
+  const [deletingChild, setDeletingChild] = useState(null)
+  const [isDeletingChild, setIsDeletingChild] = useState(false)
+  const [shellRefreshKey, setShellRefreshKey] = useState(0)
+
   // Expand accordion state per period_date
   const [expandedDates, setExpandedDates] = useState({})
   const [childCache, setChildCache] = useState({})
@@ -65,6 +72,23 @@ export default function EkinPage() {
     }
   }
 
+  const loadChildData = useCallback(async (periodDate) => {
+    if (!periodDate) return []
+    setLoadingDates((prev) => ({ ...prev, [periodDate]: true }))
+    try {
+      const list = await fetchEkinChild(periodDate)
+      const resolvedList = Array.isArray(list) ? list : []
+      setChildCache((prev) => ({ ...prev, [periodDate]: resolvedList }))
+      return resolvedList
+    } catch (err) {
+      console.warn('Gagal load child ekin:', err)
+      setChildCache((prev) => ({ ...prev, [periodDate]: [] }))
+      return []
+    } finally {
+      setLoadingDates((prev) => ({ ...prev, [periodDate]: false }))
+    }
+  }, [])
+
   const toggleExpand = useCallback(async (periodDate) => {
     if (!periodDate) return
     const isCurrentlyExpanded = !!expandedDates[periodDate]
@@ -78,18 +102,47 @@ export default function EkinPage() {
 
     // If already cached, don't fetch again
     if (childCache[periodDate]) return
+    await loadChildData(periodDate)
+  }, [expandedDates, childCache, loadChildData])
 
-    setLoadingDates((prev) => ({ ...prev, [periodDate]: true }))
-    try {
-      const list = await fetchEkinChild(periodDate)
-      setChildCache((prev) => ({ ...prev, [periodDate]: list || [] }))
-    } catch (err) {
-      console.warn('Gagal load child ekin:', err)
-      setChildCache((prev) => ({ ...prev, [periodDate]: [] }))
-    } finally {
-      setLoadingDates((prev) => ({ ...prev, [periodDate]: false }))
+  const handleConfirmDeleteChild = async () => {
+    if (!deletingChild) return
+    const deleteKey = deletingChild.ekin_key || deletingChild.id
+    if (!deleteKey) {
+      toast.error('Kunci data berkas tidak ditemukan.')
+      return
     }
-  }, [expandedDates, childCache])
+
+    try {
+      setIsDeletingChild(true)
+      const res = await deleteEkinData(deleteKey)
+      if (res?.status === false || res?.error) {
+        throw new Error(res?.message || 'Gagal menghapus berkas E-Kinerja.')
+      }
+
+      toast.success('Berkas E-Kinerja unit berhasil dihapus.')
+      const targetDate = deletingChild.period_date
+      setDeletingChild(null)
+
+      // Reload child data for this date
+      if (targetDate) {
+        setChildCache((prev) => {
+          const updated = { ...prev }
+          delete updated[targetDate]
+          return updated
+        })
+        await loadChildData(targetDate)
+      }
+
+      // Refresh parent summary and list
+      setShellRefreshKey((prev) => prev + 1)
+    } catch (err) {
+      console.error('Gagal menghapus berkas:', err)
+      toast.error(err.message || 'Gagal menghapus berkas E-Kinerja.')
+    } finally {
+      setIsDeletingChild(false)
+    }
+  }
 
   const categories = [
     { value: '', label: 'Semua Tim Kerja' },
@@ -298,14 +351,6 @@ export default function EkinPage() {
               >
                 <Pencil className="w-4 h-4" />
               </button>
-              <button
-                type="button"
-                onClick={onDelete}
-                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                title="Hapus Data Log Periode Ini"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
             </div>
           </td>
         </tr>
@@ -372,23 +417,39 @@ export default function EkinPage() {
                             {ch.created_at || '-'}
                           </td>
                           <td className="px-3.5 py-2.5 text-right whitespace-nowrap">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setSelectedLog({
-                                  ...ch,
-                                  period_date: item.period_date,
-                                  period_date_label: displayDate,
-                                  target_sub_unit: ch.sub_unit,
-                                  key: ch.ekin_key || ch.id,
-                                })
-                              }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-[#175CD3] dark:text-blue-300 hover:bg-blue-100 transition-colors cursor-pointer"
-                              title="Lihat Data Detail Aktivitas Sub Unit Ini"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>Detail Unit</span>
-                            </button>
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedLog({
+                                    ...ch,
+                                    period_date: item.period_date,
+                                    period_date_label: displayDate,
+                                    target_sub_unit: ch.sub_unit,
+                                    key: ch.ekin_key || ch.id,
+                                  })
+                                }}
+                                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-semibold bg-blue-50 dark:bg-blue-950/40 text-[#175CD3] dark:text-blue-300 hover:bg-blue-100 transition-colors cursor-pointer"
+                                title="Lihat Data Detail Aktivitas Sub Unit Ini"
+                              >
+                                <Eye className="w-3.5 h-3.5" />
+                                <span>Detail Unit</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setDeletingChild({
+                                    ...ch,
+                                    period_date: item.period_date,
+                                    period_date_label: displayDate,
+                                  })
+                                }
+                                className="p-1 rounded-md text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                                title={`Hapus Berkas ${ch.sub_unit || ch.file_name}`}
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -406,6 +467,7 @@ export default function EkinPage() {
   return (
     <>
       <TuCrudLayoutShell
+        key={shellRefreshKey}
         layananId={36}
         serviceTitle="Manajemen E-Kinerja"
         shortTitle="E-Kinerja Pegawai"
@@ -416,7 +478,7 @@ export default function EkinPage() {
         templateName="template-ekin.xlsx"
         fetchSummaryFn={fetchEkinSummary}
         fetchDataFn={fetchEkinData}
-        deleteDataFn={deleteEkinData}
+        deleteDataFn={null}
         batchUploadFn={storeEkinBatch}
         UploadModalComponent={EkinUploadModal}
         FormComponent={EkinFormModal}
@@ -454,10 +516,25 @@ export default function EkinPage() {
           onSuccess={() => {
             setIsManualModalOpen(false)
             setManualEditItem(null)
+            setShellRefreshKey((prev) => prev + 1)
           }}
           item={manualEditItem}
         />
       )}
+
+      {/* Delete Child Confirmation Dialog */}
+      <TuDeleteConfirmDialog
+        isOpen={!!deletingChild}
+        onClose={() => !isDeletingChild && setDeletingChild(null)}
+        onConfirm={handleConfirmDeleteChild}
+        isLoading={isDeletingChild}
+        title="Konfirmasi Hapus Berkas E-Kinerja"
+        message={
+          deletingChild
+            ? `Apakah Anda yakin ingin menghapus data berkas "${deletingChild.file_name || 'E-Kinerja'}" (${deletingChild.sub_unit || 'Unit Terkait'}) pada tanggal ${deletingChild.period_date_label || deletingChild.period_date}? Seluruh data aktivitas pegawai pada berkas ini akan dihapus permanen.`
+            : 'Apakah Anda yakin ingin menghapus data berkas ini?'
+        }
+      />
     </>
   )
 }
