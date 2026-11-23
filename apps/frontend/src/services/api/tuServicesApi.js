@@ -109,10 +109,11 @@ export async function fetchAnggaranSettings(tahunMaster = '') {
   return json || {}
 }
 
-export async function fetchAnggaranStrukturSelect(search = '', tahun = '') {
+export async function fetchAnggaranStrukturSelect(search = '', tahun = '', limit = 1000) {
   const fd = toFormData({
     search: search || undefined,
     tahun: tahun || undefined,
+    limit: limit || 1000,
   })
   const json = await apiRequest('/fetch/select2-struktur-anggaran', {
     method: 'POST',

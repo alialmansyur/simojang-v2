@@ -109,7 +109,8 @@ class AnggaranData extends BaseController
         $search = trim((string) $this->request->getPost('search'));
         $tahun = (int) $this->request->getPost('tahun');
         $tahunId = (int) $this->request->getPost('tahun_id');
-        $limit = max(1, min(100, (int) ($this->request->getPost('limit') ?? 50)));
+        $rawLimit = $this->request->getPost('limit');
+        $limit = ($rawLimit !== null && (int) $rawLimit > 0) ? min(2000, (int) $rawLimit) : 1000;
 
         if ($tahun <= 0 && $tahunId > 0) {
             $yearRow = $this->anggaranModel->getYearById($tahunId);
@@ -137,6 +138,8 @@ class AnggaranData extends BaseController
 
                 return [
                     'id' => (int) ($row['id'] ?? 0),
+                    'value' => (string) ($row['id'] ?? 0),
+                    'label' => $text,
                     'text' => $text,
                     'kode' => $kode,
                     'nama' => $nama,
@@ -297,7 +300,6 @@ class AnggaranData extends BaseController
     public function storeStruktur()
     {
         $key = (int) trim((string) $this->request->getPost('key'));
-        $parentId = (int) $this->request->getPost('parent_id');
         $tahun = (int) $this->request->getPost('tahun');
         $level = strtolower(trim((string) $this->request->getPost('level')));
         $kode = trim((string) $this->request->getPost('kode'));
@@ -319,6 +321,16 @@ class AnggaranData extends BaseController
             if (!$existing) {
                 return $this->respondError('Data struktur yang akan diubah tidak ditemukan.');
             }
+        }
+
+        // Resolusi parent_id: jika sedang edit dan parent_id tidak disertakan, pertahankan parent_id dari database
+        $rawParentId = $this->request->getPost('parent_id');
+        if ($rawParentId !== null && $rawParentId !== '') {
+            $parentId = (int) $rawParentId;
+        } elseif ($existing) {
+            $parentId = (int) ($existing['parent_id'] ?? 0);
+        } else {
+            $parentId = 0;
         }
 
         $isLegacyRoot = $existing
@@ -352,7 +364,12 @@ class AnggaranData extends BaseController
             }
         }
 
-        if (!$isLegacyRoot) {
+        // Jika data existing diedit tanpa mengubah hierarki (parent & level sama), lewati validasi transisi
+        $isUnchangedHierarchy = $existing
+            && (int) ($existing['parent_id'] ?? 0) === $parentId
+            && strtolower(trim((string) ($existing['level'] ?? ''))) === $level;
+
+        if (!$isLegacyRoot && !$isUnchangedHierarchy) {
             $parentLevel = $parent['level'] ?? null;
             if (!$this->anggaranModel->isValidLevelTransition($parentLevel, $level)) {
                 $next = $this->anggaranModel->getNextLevel($parentLevel);

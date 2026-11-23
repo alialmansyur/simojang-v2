@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
@@ -22,6 +22,7 @@ import {
 import { TuDataOriginIcon } from '../../../components/shared/services/tu/TuDataOriginIcon'
 import { TuTanggalCell, TuPetugasCell } from '../../../components/shared/services/tu/TuTableCells'
 import { ServiceTablePagination } from '../../../components/shared/services/ServiceTablePagination'
+import { SearchableSelect } from '../../../components/ui/SearchableSelect'
 import { AnggaranFormModal } from './components/AnggaranFormModal'
 import { AnggaranDetailModal } from './components/AnggaranDetailModal'
 import {
@@ -55,6 +56,21 @@ export default function AnggaranRealisasiPage() {
 
   // Year Dropdown Options
   const [yearOptions, setYearOptions] = useState([])
+
+  const yearFilterOptions = useMemo(() => {
+    return [
+      { value: '', label: 'Semua Tahun' },
+      ...yearOptions.map((y) => ({
+        value: String(y.tahun),
+        label: `Tahun ${y.tahun}`,
+      })),
+    ]
+  }, [yearOptions])
+
+  const dateModeOptions = [
+    { value: 'sp2d', label: 'Acuan Tgl SP2D' },
+    { value: 'spm', label: 'Acuan Tgl SPM' },
+  ]
 
   // Modal States
   const [isFormModalOpen, setIsFormModalOpen] = useState(false)
@@ -315,31 +331,33 @@ export default function AnggaranRealisasiPage() {
             </div>
 
             {/* Tahun Filter */}
-            <select
-              value={selectedYear}
-              onChange={(e) => {
-                setSelectedYear(e.target.value)
-                setPage(1)
-              }}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="">Semua Tahun</option>
-              {yearOptions.map((y) => (
-                <option key={y.id} value={y.tahun}>
-                  Tahun {y.tahun}
-                </option>
-              ))}
-            </select>
+            <div className="w-36 shrink-0">
+              <SearchableSelect
+                options={yearFilterOptions}
+                value={selectedYear}
+                onChange={(val) => {
+                  const resolved = typeof val === 'object' && val !== null ? val.value : val
+                  setSelectedYear(resolved ? String(resolved) : '')
+                  setPage(1)
+                }}
+                placeholder="Semua Tahun"
+                isClearable={false}
+              />
+            </div>
 
             {/* Acuan Tanggal */}
-            <select
-              value={dateMode}
-              onChange={(e) => setDateMode(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-            >
-              <option value="sp2d">Acuan Tgl SP2D</option>
-              <option value="spm">Acuan Tgl SPM</option>
-            </select>
+            <div className="w-40 shrink-0">
+              <SearchableSelect
+                options={dateModeOptions}
+                value={dateMode}
+                onChange={(val) => {
+                  const resolved = typeof val === 'object' && val !== null ? val.value : val
+                  setDateMode(resolved ? String(resolved) : 'sp2d')
+                }}
+                placeholder="Acuan Tanggal"
+                isClearable={false}
+              />
+            </div>
 
             {/* Date Range Inputs */}
             <div className="flex items-center gap-1.5 text-xs text-slate-500">

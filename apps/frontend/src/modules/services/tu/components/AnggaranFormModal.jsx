@@ -1,12 +1,18 @@
 import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Loader2, Plus, Trash2, Receipt, AlertCircle, Info } from 'lucide-react'
+import { SearchableSelect } from '../../../../components/ui/SearchableSelect'
 import {
   fetchAnggaranOptions,
   fetchAnggaranStrukturSelect,
   fetchAnggaranDetail,
   storeAnggaranData,
 } from '../../../../services/api/tuServicesApi'
+
+const STATUS_OPTIONS = [
+  { value: 'POSTED', label: 'POSTED (Sah Cair)' },
+  { value: 'PENDING', label: 'PENDING (Dalam Proses)' },
+]
 
 export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
   const [tahunId, setTahunId] = useState('1')
@@ -67,7 +73,7 @@ export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
     const selectedYrObj = yearOptions.find((y) => String(y.id) === String(tahunId))
     const targetYear = selectedYrObj?.tahun || ''
 
-    fetchAnggaranStrukturSelect('', targetYear)
+    fetchAnggaranStrukturSelect('', targetYear, 1000)
       .then((strukturs) => {
         if (isMounted && Array.isArray(strukturs)) {
           setStrukturOptions(strukturs)
@@ -81,6 +87,23 @@ export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
       isMounted = false
     }
   }, [isOpen, tahunId, yearOptions])
+
+  const formattedYearOptions = useMemo(() => {
+    return yearOptions.map((y) => ({
+      value: String(y.id),
+      label: `Tahun ${y.tahun} ${y.status === 'AKTIF' || Number(y.is_active || 0) === 1 ? '(Aktif)' : ''}`.trim(),
+      tahun: y.tahun,
+    }))
+  }, [yearOptions])
+
+  const formattedStrukturOptions = useMemo(() => {
+    return strukturOptions.map((st) => ({
+      value: String(st.id ?? st.value),
+      label: st.label || st.text || `${st.kode} - ${st.nama}`,
+      kode: st.kode,
+      nama: st.nama,
+    }))
+  }, [strukturOptions])
 
   // Handle Edit / Reset Form
   useEffect(() => {
@@ -311,17 +334,17 @@ export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Tahun Anggaran <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
+                  options={formattedYearOptions}
                   value={tahunId}
-                  onChange={(e) => setTahunId(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
-                >
-                  {yearOptions.map((y) => (
-                    <option key={y.id} value={String(y.id)}>
-                      Tahun {y.tahun} {y.status === 'AKTIF' ? '(Aktif)' : ''}
-                    </option>
-                  ))}
-                </select>
+                  onChange={(val) => {
+                    const resolved = typeof val === 'object' && val !== null ? val.value : val
+                    setTahunId(resolved ? String(resolved) : '')
+                  }}
+                  placeholder="-- Pilih Tahun --"
+                  isClearable={false}
+                  required
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -341,14 +364,17 @@ export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
                 <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
                   Status Realisasi <span className="text-rose-500">*</span>
                 </label>
-                <select
+                <SearchableSelect
+                  options={STATUS_OPTIONS}
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
-                >
-                  <option value="POSTED">POSTED (Sah Cair)</option>
-                  <option value="PENDING">PENDING (Dalam Proses)</option>
-                </select>
+                  onChange={(val) => {
+                    const resolved = typeof val === 'object' && val !== null ? val.value : val
+                    setStatus(resolved ? String(resolved) : 'POSTED')
+                  }}
+                  placeholder="-- Status Realisasi --"
+                  isClearable={false}
+                  required
+                />
               </div>
             </div>
 
@@ -466,19 +492,17 @@ export function AnggaranFormModal({ isOpen, onClose, onSuccess, initialData }) {
                       <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
                         Akun Belanja / Subkomponen DIPA <span className="text-rose-500">*</span>
                       </label>
-                      <select
+                      <SearchableSelect
+                        options={formattedStrukturOptions}
                         value={item.struktur_id}
-                        onChange={(e) => handleItemChange(item.id, 'struktur_id', e.target.value)}
+                        onChange={(val) => {
+                          const resolved = typeof val === 'object' && val !== null ? val.value : val
+                          handleItemChange(item.id, 'struktur_id', resolved ? String(resolved) : '')
+                        }}
+                        placeholder="-- Cari kode akun / MAK / subkomponen --"
+                        isClearable={false}
                         required
-                        className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 text-xs bg-white dark:bg-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
-                      >
-                        <option value="">-- Pilih Akun Belanja --</option>
-                        {strukturOptions.map((st) => (
-                          <option key={st.id} value={String(st.id)}>
-                            {st.text || `${st.kode} - ${st.nama}`}
-                          </option>
-                        ))}
-                      </select>
+                      />
                     </div>
 
                     {/* Nominal Belanja */}

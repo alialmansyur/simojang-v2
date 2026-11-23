@@ -105,6 +105,9 @@ export function AnggaranStrukturModal({
 
       if (mode === 'edit' && editData?.id) {
         payload.key = editData.id
+        if (editData.parent_id !== undefined && editData.parent_id !== null && editData.parent_id !== '') {
+          payload.parent_id = editData.parent_id
+        }
       } else if (mode === 'child' && parentData?.id) {
         payload.parent_id = parentData.id
       }
