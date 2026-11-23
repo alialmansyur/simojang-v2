@@ -284,25 +284,23 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
         <button
           type="button"
           onClick={() => setActiveTab('progress')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors cursor-pointer ${
             activeTab === 'progress'
               ? 'border-[#175CD3] text-[#175CD3] dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
           }`}
         >
-          <TrendingUp className="w-4 h-4" />
           <span>Riwayat Progres Fisik ({progressList.length})</span>
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('budget')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-colors cursor-pointer flex items-center gap-2 ${
+          className={`pb-3 text-sm font-bold border-b-2 transition-colors cursor-pointer ${
             activeTab === 'budget'
               ? 'border-[#175CD3] text-[#175CD3] dark:text-blue-400'
               : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
           }`}
         >
-          <DollarSign className="w-4 h-4" />
           <span>Pencairan Anggaran ({budgetList.length})</span>
         </button>
       </div>
