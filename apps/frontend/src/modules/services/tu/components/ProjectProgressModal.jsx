@@ -192,7 +192,7 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                    Target Progres Rencana (%)
+                    Target Progres (%)
                   </label>
                   <span className="text-[10px] text-slate-400">Kumulatif</span>
                 </div>
@@ -206,7 +206,7 @@ export function ProjectProgressModal({ isOpen, onClose, onSuccess, projectUid, i
                   placeholder="Contoh: 45.00"
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-900 font-mono font-semibold focus:outline-none focus:ring-2 focus:ring-[#175CD3]"
                 />
-                <span className="text-[10px] text-slate-400 block">Target kurva rencana (%)</span>
+                <span className="text-[10px] text-slate-400 block">Target kurva (%)</span>
               </div>
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
