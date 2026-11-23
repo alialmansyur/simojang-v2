@@ -591,6 +591,10 @@ class StatistikInternal extends BaseController
             ]);
         }
 
+        if ($type === 'data_pegawai_jabatan') {
+            \Config\Database::connect()->table('data_pegawai')->where('jabatan_id', $id)->update(['jabatan_id' => null]);
+        }
+
         $this->apps->removeData($id, $map[$type]);
 
         return $this->response->setJSON([

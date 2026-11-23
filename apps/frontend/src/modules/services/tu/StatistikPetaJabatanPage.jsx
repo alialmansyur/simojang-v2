@@ -16,6 +16,9 @@ import {
   Trash2,
   X,
   Loader2,
+  Users,
+  UserCheck,
+  TrendingUp,
 } from 'lucide-react'
 import {
   fetchMasterJabatan,
@@ -74,6 +77,48 @@ export default function StatistikPetaJabatanPage() {
         (j.kelas_jabatan && String(j.kelas_jabatan).includes(term))
     )
   }, [jabatans, searchTerm])
+
+  // Summary Metrics for KPI Cards
+  const summaryMetrics = useMemo(() => {
+    let totalFormasi = 0
+    let totalBezzeting = 0
+    let memenuhiCount = 0
+    let kurangCount = 0
+    let lebihCount = 0
+
+    filteredJabatans.forEach((j) => {
+      const f = Number(j.formasi ?? j.kebutuhan ?? 0)
+      const b = Number(j.bezzeting ?? 0)
+      const l = Number(j.lowongan ?? (f - b))
+      totalFormasi += f
+      totalBezzeting += b
+
+      if (l === 0) memenuhiCount++
+      else if (l < 0) lebihCount++
+      else kurangCount++
+    })
+
+    const netLowongan = totalFormasi - totalBezzeting
+
+    return {
+      totalJabatan: filteredJabatans.length,
+      totalFormasi,
+      totalBezzeting,
+      netLowongan,
+      memenuhiCount,
+      kurangCount,
+      lebihCount,
+    }
+  }, [filteredJabatans])
+
+  useEffect(() => {
+    if (!isModalOpen) return
+    const handleKey = (e) => {
+      if (e.key === 'Escape' && !isSubmitting) setIsModalOpen(false)
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [isModalOpen, isSubmitting])
 
   const handleOpenAdd = () => {
     setEditingItem(null)
@@ -196,7 +241,100 @@ export default function StatistikPetaJabatanPage() {
         </div>
       </div>
 
-      {/* 2. Filter & Search Toolbar */}
+      {/* 2. Summary KPI Metric Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Total Jabatan */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs relative overflow-hidden group hover:border-blue-300 dark:hover:border-blue-700 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Total Jabatan
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#175CD3] dark:text-blue-400 flex items-center justify-center">
+              <Briefcase className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white font-mono">
+              {summaryMetrics.totalJabatan}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">posisi</span>
+          </div>
+        </div>
+
+        {/* Total Formasi */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs relative overflow-hidden group hover:border-indigo-300 dark:hover:border-indigo-700 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Formasi Kebutuhan
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+              <Users className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
+              {summaryMetrics.totalFormasi}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">orang</span>
+          </div>
+        </div>
+
+        {/* Riil Bezzeting */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs relative overflow-hidden group hover:border-emerald-300 dark:hover:border-emerald-700 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Riil Bezzeting
+            </span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <UserCheck className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 font-mono">
+              {summaryMetrics.totalBezzeting}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">pegawai</span>
+          </div>
+        </div>
+
+        {/* Lowongan Bersih */}
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs relative overflow-hidden group hover:border-slate-300 dark:hover:border-slate-700 transition-all">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Lowongan Bersih
+            </span>
+            <div
+              className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+                summaryMetrics.netLowongan > 0
+                  ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400'
+                  : summaryMetrics.netLowongan < 0
+                  ? 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400'
+                  : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+              }`}
+            >
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span
+              className={`text-2xl sm:text-3xl font-extrabold font-mono ${
+                summaryMetrics.netLowongan > 0
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : summaryMetrics.netLowongan < 0
+                  ? 'text-rose-600 dark:text-rose-400'
+                  : 'text-slate-700 dark:text-slate-300'
+              }`}
+            >
+              {summaryMetrics.netLowongan > 0 ? `+${summaryMetrics.netLowongan}` : summaryMetrics.netLowongan}
+            </span>
+            <span className="text-xs text-slate-400 font-medium">
+              {summaryMetrics.netLowongan > 0 ? 'kurang' : summaryMetrics.netLowongan < 0 ? 'lebih' : 'seimbang'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. Filter & Search Toolbar */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/60 dark:border-slate-800/60 p-4 shadow-xs space-y-3">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
           {/* Unit Switcher Tabs */}
@@ -422,9 +560,11 @@ export default function StatistikPetaJabatanPage() {
                     </label>
                     <input
                       type="number"
+                      min="1"
+                      max="17"
                       value={formKelas}
                       onChange={(e) => setFormKelas(e.target.value)}
-                      placeholder="9"
+                      placeholder="Contoh: 8"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 font-semibold"
                     />
                   </div>
@@ -435,11 +575,13 @@ export default function StatistikPetaJabatanPage() {
                     </label>
                     <input
                       type="number"
+                      min="0"
                       value={formKebutuhan}
                       onChange={(e) => setFormKebutuhan(e.target.value)}
-                      placeholder="2"
+                      placeholder="0"
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs bg-white dark:bg-slate-800 font-semibold"
                     />
+                    <p className="text-[10px] text-slate-400">Isi 0 jika formasi belum ditentukan</p>
                   </div>
                 </div>
 
