@@ -148,31 +148,31 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* 1. Header Navigation & Back Button */}
+      {/* 1. Header Navigation & Action Cluster */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/60">
+              {projectData.category || 'Infrastruktur Gedung'}
+            </span>
+            <span className="text-xs text-slate-400">• Lembar Kerja Proyek</span>
+          </div>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-1">
+            {projectData.name || projectData.nama_project}
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 self-start sm:self-center flex-wrap">
           <button
             type="button"
             onClick={onBack}
-            className="p-2.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 shadow-xs transition-colors cursor-pointer"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl border border-slate-200/60 dark:border-slate-800/60 bg-white dark:bg-slate-900 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
             title="Kembali ke Portofolio Proyek"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="w-4 h-4 text-slate-500" />
+            <span>Kembali</span>
           </button>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-300 border border-indigo-200/60">
-                {projectData.category || 'Infrastruktur Gedung'}
-              </span>
-              <span className="text-xs text-slate-400">• Lembar Kerja Proyek</span>
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white mt-0.5">
-              {projectData.name || projectData.nama_project}
-            </h1>
-          </div>
-        </div>
 
-        <div className="flex items-center gap-2">
           {activeTab === 'progress' ? (
             <button
               type="button"
@@ -180,7 +180,7 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
                 setEditingItem(null)
                 setIsProgressModalOpen(true)
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Catat Progres Fisik</span>
@@ -192,7 +192,7 @@ export function ProjectWorkspaceView({ project, onBack, onProjectUpdated }) {
                 setEditingItem(null)
                 setIsBudgetModalOpen(true)
               }}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] text-white text-xs sm:text-sm font-semibold shadow-2xs transition-all active:scale-95 cursor-pointer shrink-0"
             >
               <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>Catat Pencairan Dana</span>
