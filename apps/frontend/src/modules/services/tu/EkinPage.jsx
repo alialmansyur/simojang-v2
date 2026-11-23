@@ -222,8 +222,6 @@ export default function EkinPage() {
                   <span className="text-[#175CD3] dark:text-blue-400">
                     {item.total_upload ? `${item.total_upload} Berkas Upload` : 'Log Harian'}
                   </span>
-                  <span>•</span>
-                  <span>{formatNumber(item.total_kegiatan)} Total Aktivitas</span>
                 </div>
               </div>
             </div>

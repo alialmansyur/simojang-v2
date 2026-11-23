@@ -29,7 +29,11 @@ export function EkinDetailModal({ isOpen, onClose, logItem }) {
 
     const targetParam = logItem.key || logItem.id || logItem.period_date || logItem.tanggal_kegiatan || ''
 
-    fetchEkinDetail(targetParam, initialSubUnit)
+    // If targetParam is an individual log ID (key), fetch by that log without narrowing by subUnit in backend
+    // but if it is a date string, pass initialSubUnit to backend if desired.
+    const subUnitParam = (typeof targetParam === 'number' || /^\d+$/.test(targetParam)) ? '' : initialSubUnit
+
+    fetchEkinDetail(targetParam, subUnitParam)
       .then((data) => {
         if (!isMounted) return
         if (Array.isArray(data) && data.length > 0) {
@@ -63,7 +67,7 @@ export function EkinDetailModal({ isOpen, onClose, logItem }) {
   // Filter by selected sub_unit and search
   const filteredDetails = useMemo(() => {
     let list = details
-    if (selectedSubUnit) {
+    if (selectedSubUnit && !logItem.target_sub_unit) {
       list = list.filter((d) => (d.sub_unit || '').includes(selectedSubUnit))
     }
     if (searchTerm.trim()) {

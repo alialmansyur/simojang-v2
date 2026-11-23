@@ -205,8 +205,6 @@ class EKINModel extends Model
             $builder->groupStart()
                 ->where('d.ekin_log_id', (int)$param)
                 ->orWhere('h.ekin_log_id', (int)$param)
-                ->orWhere('h.id', (int)$param)
-                ->orWhere('d.id', (int)$param)
             ->groupEnd();
         } else if (is_string($param) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($param))) {
             $builder->groupStart()
