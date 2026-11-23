@@ -27,13 +27,17 @@ export function EkinDetailModal({ isOpen, onClose, logItem }) {
     const initialSubUnit = logItem.target_sub_unit || ''
     setSelectedSubUnit(initialSubUnit)
 
-    const targetParam = logItem.key || logItem.id || logItem.period_date || logItem.tanggal_kegiatan || ''
-
-    // If targetParam is an individual log ID (key), fetch by that log without narrowing by subUnit in backend
-    // but if it is a date string, pass initialSubUnit to backend if desired.
-    const subUnitParam = (typeof targetParam === 'number' || /^\d+$/.test(targetParam)) ? '' : initialSubUnit
-
-    fetchEkinDetail(targetParam, subUnitParam)
+    // Prepare payload for fetchEkinDetail
+    const payload = {}
+    if (logItem.key || logItem.ekin_key || logItem.id) {
+      payload.key = logItem.key || logItem.ekin_key || logItem.id
+    } else if (logItem.period_date || logItem.tanggal_kegiatan) {
+      payload.period_date = logItem.period_date || logItem.tanggal_kegiatan
+      if (initialSubUnit) {
+        payload.sub_unit = initialSubUnit
+      }
+    }
+    fetchEkinDetail(payload)
       .then((data) => {
         if (!isMounted) return
         if (Array.isArray(data) && data.length > 0) {

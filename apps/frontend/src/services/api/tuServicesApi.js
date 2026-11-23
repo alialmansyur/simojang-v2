@@ -545,8 +545,9 @@ export async function fetchEkinDetail(param, subUnit = '') {
   } else if (typeof param === 'string') {
     fd.append('period_date', param)
   } else if (param && typeof param === 'object') {
-    if (param.key || param.id || param.ekin_log_id || param.ekin_key) {
-      fd.append('key', param.key || param.id || param.ekin_log_id || param.ekin_key)
+    const keyVal = param.key || param.id || param.ekin_log_id || param.ekin_key
+    if (keyVal) {
+      fd.append('key', keyVal)
     }
     if (param.period_date || param.tanggal_kegiatan) {
       fd.append('period_date', param.period_date || param.tanggal_kegiatan)
@@ -556,7 +557,7 @@ export async function fetchEkinDetail(param, subUnit = '') {
     }
   }
 
-  if (subUnit) {
+  if (subUnit && !fd.has('sub_unit')) {
     fd.append('sub_unit', subUnit)
   }
 
