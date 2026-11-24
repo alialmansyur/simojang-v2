@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Save, Loader2, AlertCircle } from 'lucide-react'
+import { X, Save, Loader2, AlertCircle, Calendar, Hash, Building2, MapPin } from 'lucide-react'
+import { toast } from 'react-toastify'
 import { updateCatSession } from '../../../../../services/api/sidigiCatServicesApi'
 
 export function CatSessionEditModal(props) {
@@ -10,7 +11,19 @@ export function CatSessionEditModal(props) {
 }
 
 function CatSessionEditModalContent({ onClose, session, onSuccess }) {
+  const parseDateForInput = (dateVal) => {
+    if (!dateVal) return ''
+    if (typeof dateVal === 'string') {
+      if (dateVal.includes('T')) return dateVal.split('T')[0]
+      if (dateVal.includes(' ')) return dateVal.split(' ')[0]
+      return dateVal
+    }
+    return ''
+  }
+
   const [formData, setFormData] = useState(() => ({
+    tanggal: parseDateForInput(session.period_date || session.tanggal),
+    sesi: session.sesi !== undefined && session.sesi !== null ? session.sesi : 1,
     hadir: session.hadir ?? 0,
     tidak_hadir: session.tidak_hadir ?? 0,
     reschedule: session.reschedule ?? 0,
@@ -32,16 +45,36 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setIsSubmitting(true)
     setErrorMsg('')
+
+    if (!formData.tanggal) {
+      setErrorMsg('Tanggal pelaksanaan wajib diisi.')
+      return
+    }
+
+    if (!formData.sesi || Number(formData.sesi) <= 0) {
+      setErrorMsg('Nomor sesi ujian harus berupa angka lebih besar dari 0.')
+      return
+    }
+
+    if (
+      formData.nilai_min !== '' &&
+      formData.nilai_max !== '' &&
+      Number(formData.nilai_min) > Number(formData.nilai_max)
+    ) {
+      setErrorMsg('Nilai minimum tidak boleh lebih besar dari nilai maksimum.')
+      return
+    }
+
+    setIsSubmitting(true)
 
     try {
       await updateCatSession({
         id: session.id,
         key: session.id || session.uid,
-        instansi: session.instansi_id,
-        tanggal: session.period_date,
-        sesi: session.sesi,
+        instansi: session.instansi_id || session.instansi,
+        tanggal: formData.tanggal,
+        sesi: Number(formData.sesi) || 1,
         hadir: Number(formData.hadir) || 0,
         tidak_hadir: Number(formData.tidak_hadir) || 0,
         reschedule: Number(formData.reschedule) || 0,
@@ -51,6 +84,7 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
         tidak_memenuhi: Number(formData.tidak_memenuhi) || 0,
       })
 
+      toast.success('Data sesi CAT berhasil diperbarui.')
       if (onSuccess) onSuccess()
       onClose()
     } catch (err) {
@@ -61,6 +95,7 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
   }
 
   const totalPeserta = (Number(formData.hadir) || 0) + (Number(formData.tidak_hadir) || 0)
+  const pctHadir = totalPeserta > 0 ? Math.round(((Number(formData.hadir) || 0) / totalPeserta) * 100) : 0
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow
@@ -90,13 +125,13 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
               Ubah Data Sesi CAT
             </span>
             <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
-              Sesi {session.sesi} • {session.instansi_nama}
+              Sesi {formData.sesi || session.sesi} • {session.instansi_nama || 'Instansi Terdaftar'}
             </h3>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -111,18 +146,56 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
             </div>
           )}
 
-          {/* Readonly Info Bar */}
-          <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 text-xs">
+          {/* Context Info Banner */}
+          <div className="p-3 rounded-xl bg-slate-50/80 dark:bg-slate-800/40 border border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+            <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+              <Building2 className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+              <span className="font-medium text-slate-400">Instansi:</span>
+              <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{session.instansi_nama || '-'}</span>
+            </div>
+            {(session.nama_tilok || session.tilok_nama) && (
+              <div className="flex items-center gap-2 text-slate-600 dark:text-slate-300">
+                <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="font-medium text-slate-400">Titik Lokasi:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200 truncate">{session.nama_tilok || session.tilok_nama}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Tanggal & Sesi Inputs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3.5 rounded-xl bg-blue-50/40 dark:bg-blue-950/20 border border-blue-100/60 dark:border-blue-900/40">
             <div>
-              <span className="text-slate-400 text-[11px]">Tanggal Pelaksanaan</span>
-              <div className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                {session.period_date || '-'}
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Tanggal Pelaksanaan <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="date"
+                  name="tanggal"
+                  value={formData.tanggal}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#175CD3]/20 focus:border-[#175CD3]"
+                />
               </div>
             </div>
+
             <div>
-              <span className="text-slate-400 text-[11px]">Sesi Ujian</span>
-              <div className="font-semibold text-slate-800 dark:text-slate-200 mt-0.5">
-                Sesi Ke-{session.sesi}
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                Sesi Ujian <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  name="sesi"
+                  value={formData.sesi}
+                  onChange={handleChange}
+                  required
+                  placeholder="Contoh: 1"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-semibold text-slate-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-[#175CD3]/20 focus:border-[#175CD3]"
+                />
               </div>
             </div>
           </div>
@@ -174,8 +247,13 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
             </div>
           </div>
 
-          <div className="text-right text-[11px] text-slate-500">
-            Total Alokasi Peserta: <span className="font-bold text-slate-800 dark:text-slate-200">{totalPeserta}</span> orang
+          <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+            <span>
+              Tingkat Kehadiran: <span className="font-bold text-blue-600 dark:text-blue-400">{pctHadir}%</span>
+            </span>
+            <span>
+              Total Alokasi: <span className="font-bold text-slate-800 dark:text-slate-200">{totalPeserta}</span> orang
+            </span>
           </div>
 
           {/* Nilai Inputs */}
@@ -248,14 +326,14 @@ function CatSessionEditModalContent({ onClose, session, onSuccess }) {
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
             >
               Batal
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] shadow-xs transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#175CD3] hover:bg-[#1550B8] active:bg-[#124196] shadow-xs transition-colors disabled:opacity-50 cursor-pointer"
             >
               {isSubmitting ? (
                 <>

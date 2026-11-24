@@ -955,7 +955,17 @@ export default function FasilitasiCatRekapDataPage() {
         onClose={() => setEditingSession(null)}
         session={editingSession}
         onSuccess={() => {
-          if (appliedFilters) executeQuery(appliedFilters)
+          if (appliedFilters) {
+            executeQuery(appliedFilters)
+          } else if (filterTilokUid) {
+            executeQuery({
+              tilokUid: filterTilokUid,
+              seleksiId: filterSeleksiId,
+              tglMulai: filterTglMulai,
+              tglSelesai: filterTglSelesai,
+              instansiIds: filterInstansiIds,
+            })
+          }
         }}
       />
 
