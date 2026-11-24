@@ -459,6 +459,28 @@ $routes->group('', ['filter' => ['jwtauth', 'rbac', 'serviceaccess']], function 
     $routes->post('/fetch/summary-manage-assets', 'Apps\Services\ManageAssetsController::getSummary');
     $routes->post('/store/import-asset-data', 'Apps\Services\ManageAssetsController::importBatch');
     // ----------------------------------------------------------------
+    // Layanan Manajemen Ruangan
+    $routes->post('/fetch/data-manage-ruangan', 'Apps\Services\ManageRuanganController::getData');
+    $routes->post('/fetch/summary-manage-ruangan', 'Apps\Services\ManageRuanganController::getSummary');
+    $routes->post('/store/save-manage-ruangan', 'Apps\Services\ManageRuanganController::storeDetail');
+    $routes->post('/store/update-manage-ruangan', 'Apps\Services\ManageRuanganController::updateDetail');
+    $routes->post('/kill/delete-manage-ruangan', 'Apps\Services\ManageRuanganController::deleteDetail');
+    $routes->post('/fetch/detail-manage-ruangan', 'Apps\Services\ManageRuanganController::getDetail');
+    $routes->post('/fetch/room-assets', 'Apps\Services\ManageRuanganController::getRoomAssets');
+    $routes->post('/fetch/available-assets', 'Apps\Services\ManageRuanganController::getAvailableAssets');
+    $routes->post('/store/assign-asset-ruangan', 'Apps\Services\ManageRuanganController::assignAsset');
+    $routes->post('/store/unassign-asset-ruangan', 'Apps\Services\ManageRuanganController::unassignAsset');
+    $routes->post('/fetch/options-ruangan', 'Apps\Services\ManageRuanganController::getOptionsRuangan');
+    $routes->get('/fetch/options-ruangan', 'Apps\Services\ManageRuanganController::getOptionsRuangan');
+
+    // Backward-compatible endpoint aliases
+    $routes->post('/apps-manage-ruangan-detail/store', 'Apps\Services\ManageRuanganController::storeDetail');
+    $routes->post('/apps-manage-ruangan-detail/update', 'Apps\Services\ManageRuanganController::updateDetail');
+    $routes->post('/apps-manage-ruangan-detail/delete', 'Apps\Services\ManageRuanganController::deleteDetail');
+    $routes->post('/apps-manage-ruangan-detail/get-data', 'Apps\Services\ManageRuanganController::getDetail');
+    $routes->post('/apps-manage-ruangan-detail/assign-asset', 'Apps\Services\ManageRuanganController::assignAsset');
+    $routes->post('/apps-manage-ruangan-detail/unassign-asset', 'Apps\Services\ManageRuanganController::unassignAsset');
+    // ----------------------------------------------------------------
     // Layanan Manajemen Proyek
     $routes->post('/fetch/data-manage-project', 'Apps\Services\ManageProjectController::getData');
     $routes->post('/fetch/summary-manage-project', 'Apps\Services\ManageProjectController::getSummary');

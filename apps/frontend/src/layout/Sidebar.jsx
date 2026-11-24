@@ -61,6 +61,9 @@ export const normalizeServicePath = (child) => {
   if (rawPath === '/layanan/manage-assets' || rawPath === '/apps-manage-assets' || rawPath === 'apps-manage-assets' || rawPath === '/layanan/aset' || rawTitle.includes('manajemen aset') || rawTitle.includes('aset bmn')) {
     return '/layanan/manage-assets'
   }
+  if (rawPath === '/layanan/manage-ruangan' || rawPath === '/apps-manage-ruangan' || rawPath === 'apps-manage-ruangan' || rawPath === '/layanan/ruangan' || rawTitle.includes('manajemen ruangan') || rawTitle.includes('ruangan')) {
+    return '/layanan/manage-ruangan'
+  }
   if (rawPath === '/layanan/manage-project' || rawPath === '/apps-manage-project' || rawPath === 'apps-manage-project' || rawPath === '/layanan/proyek' || rawTitle.includes('manajemen proyek') || rawTitle.includes('proyek')) {
     return '/layanan/manage-project'
   }

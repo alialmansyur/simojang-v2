@@ -463,6 +463,8 @@ class MenuModel extends Model
                     'dokumen-pnbp' => 'pnbp-cat',
                     'aset' => 'manage-assets',
                     'proyek' => 'manage-project',
+                    'ruangan' => 'manage-ruangan',
+                    'manage-ruangan' => 'manage-ruangan',
                 ];
                 $slug = $descriptiveSlugMap[$slug] ?? $slug;
 

@@ -100,6 +100,7 @@ const StatistikPetaJabatanPage = lazy(() => import('../modules/services/tu/Stati
 const StatistikMasterDataPage = lazy(() => import('../modules/services/tu/StatistikMasterDataPage'))
 const EkinPage = lazy(() => import('../modules/services/tu/EkinPage'))
 const ManageAssetsPage = lazy(() => import('../modules/services/tu/ManageAssetsPage'))
+const ManageRuanganPage = lazy(() => import('../modules/services/tu/ManageRuanganPage'))
 const ManageProjectPage = lazy(() => import('../modules/services/tu/ManageProjectPage'))
 const LostAndFoundPage = lazy(() => import('../modules/services/tu/LostAndFoundPage'))
 const IkkPage = lazy(() => import('../modules/services/tu/IkkPage'))
@@ -999,6 +1000,16 @@ export function AppRouter() {
             }
           />
           <Route
+            path="/layanan/manage-ruangan"
+            element={
+              <ProtectedRoute authenticated={isAuth}>
+                <AdminLayout title="Manajemen Ruangan" canvasClassName={SOFT_CANVAS_CLASS}>
+                  <ManageRuanganPage />
+                </AdminLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/layanan/manage-project"
             element={
               <ProtectedRoute authenticated={isAuth}>
@@ -1041,6 +1052,8 @@ export function AppRouter() {
           <Route path="/apps-ekin" element={<Navigate to="/layanan/ekin" replace />} />
           <Route path="/apps-manage-assets" element={<Navigate to="/layanan/manage-assets" replace />} />
           <Route path="/layanan/aset" element={<Navigate to="/layanan/manage-assets" replace />} />
+          <Route path="/apps-manage-ruangan" element={<Navigate to="/layanan/manage-ruangan" replace />} />
+          <Route path="/layanan/ruangan" element={<Navigate to="/layanan/manage-ruangan" replace />} />
           <Route path="/apps-manage-project" element={<Navigate to="/layanan/manage-project" replace />} />
           <Route path="/layanan/proyek" element={<Navigate to="/layanan/manage-project" replace />} />
           <Route path="/apps-lost-and-found" element={<Navigate to="/layanan/lost-and-found" replace />} />

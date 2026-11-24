@@ -334,7 +334,7 @@ export function TuCrudLayoutShell({
                     style={{ width: col.width }}
                     className={`px-4 py-3.5 whitespace-nowrap font-bold ${col.className || ''}`}
                   >
-                    {col.header}
+                    {col.header || col.label || col.title || ''}
                   </th>
                 ))}
               </tr>
@@ -496,6 +496,10 @@ export function TuCrudLayoutShell({
           onClose={() => setViewingItem(null)}
           data={viewingItem}
           item={viewingItem}
+          onSuccess={() => {
+            loadData(true)
+            loadSummary()
+          }}
           onEdit={() => {
             const itm = viewingItem
             setViewingItem(null)

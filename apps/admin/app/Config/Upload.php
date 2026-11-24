@@ -77,6 +77,15 @@ class Upload extends BaseConfig
             'convertToWebp'     => false,
             'fallbackOriginal'  => true,
         ],
+        'ruangan' => [
+            'visibility'        => 'public',
+            'subDir'            => 'ruangan',
+            'maxSizeKb'         => 5120,
+            'allowedExtensions' => ['jpg', 'jpeg', 'png', 'webp'],
+            'allowedMimes'      => ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'],
+            'convertToWebp'     => false,
+            'fallbackOriginal'  => true,
+        ],
         'projects_progress' => [
             'visibility'        => 'public',
             'subDir'            => 'projects/progress',

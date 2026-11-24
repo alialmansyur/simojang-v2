@@ -332,8 +332,12 @@ class ManageAssetsController extends BaseController
             );
         }
 
+        $rawRuangan = $this->request->getPost('ruangan_id');
+        $ruanganId = (!empty($rawRuangan) && is_numeric($rawRuangan)) ? (int) $rawRuangan : null;
+
         $data = [
             'category_id'     => $category['id'],
+            'ruangan_id'      => $ruanganId,
             'kode'            => trim((string) $this->request->getPost('kode')),
             'subcode'         => trim((string) ($this->request->getPost('subcode') ?? '')) ?: null,
             'uraian'          => trim((string) $this->request->getPost('uraian')),
@@ -428,7 +432,11 @@ class ManageAssetsController extends BaseController
         $rawTahun = $this->request->getPost('tahun_perolehan');
         $tahun = (!empty($rawTahun) && is_numeric($rawTahun)) ? (int) $rawTahun : null;
 
+        $rawRuangan = $this->request->getPost('ruangan_id');
+        $ruanganId = (!empty($rawRuangan) && is_numeric($rawRuangan)) ? (int) $rawRuangan : null;
+
         $data = [
+            'ruangan_id'      => $ruanganId,
             'kode'            => trim((string) $this->request->getPost('kode')),
             'subcode'         => trim((string) ($this->request->getPost('subcode') ?? '')) ?: null,
             'uraian'          => trim((string) $this->request->getPost('uraian')),

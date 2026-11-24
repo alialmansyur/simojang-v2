@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Loader2, Camera, Package, AlertCircle } from 'lucide-react'
-import { storeAssetData, fetchAssetCategories } from '../../../../services/api/tuServicesApi'
+import { SearchableSelect } from '../../../../components/shared/SearchableSelect'
+import { storeAssetData, fetchAssetCategories, fetchOptionsRuangan } from '../../../../services/api/tuServicesApi'
 
 export function AssetFormModal({
   isOpen,
@@ -13,6 +14,8 @@ export function AssetFormModal({
 }) {
   const [categories, setCategories] = useState(propCategories)
   const [categoryUid, setCategoryUid] = useState('')
+  const [rooms, setRooms] = useState([])
+  const [ruanganId, setRuanganId] = useState('')
   const [kode, setKode] = useState('')
   const [subcode, setSubcode] = useState('')
   const [uraian, setUraian] = useState('')
@@ -29,7 +32,7 @@ export function AssetFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errorMsg, setErrorMsg] = useState('')
 
-  // Load categories if not passed or empty
+  // Load categories and rooms if modal is open
   useEffect(() => {
     if (propCategories && propCategories.length > 0) {
       setCategories(propCategories)
@@ -42,11 +45,22 @@ export function AssetFormModal({
         })
         .catch(() => {})
     }
+
+    if (isOpen) {
+      fetchOptionsRuangan()
+        .then((res) => {
+          if (Array.isArray(res)) {
+            setRooms(res)
+          }
+        })
+        .catch(() => {})
+    }
   }, [propCategories, isOpen])
 
   useEffect(() => {
     if (initialData) {
       setCategoryUid(initialData.category_uid || String(initialData.category_id || ''))
+      setRuanganId(initialData.ruangan_id ? String(initialData.ruangan_id) : '')
       setKode(initialData.kode || '')
       setSubcode(initialData.subcode || '')
       setUraian(initialData.uraian || '')
@@ -68,6 +82,7 @@ export function AssetFormModal({
           ? categories[0].uid || String(categories[0].id)
           : ''
       setCategoryUid(defaultCat)
+      setRuanganId('')
       setKode('')
       setSubcode('')
       setUraian('')
@@ -84,6 +99,14 @@ export function AssetFormModal({
     }
     setErrorMsg('')
   }, [initialData, isOpen, categories, activeCategory])
+
+  const roomOptions = useMemo(() => {
+    return rooms.map((r) => ({
+      value: String(r.id),
+      label: `${r.nama_ruangan} (${r.kantor}${r.lantai ? ` - ${r.lantai}` : ''})`,
+      raw: r,
+    }))
+  }, [rooms])
 
   if (!isOpen) return null
 
@@ -121,6 +144,7 @@ export function AssetFormModal({
       fd.append('qty', qty)
       fd.append('kondisi', kondisi)
       fd.append('lokasi', lokasi.trim())
+      fd.append('ruangan_id', ruanganId || '')
       fd.append('area', area)
       fd.append('tahun_perolehan', tahunPerolehan)
       fd.append('nilai_perolehan', String(nilaiPerolehan).replace(/[^0-9]/g, '') || 0)
@@ -330,8 +354,37 @@ export function AssetFormModal({
           </div>
 
           <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Ruangan Penempatan
+              </label>
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                Terhubung ke Manajemen Ruangan
+              </span>
+            </div>
+            <SearchableSelect
+              options={roomOptions}
+              value={ruanganId}
+              onChange={(val) => {
+                const rawVal = val ? String(val.value ?? val) : ''
+                setRuanganId(rawVal)
+                const selected = rooms.find((r) => String(r.id) === rawVal)
+                if (selected) {
+                  setLokasi(`${selected.nama_ruangan} (${selected.kantor}${selected.lantai ? `, ${selected.lantai}` : ''})`)
+                  if (selected.kantor) {
+                    setArea(selected.kantor)
+                  }
+                }
+              }}
+              placeholder="-- Cari dan pilih ruangan penempatan... --"
+              isClearable
+              noOptionsText="Tidak ada ruangan yang sesuai"
+            />
+          </div>
+
+          <div className="space-y-1">
             <label className="text-xs font-bold text-slate-700 dark:text-slate-300">
-              Lokasi Ruangan / Gedung
+              Lokasi Ruangan / Gedung (Deskripsi Detail)
             </label>
             <input
               type="text"

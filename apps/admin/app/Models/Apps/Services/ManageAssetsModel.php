@@ -11,6 +11,7 @@ class ManageAssetsModel extends Model
     protected $allowedFields = [
         'uid',
         'category_id',
+        'ruangan_id',
         'kode',
         'subcode',
         'uraian',
@@ -68,6 +69,9 @@ class ManageAssetsModel extends Model
                     ['data' => 'kondisi', 'search' => 'a.kondisi', 'order' => 'a.kondisi'],
                     ['data' => 'area', 'search' => 'a.area', 'order' => 'a.area'],
                     ['data' => 'lokasi', 'search' => 'a.lokasi', 'order' => 'a.lokasi'],
+                    ['data' => 'ruangan_id', 'search' => 'a.ruangan_id', 'order' => 'a.ruangan_id'],
+                    ['data' => 'nama_ruangan', 'search' => 'r.nama_ruangan', 'order' => 'r.nama_ruangan'],
+                    ['data' => 'kode_ruangan', 'search' => 'r.kode_ruangan', 'order' => 'r.kode_ruangan'],
                     ['data' => 'tahun_perolehan', 'search' => 'a.tahun_perolehan', 'order' => 'a.tahun_perolehan'],
                     ['data' => 'keterangan', 'search' => 'a.keterangan', 'order' => 'a.keterangan'],
                     ['data' => 'created_at', 'search' => 'a.created_at', 'order' => 'a.created_at'],
@@ -167,8 +171,9 @@ class ManageAssetsModel extends Model
     public function getDataDetail($categoryUid = null)
     {
         $builder = $this->db->table('data_assets a')
-            ->select('a.id, a.uid, a.category_id, b.name AS category_name, b.uid AS category_uid, a.kode, a.subcode, a.uraian, a.satuan, a.qty, a.foto, a.kondisi, a.area, a.lokasi, a.tahun_perolehan, a.nilai_perolehan, a.keterangan, a.created_at, a.updated_at')
+            ->select('a.id, a.uid, a.category_id, a.ruangan_id, r.nama_ruangan, r.kode_ruangan, b.name AS category_name, b.uid AS category_uid, a.kode, a.subcode, a.uraian, a.satuan, a.qty, a.foto, a.kondisi, a.area, a.lokasi, a.tahun_perolehan, a.nilai_perolehan, a.keterangan, a.created_at, a.updated_at')
             ->join('data_asset_categories b', 'b.id = a.category_id', 'left')
+            ->join('data_ruangan r', 'r.id = a.ruangan_id AND r.deleted_at IS NULL', 'left')
             ->where('a.deleted_at IS NULL');
 
         if (!empty($categoryUid) && $categoryUid !== 'all') {
@@ -250,8 +255,9 @@ class ManageAssetsModel extends Model
     public function getDetailById($id)
     {
         return $this->db->table('data_assets a')
-            ->select('a.*, b.name AS category_name, b.uid AS category_uid')
+            ->select('a.*, b.name AS category_name, b.uid AS category_uid, r.nama_ruangan, r.kode_ruangan')
             ->join('data_asset_categories b', 'b.id = a.category_id', 'left')
+            ->join('data_ruangan r', 'r.id = a.ruangan_id AND r.deleted_at IS NULL', 'left')
             ->where('a.id', $id)
             ->where('a.deleted_at IS NULL')
             ->get()

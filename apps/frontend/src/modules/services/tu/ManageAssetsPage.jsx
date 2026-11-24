@@ -186,6 +186,12 @@ export default function ManageAssetsPage() {
                 <span>•</span>
                 <span>NUP: {item.subcode || '-'}</span>
               </div>
+              {item.nama_ruangan && (
+                <div className="flex items-center gap-1 text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5">
+                  <MapPin className="w-3 h-3 text-indigo-500 shrink-0" />
+                  <span className="truncate max-w-[220px]">Ruang: {item.nama_ruangan}</span>
+                </div>
+              )}
             </div>
           </div>
         </td>

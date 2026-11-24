@@ -46,6 +46,9 @@ export default function GenericServicePage({ serviceId }) {
   ) {
     return <Navigate to="/layanan/wasdal-netralitas" replace />
   }
+  if (serviceKey === 'manage-ruangan' || serviceKey === 'ruangan') {
+    return <Navigate to="/layanan/manage-ruangan" replace />
+  }
 
   return (
     <div className="min-h-[60vh] flex items-center justify-center p-6">

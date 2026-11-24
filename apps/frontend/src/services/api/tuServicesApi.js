@@ -673,6 +673,95 @@ export function importBatchAssets(file) {
 }
 
 // =========================================================================
+// 09.5 LAYANAN MANAJEMEN RUANGAN (TATA USAHA)
+// =========================================================================
+export function fetchRoomsSummary(params = {}) {
+  const kantor = params.kantor || params.area || params.category || ''
+  const fd = toFormData(kantor && kantor !== 'all' ? { kantor } : {})
+  if (params.status && params.status !== 'all') fd.append('status', params.status)
+  return postSummary('/fetch/summary-manage-ruangan', fd, 'Gagal memuat ringkasan data ruangan.')
+}
+
+export function fetchRoomsData(params = {}) {
+  const kantor = params.kantor || params.area || params.category || ''
+  const extra = {}
+  if (kantor && kantor !== 'all') extra.kantor = kantor
+  if (params.status && params.status !== 'all') extra.status = params.status
+  if (params.lantai && params.lantai !== 'all') extra.lantai = params.lantai
+  return postList('/fetch/data-manage-ruangan', params, extra, 'Gagal memuat daftar ruangan.')
+}
+
+export function fetchRoomDetail(id) {
+  return apiRequest('/fetch/detail-manage-ruangan', {
+    method: 'POST',
+    body: toFormData({ id }),
+    fallbackMessage: 'Gagal memuat rincian data ruangan.',
+  })
+}
+
+export function storeRoomData(formData) {
+  const fd = toFormData(formData)
+  const endpoint = fd.get('id') ? '/store/update-manage-ruangan' : '/store/save-manage-ruangan'
+  return apiRequest(endpoint, {
+    method: 'POST',
+    body: fd,
+    fallbackMessage: 'Gagal menyimpan data ruangan.',
+  })
+}
+
+export function deleteRoomData(id) {
+  return apiRequest('/kill/delete-manage-ruangan', {
+    method: 'POST',
+    body: toFormData({ id }),
+    fallbackMessage: 'Gagal menghapus data ruangan.',
+  })
+}
+
+export function fetchRoomAssets(ruanganId) {
+  return apiRequest('/fetch/room-assets', {
+    method: 'POST',
+    body: toFormData({ ruangan_id: ruanganId }),
+    fallbackMessage: 'Gagal memuat daftar aset di ruangan ini.',
+  })
+}
+
+export async function fetchAvailableAssets(kantor = null) {
+  const fd = toFormData(kantor && kantor !== 'all' ? { kantor } : {})
+  const json = await apiRequest('/fetch/available-assets', {
+    method: 'POST',
+    body: fd,
+    fallbackMessage: 'Gagal memuat daftar aset yang tersedia.',
+  })
+  return json?.data || json || []
+}
+
+export function assignAssetToRoom(assetId, ruanganId) {
+  return apiRequest('/store/assign-asset-ruangan', {
+    method: 'POST',
+    body: toFormData({ asset_id: assetId, ruangan_id: ruanganId }),
+    fallbackMessage: 'Gagal mengalokasikan aset ke ruangan.',
+  })
+}
+
+export function unassignAssetFromRoom(assetId) {
+  return apiRequest('/store/unassign-asset-ruangan', {
+    method: 'POST',
+    body: toFormData({ asset_id: assetId }),
+    fallbackMessage: 'Gagal melepas aset dari ruangan.',
+  })
+}
+
+export async function fetchOptionsRuangan(kantor = null) {
+  const fd = toFormData(kantor && kantor !== 'all' ? { kantor } : {})
+  const json = await apiRequest('/fetch/options-ruangan', {
+    method: 'POST',
+    body: fd,
+    fallbackMessage: 'Gagal memuat opsi ruangan.',
+  })
+  return json?.data || json || []
+}
+
+// =========================================================================
 // 10. LAYANAN 38 — MANAJEMEN PROYEK
 // =========================================================================
 export function fetchProjectsSummary(params = {}) {

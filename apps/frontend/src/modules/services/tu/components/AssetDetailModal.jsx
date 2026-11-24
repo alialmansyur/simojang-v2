@@ -203,7 +203,13 @@ export function AssetDetailModal({ isOpen, onClose, data, onEdit }) {
                       <span className="font-bold text-slate-800 dark:text-slate-200">{data.pic || data.penanggung_jawab || 'Pengelola BMN'}</span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
-                      <span className="text-slate-400">Ruangan / Lokasi:</span>
+                      <span className="text-slate-400">Ruangan Kantor:</span>
+                      <span className="font-semibold text-indigo-600 dark:text-indigo-400">
+                        {data.nama_ruangan ? `${data.nama_ruangan} ${data.kode_ruangan ? `(${data.kode_ruangan})` : ''}` : '-'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-400">Lokasi Penempatan:</span>
                       <span className="font-semibold text-slate-800 dark:text-slate-200">{data.lokasi || 'Gedung Kanreg III'}</span>
                     </div>
                     <div className="flex justify-between items-center py-1 border-b border-slate-100 dark:border-slate-800">

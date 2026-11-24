@@ -245,7 +245,7 @@ export function ServiceFilterToolbar({
                       : 'text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
                   }`}
                 >
-                  {cat.label} {hasCountMap ? `(${count})` : ''}
+                  {cat.label || cat.name || cat.text || catVal} {hasCountMap ? `(${count})` : ''}
                 </button>
               )
             })}
