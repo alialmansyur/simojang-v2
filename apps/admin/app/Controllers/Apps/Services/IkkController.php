@@ -1740,9 +1740,12 @@ class IkkController extends BaseController
 
             if ($db->transStatus() === false) {
                 $db->transRollback();
+                $dbError = $db->error();
+                $errDetail = !empty($dbError['message']) ? ': ' . $dbError['message'] : '';
+                log_message('error', 'IkkController::importDashboardExcel DB Error: ' . json_encode($dbError));
                 return $this->response->setJSON([
                     'status'  => 'error',
-                    'message' => 'Gagal menyimpan data import IKK ke basis data.',
+                    'message' => 'Gagal menyimpan data import IKK ke basis data' . $errDetail,
                 ]);
             }
 
