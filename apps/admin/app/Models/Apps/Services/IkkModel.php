@@ -42,12 +42,27 @@ class IkkModel extends Model
             (SELECT r.progres_capaian FROM txn_ikk_indikator r 
              WHERE r.indikator_id = a.id {$subRealWhere} 
              ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_progres,
+            (SELECT r.capaian_text FROM txn_ikk_indikator r 
+             WHERE r.indikator_id = a.id {$subRealWhere} 
+             ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_capaian_text,
             (SELECT r.jumlah_realisasi FROM txn_ikk_indikator r 
              WHERE r.indikator_id = a.id {$subRealWhere} 
              ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_realisasi,
+            (SELECT r.realisasi_text FROM txn_ikk_indikator r 
+             WHERE r.indikator_id = a.id {$subRealWhere} 
+             ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_realisasi_text,
             (SELECT r.target_periode FROM txn_ikk_indikator r 
              WHERE r.indikator_id = a.id {$subRealWhere} 
              ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_target,
+            (SELECT r.penjelasan_capaian FROM txn_ikk_indikator r 
+             WHERE r.indikator_id = a.id {$subRealWhere} 
+             ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_penjelasan,
+            (SELECT r.permasalahan FROM txn_ikk_indikator r 
+             WHERE r.indikator_id = a.id {$subRealWhere} 
+             ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_permasalahan,
+            (SELECT r.rencana_tindak_lanjut FROM txn_ikk_indikator r 
+             WHERE r.indikator_id = a.id {$subRealWhere} 
+             ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS periode_tindak_lanjut,
             (SELECT r.triwulan FROM txn_ikk_indikator r 
              WHERE r.indikator_id = a.id {$subRealWhere} 
              ORDER BY r.tahun DESC, r.triwulan DESC LIMIT 1) AS realisasi_tw,
@@ -588,6 +603,226 @@ class IkkModel extends Model
             'suggested_progres'   => $avgProg,
             'suggested_realisasi' => round($totalRealSum, 2),
             'message'             => 'Nilai berhasil dihitung otomatis dari ' . count($kegiatans) . ' log kegiatan operasional.',
+        ];
+    }
+
+    /**
+     * Mengambil struktur matriks berjenjang: Sasaran -> Indikator dengan data snapshot terakhir (non-akumulatif)
+     */
+    public function getGroupedMatrixData(?array $filter = null): array
+    {
+        $tahun = !empty($filter['tahun']) ? (int) $filter['tahun'] : (int) date('Y');
+        $bulan = !empty($filter['bulan']) ? (int) $filter['bulan'] : null;
+        $triwulan = (!empty($filter['triwulan']) && $filter['triwulan'] !== 'all') ? (int) $filter['triwulan'] : null;
+
+        $sasarans = $this->db->table('data_ikk_sasaran s')
+            ->select('s.id, s.no_urut, s.nama_sasaran')
+            ->orderBy('s.no_urut', 'ASC')
+            ->get()->getResultArray();
+
+        $allIndikators = $this->db->table('data_ikk_indikator i')
+            ->select('i.id, i.sasaran_id, i.no_urut, i.nama_indikator, i.satuan, i.target_volume')
+            ->orderBy('i.no_urut', 'ASC')
+            ->get()->getResultArray();
+
+        // Ambil data realisasi IKK untuk tahun bersangkutan
+        $realQuery = $this->db->table('txn_ikk_indikator r')
+            ->where('r.tahun', $tahun);
+        if ($bulan !== null) {
+            $realQuery->where('r.bulan', $bulan);
+        } elseif ($triwulan !== null) {
+            $realQuery->where('r.triwulan', $triwulan);
+        }
+        $realQuery->orderBy('r.tahun', 'DESC')
+                  ->orderBy('r.bulan', 'DESC')
+                  ->orderBy('r.triwulan', 'DESC')
+                  ->orderBy('r.id', 'DESC');
+        $realRows = $realQuery->get()->getResultArray();
+
+        // Mapping realisasi terakhir per indikator_id
+        $realByInd = [];
+        foreach ($realRows as $r) {
+            $indId = (int) $r['indikator_id'];
+            if (!isset($realByInd[$indId])) {
+                $realByInd[$indId] = $r;
+            }
+        }
+
+        // Kelompokkan indikator ke sasaran
+        $indBySasaran = [];
+        foreach ($allIndikators as $ind) {
+            $indId = (int) $ind['id'];
+            $sasId = (int) $ind['sasaran_id'];
+
+            $r = $realByInd[$indId] ?? null;
+
+            $hasData = ($r !== null);
+            $realisasiDisplay = '-';
+            $capaianDisplay = '-';
+            $capaianNum = null;
+
+            if ($hasData) {
+                if (!empty($r['realisasi_text'])) {
+                    $realisasiDisplay = $r['realisasi_text'];
+                } elseif ($r['jumlah_realisasi'] !== null) {
+                    $realisasiDisplay = (string) (float) $r['jumlah_realisasi'];
+                }
+
+                if (!empty($r['capaian_text'])) {
+                    $capaianDisplay = $r['capaian_text'];
+                    $cleanCap = str_replace(['%', ' ', ','], ['', '', '.'], $r['capaian_text']);
+                    if (is_numeric($cleanCap)) {
+                        $capVal = (float) $cleanCap;
+                        if ($capVal > 0 && $capVal <= 2.0 && strpos($r['capaian_text'], '%') === false && (float)$cleanCap < 2.0) {
+                            $capVal = round($capVal * 100, 2);
+                        }
+                        $capaianNum = $capVal;
+                    }
+                } elseif ($r['progres_capaian'] !== null) {
+                    $capaianNum = (float) $r['progres_capaian'];
+                    $capaianDisplay = (string) $capaianNum . '%';
+                }
+            }
+
+            $indItem = [
+                'id'                   => $indId,
+                'sasaran_id'           => $sasId,
+                'no_urut'              => (int) $ind['no_urut'],
+                'kode'                 => 'IKK ' . $ind['no_urut'],
+                'nama_indikator'       => $ind['nama_indikator'],
+                'satuan'               => $ind['satuan'] ?: '-',
+                'target_tahunan'       => $ind['target_volume'] ?: '-',
+                'target_periode'       => ($hasData && !empty($r['target_periode'])) ? $r['target_periode'] : ($ind['target_volume'] ?: '-'),
+                'realisasi'            => $realisasiDisplay,
+                'capaian'              => $capaianDisplay,
+                'capaian_num'          => $capaianNum,
+                'penjelasan_capaian'   => $hasData ? ($r['penjelasan_capaian'] ?? '') : '',
+                'permasalahan'         => $hasData ? ($r['permasalahan'] ?? '') : '',
+                'rencana_tindak_lanjut'=> $hasData ? ($r['rencana_tindak_lanjut'] ?? '') : '',
+                'bukti_dukung'         => $hasData ? ($r['bukti_dukung'] ?? '') : '',
+                'triwulan'             => $hasData ? (int) $r['triwulan'] : ($triwulan ?: null),
+                'bulan'                => $hasData ? (int) $r['bulan'] : ($bulan ?: null),
+                'tahun'                => $hasData ? (int) $r['tahun'] : $tahun,
+                'log_id'               => $hasData ? (int) $r['id'] : null,
+                'has_data'             => $hasData,
+                'updated_at'           => $hasData ? $r['updated_at'] : null,
+            ];
+
+            $indBySasaran[$sasId][] = $indItem;
+        }
+
+        $result = [];
+        $totalIndikatorSemua = count($allIndikators);
+        $totalTerisiSemua = 0;
+        $totalCapaianSumSemua = 0;
+        $countCapaianValidSemua = 0;
+
+        foreach ($sasarans as $s) {
+            $sasId = (int) $s['id'];
+            $children = $indBySasaran[$sasId] ?? [];
+
+            $terisiCount = 0;
+            $capSum = 0;
+            $validCapCount = 0;
+
+            foreach ($children as $c) {
+                if ($c['has_data']) {
+                    $terisiCount++;
+                }
+                if ($c['capaian_num'] !== null && $c['capaian_num'] > 0) {
+                    $capSum += $c['capaian_num'];
+                    $validCapCount++;
+                    $totalCapaianSumSemua += $c['capaian_num'];
+                    $countCapaianValidSemua++;
+                }
+            }
+
+            $totalTerisiSemua += $terisiCount;
+            $avgCapaianSasaran = $validCapCount > 0 ? round($capSum / $validCapCount, 2) : null;
+
+            $result[] = [
+                'id'              => $sasId,
+                'no_urut'         => (int) $s['no_urut'],
+                'kode'            => 'SK ' . $s['no_urut'],
+                'nama_sasaran'    => $s['nama_sasaran'],
+                'total_indikator' => count($children),
+                'total_terisi'    => $terisiCount,
+                'nss'             => $avgCapaianSasaran !== null ? $avgCapaianSasaran : 'NA',
+                'indikators'      => $children,
+            ];
+        }
+
+        $avgTotalOrganisasi = $countCapaianValidSemua > 0 ? round($totalCapaianSumSemua / $countCapaianValidSemua, 2) : 0.0;
+
+        $bulanNames = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        $periodeLabel = "Posisi Terakhir Tahun {$tahun}";
+        if ($bulan) {
+            $periodeLabel = "Bulan {$bulanNames[$bulan]} Tahun {$tahun}";
+        } elseif ($triwulan) {
+            $periodeLabel = "Triwulan {$triwulan} Tahun {$tahun}";
+        }
+
+        return [
+            'status'         => 'success',
+            'tahun'          => $tahun,
+            'bulan'          => $bulan,
+            'triwulan'       => $triwulan,
+            'periode_label'  => $periodeLabel,
+            'total_sasaran'  => count($sasarans),
+            'total_indikator'=> $totalIndikatorSemua,
+            'total_terisi'   => $totalTerisiSemua,
+            'avg_capaian'    => $avgTotalOrganisasi,
+            'sasarans'       => $result,
+        ];
+    }
+
+    /**
+     * Mengambil riwayat log lengkap untuk satu indikator
+     */
+    public function getIndikatorLogs(int $indikatorId): array
+    {
+        $indikator = $this->db->table('data_ikk_indikator a')
+            ->select('a.id, a.sasaran_id, a.no_urut, a.nama_indikator, a.satuan, a.target_volume, b.nama_sasaran, b.no_urut as sasaran_no_urut')
+            ->join('data_ikk_sasaran b', 'a.sasaran_id = b.id', 'left')
+            ->where('a.id', $indikatorId)
+            ->get()->getRowArray();
+
+        if (!$indikator) {
+            return [];
+        }
+
+        $logs = $this->db->table('txn_ikk_indikator r')
+            ->where('r.indikator_id', $indikatorId)
+            ->orderBy('r.tahun', 'DESC')
+            ->orderBy('r.bulan', 'DESC')
+            ->orderBy('r.triwulan', 'DESC')
+            ->orderBy('r.id', 'DESC')
+            ->get()->getResultArray();
+
+        $bulanNames = [
+            1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+            5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+            9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+        ];
+
+        foreach ($logs as &$log) {
+            $b = !empty($log['bulan']) ? (int) $log['bulan'] : null;
+            $tw = !empty($log['triwulan']) ? (int) $log['triwulan'] : ($b ? (int)ceil($b / 3) : null);
+            $log['bulan_nama'] = $b ? ($bulanNames[$b] ?? "Bulan {$b}") : ($tw ? "TW {$tw}" : '-');
+            $log['periode_formatted'] = $b ? "{$bulanNames[$b]} {$log['tahun']} (TW {$tw})" : "TW {$tw} {$log['tahun']}";
+            $log['realisasi_display'] = !empty($log['realisasi_text']) ? $log['realisasi_text'] : ($log['jumlah_realisasi'] !== null ? (string)$log['jumlah_realisasi'] : '-');
+            $log['capaian_display'] = !empty($log['capaian_text']) ? $log['capaian_text'] : ($log['progres_capaian'] !== null ? "{$log['progres_capaian']}%" : '-');
+        }
+
+        return [
+            'indikator' => $indikator,
+            'logs'      => $logs,
+            'total'     => count($logs),
         ];
     }
 }

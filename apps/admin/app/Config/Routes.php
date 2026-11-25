@@ -524,6 +524,11 @@ $routes->group('', ['filter' => ['jwtauth', 'rbac', 'serviceaccess']], function 
     $routes->post('/store/ikk-indikator-realisasi', 'Apps\Services\IkkController::storeRealisasiIndikator');
     $routes->post('/kill/ikk-indikator-realisasi', 'Apps\Services\IkkController::deleteRealisasiIndikator');
     $routes->post('/fetch/ikk-calc-kegiatan-realisasi', 'Apps\Services\IkkController::calcFromKegiatan');
+    $routes->post('/fetch/ikk-grouped-matrix', 'Apps\Services\IkkController::getGroupedMatrix');
+    $routes->post('/fetch/ikk-indikator-logs', 'Apps\Services\IkkController::getIndikatorLogs');
+    $routes->post('/store/ikk-indikator-dashboard-import', 'Apps\Services\IkkController::importDashboardExcel');
+    $routes->post('/fetch/ikk-indikator-preview-import', 'Apps\Services\IkkController::previewDashboardExcel');
+    $routes->get('/export/template-dashboard-ikk', 'Apps\Services\IkkController::downloadTemplateDashboard');
 
     $routes->post('/fetch/ikk-kegiatan', 'Apps\Services\IkkController::getDataKegiatan');
     $routes->post('/store/ikk-kegiatan', 'Apps\Services\IkkController::storeKegiatan');

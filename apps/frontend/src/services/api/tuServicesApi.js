@@ -979,6 +979,40 @@ export function calcIkkFromKegiatan(indikatorId, tahun, triwulan) {
   })
 }
 
+export async function fetchIkkGroupedMatrix(filters = {}) {
+  const json = await apiRequest('/fetch/ikk-grouped-matrix', {
+    method: 'POST',
+    body: toFormData(filters),
+    fallbackMessage: 'Gagal memuat matriks capaian IKK.',
+  })
+  return json || { sasarans: [] }
+}
+
+export async function fetchIkkIndikatorLogs(indikatorId) {
+  const json = await apiRequest('/fetch/ikk-indikator-logs', {
+    method: 'POST',
+    body: toFormData({ indikator_id: indikatorId }),
+    fallbackMessage: 'Gagal memuat riwayat log indikator IKK.',
+  })
+  return json?.data || { logs: [], indikator: null }
+}
+
+export function previewIkkDashboardExcel(formData) {
+  return apiRequest('/fetch/ikk-indikator-preview-import', {
+    method: 'POST',
+    body: formData,
+    fallbackMessage: 'Gagal memproses pratinjau file Excel IKK.',
+  })
+}
+
+export function importIkkDashboardExcel(formData) {
+  return apiRequest('/store/ikk-indikator-dashboard-import', {
+    method: 'POST',
+    body: formData,
+    fallbackMessage: 'Gagal mengimpor data realisasi IKK dashboard.',
+  })
+}
+
 // 12.3 Master Level 3: Kegiatan Operasional & Pengampu
 export function fetchIkkKegiatan(params = {}) {
   return postList('/fetch/ikk-kegiatan', params, {

@@ -257,7 +257,59 @@ class IkkController extends BaseController
     }
 
     /**
-     * Simpan / perbarui realisasi capaian indikator per periode
+     * Mengambil matriks berjenjang (Sasaran -> Indikator) dengan data realisasi snapshot terakhir
+     */
+    public function getGroupedMatrix()
+    {
+        $filter = [
+            'tahun'    => $this->request->getPost('tahun'),
+            'bulan'    => $this->request->getPost('bulan'),
+            'triwulan' => $this->request->getPost('triwulan'),
+        ];
+        $result = $this->ikk->getGroupedMatrixData($filter);
+        return $this->response->setJSON($result);
+    }
+
+    /**
+     * Mengambil seluruh riwayat log untuk satu indikator
+     */
+    public function getIndikatorLogs()
+    {
+        $indikatorId = (int) $this->request->getPost('indikator_id');
+        if (empty($indikatorId)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Indikator ID wajib diisi.']);
+        }
+        $data = $this->ikk->getIndikatorLogs($indikatorId);
+        if (empty($data)) {
+            return $this->response->setJSON(['status' => 'error', 'message' => 'Data riwayat indikator tidak ditemukan.']);
+        }
+        return $this->response->setJSON([
+            'status' => 'success',
+            'data'   => $data,
+        ]);
+    }
+
+    /**
+     * Unduh berkas template/sample Excel capaian IKK siap pakai
+     */
+    public function downloadTemplateDashboard()
+    {
+        $filePath = FCPATH . 'apps/samples/template-realisasi-ikk.xlsx';
+        if (!file_exists($filePath)) {
+            $filePath = ROOTPATH . 'apps/frontend/public/templates/tu/template-realisasi-ikk.xlsx';
+        }
+        if (!file_exists($filePath)) {
+            $filePath = ROOTPATH . 'apps/admin/public/apps/samples/template-realisasi-ikk.xlsx';
+        }
+        if (!file_exists($filePath)) {
+            return $this->response->setStatusCode(404)->setBody('File template sample tidak ditemukan.');
+        }
+
+        return $this->response->download($filePath, null)->setFileName('template-realisasi-ikk.xlsx');
+    }
+
+    /**
+     * Simpan / perbarui realisasi capaian indikator per periode (Tahun & Bulan)
      */
     public function storeRealisasiIndikator()
     {
@@ -265,20 +317,33 @@ class IkkController extends BaseController
             return $this->unauthorizedResponse();
         }
 
-        $indikator_id       = (int) $this->request->getPost('indikator_id');
-        $tahun              = (int) $this->request->getPost('tahun');
-        $triwulan           = (int) $this->request->getPost('triwulan');
-        $target_periode     = trim((string) $this->request->getPost('target_periode'));
-        $jumlah_realisasi   = $this->request->getPost('jumlah_realisasi');
-        $progres_capaian    = $this->request->getPost('progres_capaian');
-        $penjelasan_capaian = trim((string) $this->request->getPost('penjelasan_capaian'));
-        $bukti_dukung       = trim((string) $this->request->getPost('bukti_dukung'));
+        $log_id                = (int) $this->request->getPost('log_id');
+        $indikator_id          = (int) $this->request->getPost('indikator_id');
+        $tahun                 = (int) ($this->request->getPost('tahun') ?: date('Y'));
+        $bulan                 = (int) $this->request->getPost('bulan');
+        $triwulan              = (int) $this->request->getPost('triwulan');
+        $target_periode        = trim((string) $this->request->getPost('target_periode'));
+        $jumlah_realisasi      = $this->request->getPost('jumlah_realisasi');
+        $realisasi_text        = trim((string) $this->request->getPost('realisasi_text'));
+        $progres_capaian       = $this->request->getPost('progres_capaian');
+        $capaian_text          = trim((string) $this->request->getPost('capaian_text'));
+        $penjelasan_capaian    = trim((string) $this->request->getPost('penjelasan_capaian'));
+        $permasalahan          = trim((string) $this->request->getPost('permasalahan'));
+        $rencana_tindak_lanjut = trim((string) $this->request->getPost('rencana_tindak_lanjut'));
+        $bukti_dukung          = trim((string) $this->request->getPost('bukti_dukung'));
+
+        if ($bulan >= 1 && $bulan <= 12) {
+            $triwulan = (int) ceil($bulan / 3);
+        } elseif ($triwulan >= 1 && $triwulan <= 4) {
+            $bulan = $triwulan * 3;
+        } else {
+            $bulan = (int) date('n');
+            $triwulan = (int) ceil($bulan / 3);
+        }
 
         $rules = [
             'indikator_id'    => 'required|is_not_unique[data_ikk_indikator.id]',
             'tahun'           => 'required|numeric|greater_than[2020]|less_than[2100]',
-            'triwulan'        => 'required|in_list[1,2,3,4]',
-            'progres_capaian' => 'required|numeric|greater_than_equal_to[0]|less_than_equal_to[150]',
         ];
 
         if (!$this->validate($rules)) {
@@ -288,41 +353,87 @@ class IkkController extends BaseController
             ]);
         }
 
-        $periodeKey = sprintf('%04d-TW%d', $tahun, $triwulan);
+        // Jika realisasi_text kosong tapi jumlah_realisasi terisi
+        if ($realisasi_text === '' && $jumlah_realisasi !== '' && $jumlah_realisasi !== null) {
+            $realisasi_text = (string) $jumlah_realisasi;
+        }
+
+        // Parsing numerik jumlah_realisasi
+        $numRealisasi = null;
+        if ($jumlah_realisasi !== '' && $jumlah_realisasi !== null && is_numeric($jumlah_realisasi)) {
+            $numRealisasi = (float) $jumlah_realisasi;
+        } elseif ($realisasi_text !== '') {
+            $cleanR = str_replace([' ', ','], ['', '.'], $realisasi_text);
+            if (is_numeric($cleanR)) {
+                $numRealisasi = (float) $cleanR;
+            }
+        }
+
+        // Jika capaian_text kosong tapi progres_capaian terisi
+        if ($capaian_text === '' && $progres_capaian !== '' && $progres_capaian !== null) {
+            $capaian_text = (string) $progres_capaian . '%';
+        }
+
+        // Parsing numerik progres_capaian
+        $numCapaian = null;
+        if ($progres_capaian !== '' && $progres_capaian !== null && is_numeric($progres_capaian)) {
+            $numCapaian = (float) $progres_capaian;
+        } elseif ($capaian_text !== '') {
+            $cleanC = str_replace(['%', ' ', ','], ['', '', '.'], $capaian_text);
+            if (is_numeric($cleanC)) {
+                $valC = (float) $cleanC;
+                if ($valC > 0 && $valC <= 2.0 && strpos($capaian_text, '%') === false && (float)$cleanC < 2.0) {
+                    $numCapaian = round($valC * 100, 2);
+                } else {
+                    $numCapaian = round($valC, 2);
+                }
+            }
+        }
+
+        $periodeKey = sprintf('%04d-B%02d', $tahun, $bulan);
         $sessionUser = session()->get('nama') ?? session()->get('username') ?? 'Pengampu IKK';
         $now = date('Y-m-d H:i:s');
 
         $data = [
-            'indikator_id'       => $indikator_id,
-            'tahun'              => $tahun,
-            'triwulan'           => $triwulan,
-            'periode_key'        => $periodeKey,
-            'target_periode'     => $target_periode ?: null,
-            'jumlah_realisasi'   => ($jumlah_realisasi !== '' && $jumlah_realisasi !== null) ? (float) $jumlah_realisasi : null,
-            'progres_capaian'    => (float) $progres_capaian,
-            'penjelasan_capaian' => $penjelasan_capaian ?: null,
-            'bukti_dukung'       => $bukti_dukung ?: null,
-            'updated_at'         => $now,
+            'indikator_id'          => $indikator_id,
+            'tahun'                 => $tahun,
+            'bulan'                 => $bulan,
+            'triwulan'              => $triwulan,
+            'periode_key'           => $periodeKey,
+            'target_periode'        => $target_periode ?: null,
+            'jumlah_realisasi'      => $numRealisasi,
+            'realisasi_text'        => $realisasi_text ?: ($numRealisasi !== null ? (string)$numRealisasi : null),
+            'progres_capaian'       => $numCapaian !== null ? $numCapaian : 0.00,
+            'capaian_text'          => $capaian_text ?: ($numCapaian !== null ? (string)$numCapaian . '%' : null),
+            'penjelasan_capaian'    => $penjelasan_capaian ?: null,
+            'permasalahan'          => $permasalahan ?: null,
+            'rencana_tindak_lanjut' => $rencana_tindak_lanjut ?: null,
+            'bukti_dukung'          => $bukti_dukung ?: null,
+            'updated_at'            => $now,
         ];
 
         $db = $this->ikk->db;
         $db->transBegin();
 
         try {
-            $existing = $db->table('txn_ikk_indikator')
-                ->where('indikator_id', $indikator_id)
-                ->where('tahun', $tahun)
-                ->where('triwulan', $triwulan)
-                ->get()->getRowArray();
-
-            if ($existing) {
-                $db->table('txn_ikk_indikator')
-                    ->where('id', $existing['id'])
-                    ->update($data);
+            if ($log_id > 0) {
+                // Edit spesifik log
+                $db->table('txn_ikk_indikator')->where('id', $log_id)->update($data);
             } else {
-                $data['created_by'] = $sessionUser;
-                $data['created_at'] = $now;
-                $db->table('txn_ikk_indikator')->insert($data);
+                // Cek apakah sudah ada log pada bulan & tahun ini
+                $existing = $db->table('txn_ikk_indikator')
+                    ->where('indikator_id', $indikator_id)
+                    ->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->get()->getRowArray();
+
+                if ($existing) {
+                    $db->table('txn_ikk_indikator')->where('id', $existing['id'])->update($data);
+                } else {
+                    $data['created_by'] = $sessionUser;
+                    $data['created_at'] = $now;
+                    $db->table('txn_ikk_indikator')->insert($data);
+                }
             }
 
             $this->apps->storeData([
@@ -337,9 +448,15 @@ class IkkController extends BaseController
             }
 
             $db->transCommit();
+            $bulanNames = [
+                1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+                5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+                9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            ];
+            $bLabel = $bulanNames[$bulan] ?? "Bulan {$bulan}";
             return $this->response->setJSON([
                 'status'  => 'success',
-                'message' => "Realisasi Indikator Triwulan {$triwulan} Tahun {$tahun} berhasil disimpan.",
+                'message' => "Realisasi Indikator periode {$bLabel} Tahun {$tahun} berhasil disimpan ke log.",
             ]);
         } catch (\Throwable $e) {
             $db->transRollback();
@@ -1205,6 +1322,440 @@ class IkkController extends BaseController
         } catch (\Throwable $e) {
             $db->transRollback();
             return $this->apiException($e, 'Terjadi kesalahan sistem saat menyimpan data import IKK.', 500, 'IkkController::importSave');
+        }
+    }
+
+    // =========================================================================
+    // 6. DASHBOARD IKK EXCEL IMPORT (SHEET: REALISASI IKK UNTUK DASHBOARD)
+    // =========================================================================
+
+    /**
+     * Helper parsing berkas Excel Dashboard IKK (Mendukung sheet apapun, format siap pakai)
+     */
+    protected function parseDashboardExcelFile($filePath, ?int $forceTahun = null, ?int $forceBulan = null, ?int $forceTriwulan = null): array
+    {
+        $spreadsheet = \PhpOffice\PhpSpreadsheet\IOFactory::load($filePath);
+        $sheetNames = $spreadsheet->getSheetNames();
+
+        // Cari sheet: prioritas sheet aktif, atau yang memuat 'CAPAIAN'/'REALISASI'/'IKK', fallback ke sheet pertama
+        $targetSheet = $spreadsheet->getActiveSheet();
+        $matchedSheetName = $targetSheet ? $targetSheet->getTitle() : ($sheetNames[0] ?? 'Sheet 1');
+
+        if (!$targetSheet || $targetSheet->getHighestRow() <= 1) {
+            foreach ($sheetNames as $name) {
+                $cleaned = strtoupper(trim($name));
+                if (strpos($cleaned, 'CAPAIAN') !== false || strpos($cleaned, 'REALISASI') !== false || strpos($cleaned, 'IKK') !== false) {
+                    $targetSheet = $spreadsheet->getSheetByName($name);
+                    $matchedSheetName = $name;
+                    break;
+                }
+            }
+        }
+
+        if (!$targetSheet) {
+            $targetSheet = $spreadsheet->getSheet(0);
+            $matchedSheetName = $sheetNames[0] ?? 'Sheet 1';
+        }
+
+        $rows = $targetSheet->toArray(null, true, true, false);
+        if (empty($rows)) {
+            throw new \RuntimeException("Sheet '{$matchedSheetName}' kosong atau tidak memiliki data.");
+        }
+
+        // 2. Deteksi Tahun & Bulan dari teks judul sheet (jika tidak dipaksa oleh input user)
+        $detectedTahun = $forceTahun ?: (int) date('Y');
+        $detectedBulan = $forceBulan ?: null;
+        $detectedTriwulan = $forceTriwulan ?: null;
+
+        $monthKeywords = [
+            'JANUARI' => 1, 'FEBRUARI' => 2, 'MARET' => 3, 'APRIL' => 4,
+            'MEI' => 5, 'JUNI' => 6, 'JULI' => 7, 'AGUSTUS' => 8,
+            'SEPTEMBER' => 9, 'OKTOBER' => 10, 'NOVEMBER' => 11, 'DESEMBER' => 12
+        ];
+
+        for ($i = 0; $i < min(20, count($rows)); $i++) {
+            $lineStr = strtoupper(implode(' ', array_filter(array_map('strval', $rows[$i]))));
+            if (!$forceTahun && preg_match('/TAHUN\s*[:\s]*(\d{4})/i', $lineStr, $mYear)) {
+                $detectedTahun = (int) $mYear[1];
+            }
+            if (!$forceBulan) {
+                if (preg_match('/BULAN\s*[:\s]*(\d{1,2})/i', $lineStr, $mBulan)) {
+                    $bNum = (int) $mBulan[1];
+                    if ($bNum >= 1 && $bNum <= 12) {
+                        $detectedBulan = $bNum;
+                    }
+                } else {
+                    foreach ($monthKeywords as $mName => $mIdx) {
+                        if (strpos($lineStr, $mName) !== false) {
+                            $detectedBulan = $mIdx;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!$forceTriwulan && !$detectedTriwulan) {
+                if (preg_match('/TRIWULAN\s*(IV|III|II|I|\d)/i', $lineStr, $mTw)) {
+                    $twStr = strtoupper($mTw[1]);
+                    if ($twStr === 'I' || $twStr === '1') $detectedTriwulan = 1;
+                    elseif ($twStr === 'II' || $twStr === '2') $detectedTriwulan = 2;
+                    elseif ($twStr === 'III' || $twStr === '3') $detectedTriwulan = 3;
+                    elseif ($twStr === 'IV' || $twStr === '4') $detectedTriwulan = 4;
+                } elseif (stripos($lineStr, 'SEMESTER I') !== false) {
+                    $detectedTriwulan = 2;
+                }
+            }
+        }
+
+        // Tentukan relasi bulan & triwulan
+        if ($detectedBulan) {
+            $detectedTriwulan = (int) ceil($detectedBulan / 3);
+        } elseif ($detectedTriwulan) {
+            $detectedBulan = $detectedTriwulan * 3;
+        } else {
+            $detectedBulan = (int) date('n');
+            $detectedTriwulan = (int) ceil($detectedBulan / 3);
+        }
+
+        // 3. Deteksi Kolom Header: Target, Realisasi, Capaian, Penjelasan, Permasalahan, Tindak Lanjut, Link Bukti Dukung
+        $headerRowIdx = -1;
+        $colMap = [
+            'target'        => -1,
+            'realisasi'     => -1,
+            'capaian'       => -1,
+            'penjelasan'    => -1,
+            'permasalahan'  => -1,
+            'tindak_lanjut' => -1,
+            'bukti_dukung'  => -1,
+        ];
+
+        for ($i = 0; $i < min(25, count($rows)); $i++) {
+            $row = $rows[$i];
+            $realCol = -1;
+            $capCol  = -1;
+            $penjCol = -1;
+
+            foreach ($row as $colIdx => $cellVal) {
+                if ($cellVal === null) continue;
+                $valStr = strtolower(trim((string) $cellVal));
+
+                if (strpos($valStr, 'target') !== false && strpos($valStr, 'rincian') === false && $colMap['target'] === -1) {
+                    $colMap['target'] = $colIdx;
+                }
+                if (strpos($valStr, 'realisasi') !== false && strpos($valStr, 'rincian') === false && $realCol === -1) {
+                    $colMap['realisasi'] = $colIdx;
+                    $realCol = $colIdx;
+                }
+                if (strpos($valStr, 'capaian') !== false && strpos($valStr, 'normalisasi') === false && $capCol === -1) {
+                    $colMap['capaian'] = $colIdx;
+                    $capCol = $colIdx;
+                }
+                if (strpos($valStr, 'penjelasan') !== false && $penjCol === -1) {
+                    $colMap['penjelasan'] = $colIdx;
+                    $penjCol = $colIdx;
+                }
+                if (strpos($valStr, 'permasalahan') !== false && $colMap['permasalahan'] === -1) {
+                    $colMap['permasalahan'] = $colIdx;
+                }
+                if ((strpos($valStr, 'tindak lanjut') !== false || strpos($valStr, 'rencana tindak') !== false) && $colMap['tindak_lanjut'] === -1) {
+                    $colMap['tindak_lanjut'] = $colIdx;
+                }
+                if ((strpos($valStr, 'bukti') !== false || strpos($valStr, 'eviden') !== false || strpos($valStr, 'link') !== false) && $colMap['bukti_dukung'] === -1) {
+                    $colMap['bukti_dukung'] = $colIdx;
+                }
+            }
+
+            if ($realCol !== -1 && ($capCol !== -1 || $penjCol !== -1)) {
+                $headerRowIdx = $i;
+                break;
+            }
+        }
+
+        if ($headerRowIdx === -1) {
+            throw new \RuntimeException("Header kolom ('Target', 'Realisasi', 'Capaian', 'Penjelasan', dll) tidak dapat dideteksi pada berkas Excel.");
+        }
+
+        // Ambil data master indikator untuk matching
+        $db = $this->ikk->db;
+        $masterIndikators = $db->table('data_ikk_indikator')
+            ->select('id, sasaran_id, no_urut, nama_indikator, satuan, target_volume')
+            ->orderBy('no_urut', 'ASC')
+            ->get()->getResultArray();
+
+        $indByNo = [];
+        foreach ($masterIndikators as $mi) {
+            $indByNo[(int)$mi['no_urut']] = $mi;
+        }
+
+        $parsedRows = [];
+        $currentSasaranNo = null;
+
+        for ($i = $headerRowIdx + 1; $i < count($rows); $i++) {
+            $row = $rows[$i];
+            $nonEmpty = array_filter($row, function($c) { return $c !== null && trim((string)$c) !== ''; });
+            if (empty($nonEmpty)) continue;
+
+            $firstColsText = '';
+            for ($c = 0; $c < min(5, count($row)); $c++) {
+                if (!empty($row[$c])) {
+                    $firstColsText .= ' ' . trim((string)$row[$c]);
+                }
+            }
+            $firstColsText = trim($firstColsText);
+
+            // Cek Sasaran row
+            if (preg_match('/^SK[\.\s]*(\d+)/i', $firstColsText, $mSas) || preg_match('/Sasaran\s*(\d+)/i', $firstColsText, $mSas)) {
+                $currentSasaranNo = (int) $mSas[1];
+                continue;
+            }
+
+            // Cek Indikator row (IKK 1 s.d. 18)
+            $matchedIkkNo = null;
+            if (preg_match('/IKK[\.\s]*(\d+)/i', $firstColsText, $mIkk)) {
+                $matchedIkkNo = (int) $mIkk[1];
+            } else {
+                foreach ($masterIndikators as $mi) {
+                    $cleanMaster = strtolower(substr(trim($mi['nama_indikator']), 0, 30));
+                    if (strpos(strtolower($firstColsText), $cleanMaster) !== false) {
+                        $matchedIkkNo = (int) $mi['no_urut'];
+                        break;
+                    }
+                }
+            }
+
+            if ($matchedIkkNo === null || !isset($indByNo[$matchedIkkNo])) {
+                continue;
+            }
+
+            $mInd = $indByNo[$matchedIkkNo];
+
+            $rawTarget      = ($colMap['target'] !== -1 && isset($row[$colMap['target']])) ? trim((string)$row[$colMap['target']]) : '';
+            $rawRealisasi   = ($colMap['realisasi'] !== -1 && isset($row[$colMap['realisasi']])) ? trim((string)$row[$colMap['realisasi']]) : '';
+            $rawCapaian     = ($colMap['capaian'] !== -1 && isset($row[$colMap['capaian']])) ? trim((string)$row[$colMap['capaian']]) : '';
+            $rawPenjelasan  = ($colMap['penjelasan'] !== -1 && isset($row[$colMap['penjelasan']])) ? trim((string)$row[$colMap['penjelasan']]) : '';
+            $rawPermasalahan= ($colMap['permasalahan'] !== -1 && isset($row[$colMap['permasalahan']])) ? trim((string)$row[$colMap['permasalahan']]) : '';
+            $rawTindakLanjut= ($colMap['tindak_lanjut'] !== -1 && isset($row[$colMap['tindak_lanjut']])) ? trim((string)$row[$colMap['tindak_lanjut']]) : '';
+            $rawBukti       = ($colMap['bukti_dukung'] !== -1 && isset($row[$colMap['bukti_dukung']])) ? trim((string)$row[$colMap['bukti_dukung']]) : '';
+
+            // Nilai numerik Realisasi
+            $numRealisasi = null;
+            $cleanReal = str_replace([' ', ','], ['', '.'], $rawRealisasi);
+            if (is_numeric($cleanReal)) {
+                $numRealisasi = (float) $cleanReal;
+            }
+
+            // Nilai numerik Capaian & label
+            $numCapaian = null;
+            $capaianLabel = $rawCapaian;
+            $cleanCap = str_replace(['%', ' ', ','], ['', '', '.'], $rawCapaian);
+            if (is_numeric($cleanCap)) {
+                $valCap = (float) $cleanCap;
+                if ($valCap > 0 && $valCap <= 2.0 && strpos($rawCapaian, '%') === false && (float)$cleanCap < 2.0) {
+                    $numCapaian = round($valCap * 100, 2);
+                    $capaianLabel = $numCapaian . '%';
+                } else {
+                    $numCapaian = round($valCap, 2);
+                    if (strpos($capaianLabel, '%') === false) {
+                        $capaianLabel .= '%';
+                    }
+                }
+            }
+
+            $parsedRows[] = [
+                'indikator_id'          => (int) $mInd['id'],
+                'sasaran_id'            => (int) $mInd['sasaran_id'],
+                'no_urut'               => $matchedIkkNo,
+                'kode'                  => 'IKK ' . $matchedIkkNo,
+                'nama_indikator'        => $mInd['nama_indikator'],
+                'satuan'                => $mInd['satuan'],
+                'target_tahunan'        => $mInd['target_volume'],
+                'target_periode'        => $rawTarget ?: $mInd['target_volume'],
+                'realisasi_text'        => $rawRealisasi ?: null,
+                'jumlah_realisasi'      => $numRealisasi,
+                'capaian_text'          => $capaianLabel ?: null,
+                'progres_capaian'       => $numCapaian !== null ? $numCapaian : 0.00,
+                'penjelasan_capaian'    => $rawPenjelasan ?: null,
+                'permasalahan'          => $rawPermasalahan ?: null,
+                'rencana_tindak_lanjut' => $rawTindakLanjut ?: null,
+                'bukti_dukung'          => $rawBukti ?: null,
+            ];
+        }
+
+        return [
+            'sheet_name' => $matchedSheetName,
+            'tahun'      => $detectedTahun,
+            'bulan'      => $detectedBulan,
+            'triwulan'   => $detectedTriwulan,
+            'total_rows' => count($parsedRows),
+            'data'       => $parsedRows,
+        ];
+    }
+
+    /**
+     * Preview parsing file Excel Dashboard IKK sebelum disimpan
+     */
+    public function previewDashboardExcel()
+    {
+        if (!$this->checkServiceAccess()) {
+            return $this->unauthorizedResponse();
+        }
+
+        $file = $this->request->getFile('file_excel') ?: $this->request->getFile('file');
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'message' => 'File tidak valid atau belum diunggah.',
+            ]);
+        }
+
+        $forceTahun = (int) $this->request->getPost('tahun');
+        $forceBulan = (int) $this->request->getPost('bulan');
+        $forceTriwulan = (int) $this->request->getPost('triwulan');
+
+        $uploader = new ExcelUploader();
+        try {
+            $uploader->validateFile($file);
+            $parsed = $this->parseDashboardExcelFile(
+                $file->getTempName(),
+                $forceTahun ?: null,
+                $forceBulan ?: null,
+                $forceTriwulan ?: null
+            );
+
+            return $this->response->setJSON([
+                'status'     => 'success',
+                'sheet_name' => $parsed['sheet_name'],
+                'tahun'      => $parsed['tahun'],
+                'bulan'      => $parsed['bulan'],
+                'triwulan'   => $parsed['triwulan'],
+                'total_rows' => $parsed['total_rows'],
+                'preview'    => $parsed['data'],
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e->getMessage(), 422, 'IkkController::previewDashboardExcel');
+        }
+    }
+
+    /**
+     * Import dan simpan data Realisasi IKK Dashboard dari file Excel
+     */
+    public function importDashboardExcel()
+    {
+        if (!$this->checkServiceAccess()) {
+            return $this->unauthorizedResponse();
+        }
+
+        $file = $this->request->getFile('file_excel') ?: $this->request->getFile('file');
+        if (!$file || !$file->isValid()) {
+            return $this->response->setJSON([
+                'status'  => 'error',
+                'message' => 'File tidak valid atau belum diunggah.',
+            ]);
+        }
+
+        $forceTahun = (int) $this->request->getPost('tahun');
+        $forceBulan = (int) $this->request->getPost('bulan');
+        $forceTriwulan = (int) $this->request->getPost('triwulan');
+
+        $uploader = new ExcelUploader();
+        try {
+            $uploader->validateFile($file);
+            $parsed = $this->parseDashboardExcelFile(
+                $file->getTempName(),
+                $forceTahun ?: null,
+                $forceBulan ?: null,
+                $forceTriwulan ?: null
+            );
+
+            $rows = $parsed['data'];
+            if (empty($rows)) {
+                return $this->response->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Tidak ada baris data IKK valid yang dapat diimpor dari berkas Excel.',
+                ]);
+            }
+
+            $tahun = $parsed['tahun'];
+            $bulan = $parsed['bulan'];
+            $triwulan = $parsed['triwulan'];
+            $periodeKey = sprintf('%04d-B%02d', $tahun, $bulan);
+            $sessionUser = session()->get('nama') ?? session()->get('username') ?? 'Admin IKK';
+            $now = date('Y-m-d H:i:s');
+
+            $db = $this->ikk->db;
+            $db->transBegin();
+
+            $importedCount = 0;
+            foreach ($rows as $item) {
+                $indId = (int) $item['indikator_id'];
+
+                $data = [
+                    'indikator_id'          => $indId,
+                    'tahun'                 => $tahun,
+                    'bulan'                 => $bulan,
+                    'triwulan'              => $triwulan,
+                    'periode_key'           => $periodeKey,
+                    'target_periode'        => $item['target_periode'],
+                    'jumlah_realisasi'      => $item['jumlah_realisasi'],
+                    'realisasi_text'        => $item['realisasi_text'],
+                    'progres_capaian'       => $item['progres_capaian'],
+                    'capaian_text'          => $item['capaian_text'],
+                    'penjelasan_capaian'    => $item['penjelasan_capaian'],
+                    'permasalahan'          => $item['permasalahan'],
+                    'rencana_tindak_lanjut' => $item['rencana_tindak_lanjut'],
+                    'bukti_dukung'          => $item['bukti_dukung'],
+                    'updated_at'            => $now,
+                ];
+
+                $existing = $db->table('txn_ikk_indikator')
+                    ->where('indikator_id', $indId)
+                    ->where('tahun', $tahun)
+                    ->where('bulan', $bulan)
+                    ->get()->getRowArray();
+
+                if ($existing) {
+                    $db->table('txn_ikk_indikator')->where('id', $existing['id'])->update($data);
+                } else {
+                    $data['created_by'] = $sessionUser;
+                    $data['created_at'] = $now;
+                    $db->table('txn_ikk_indikator')->insert($data);
+                }
+
+                $importedCount++;
+            }
+
+            $this->apps->storeData([
+                'layanan_id' => 43,
+                'tanggal'    => date('Y-m-d'),
+                'created_by' => session()->get('username') ?? 'system',
+            ], 'activity_daily_logs');
+
+            if ($db->transStatus() === false) {
+                $db->transRollback();
+                return $this->response->setJSON([
+                    'status'  => 'error',
+                    'message' => 'Gagal menyimpan data import IKK ke basis data.',
+                ]);
+            }
+
+            $db->transCommit();
+
+            $bulanNames = [
+                1 => 'Januari', 2 => 'Februari', 3 => 'Maret', 4 => 'April',
+                5 => 'Mei', 6 => 'Juni', 7 => 'Juli', 8 => 'Agustus',
+                9 => 'September', 10 => 'Oktober', 11 => 'November', 12 => 'Desember'
+            ];
+            $bLabel = $bulanNames[$bulan] ?? "Bulan {$bulan}";
+
+            return $this->response->setJSON([
+                'status'         => 'success',
+                'message'        => "Berhasil mengimpor {$importedCount} data IKK untuk periode {$bLabel} Tahun {$tahun}.",
+                'tahun'          => $tahun,
+                'bulan'          => $bulan,
+                'triwulan'       => $triwulan,
+                'imported_count' => $importedCount,
+            ]);
+        } catch (\Throwable $e) {
+            return $this->apiException($e, $e->getMessage(), 500, 'IkkController::importDashboardExcel');
         }
     }
 }
