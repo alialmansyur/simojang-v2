@@ -294,18 +294,27 @@ class IkkController extends BaseController
      */
     public function downloadTemplateDashboard()
     {
-        $filePath = FCPATH . 'apps/samples/template-realisasi-ikk.xlsx';
-        if (!file_exists($filePath)) {
-            $filePath = ROOTPATH . 'apps/frontend/public/templates/tu/template-realisasi-ikk.xlsx';
+        $searchPaths = [
+            WRITEPATH . 'uploads/public/excel/template-realisasi-ikk.xlsx',
+            FCPATH . 'apps/samples/template-realisasi-ikk.xlsx',
+            ROOTPATH . 'apps/admin/writable/uploads/public/excel/template-realisasi-ikk.xlsx',
+            ROOTPATH . 'apps/admin/public/apps/samples/template-realisasi-ikk.xlsx',
+            ROOTPATH . 'apps/frontend/public/templates/tu/template-realisasi-ikk.xlsx',
+        ];
+
+        $targetFile = null;
+        foreach ($searchPaths as $path) {
+            if (is_file($path) && file_exists($path)) {
+                $targetFile = $path;
+                break;
+            }
         }
-        if (!file_exists($filePath)) {
-            $filePath = ROOTPATH . 'apps/admin/public/apps/samples/template-realisasi-ikk.xlsx';
-        }
-        if (!file_exists($filePath)) {
+
+        if (!$targetFile) {
             return $this->response->setStatusCode(404)->setBody('File template sample tidak ditemukan.');
         }
 
-        return $this->response->download($filePath, null)->setFileName('template-realisasi-ikk.xlsx');
+        return $this->response->download($targetFile, null)->setFileName('template-realisasi-ikk.xlsx');
     }
 
     /**

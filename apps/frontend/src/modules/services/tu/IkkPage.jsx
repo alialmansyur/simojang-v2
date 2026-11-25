@@ -24,6 +24,7 @@ import {
   fetchIkkGroupedMatrix,
   fetchIkkOptionsTahun,
 } from '../../../services/api/tuServicesApi'
+import { resolveAssetUrl } from '../../../utils/url'
 
 const PERIODE_TRIWULAN_OPTIONS = [
   { value: '', label: 'Semua Triwulan (Snapshot Terakhir)' },
@@ -284,7 +285,7 @@ export default function IkkPage() {
 
             {/* Tombol Unduh Template Excel Siap Pakai */}
             <a
-              href="/templates/tu/template-realisasi-ikk.xlsx"
+              href={resolveAssetUrl('/templates/tu/template-realisasi-ikk.xlsx')}
               download="Template_Realisasi_IKK.xlsx"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-xs font-bold transition-all shadow-2xs shrink-0 cursor-pointer"
               title="Unduh Format Template Excel Realisasi IKK Siap Pakai"

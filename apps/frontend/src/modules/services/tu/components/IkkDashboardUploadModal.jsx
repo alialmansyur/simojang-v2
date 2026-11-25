@@ -13,6 +13,7 @@ import {
   Download,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { resolveAssetUrl } from '../../../../utils/url'
 import { previewIkkDashboardExcel, importIkkDashboardExcel } from '../../../../services/api/tuServicesApi'
 
 const BULAN_OPTIONS = [
@@ -37,6 +38,8 @@ export function IkkDashboardUploadModal({
   defaultTahun = new Date().getFullYear().toString(),
   defaultBulan = '9',
   defaultTriwulan = '3',
+  templateUrl = '/templates/tu/template-realisasi-ikk.xlsx',
+  templateName = 'Format Excel Batch Resmi',
 }) {
   const fileInputRef = useRef(null)
   const [selectedFile, setSelectedFile] = useState(null)
@@ -201,35 +204,25 @@ export function IkkDashboardUploadModal({
 
         {/* Modal Body */}
         <div className="p-5 space-y-4 overflow-y-auto clean-scrollbar text-xs">
-          {/* Petunjuk Format Wajib & Download Template */}
-          <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-blue-900 dark:text-blue-200 space-y-2">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5 font-bold text-xs">
-                <Info className="w-4 h-4 text-[#175CD3] shrink-0" />
-                <span>Petunjuk Format Import Realisasi IKK:</span>
-              </div>
-              <a
-                href="/templates/tu/template-realisasi-ikk.xlsx"
-                download="Template_Realisasi_IKK.xlsx"
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-[#175CD3] hover:bg-[#1550B8] text-white text-[11px] font-bold shadow-2xs transition-all w-fit cursor-pointer"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Unduh Template Excel Siap Pakai</span>
-              </a>
+          {/* Petunjuk Format Wajib */}
+          <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200/60 dark:border-blue-900/40 text-blue-900 dark:text-blue-200 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-xs">
+              <Info className="w-4 h-4 text-[#175CD3] shrink-0" />
+              <span>Petunjuk Format Import Realisasi IKK:</span>
             </div>
             <ul className="list-disc list-inside space-y-0.5 text-[11px] text-blue-800/90 dark:text-blue-300 ml-1">
               <li>
-                Template Excel sudah terisi <strong>7 Sasaran & 18 Indikator</strong> lengkap. Anda cukup mengisi nilai kolom pada file tersebut (nama sheet bebas).
+                File memuat sheet standar atau template (nama sheet bebas).
               </li>
               <li>
-                7 Kolom isian wajib:{' '}
+                Isian kolom wajib:{' '}
                 <span className="font-semibold underline">
                   Target, Realisasi, Capaian, Penjelasan, Permasalahan, Rencana Tindak Lanjut, Link Bukti Dukung
                 </span>
                 .
               </li>
               <li>
-                Setiap unggahan tersimpan sebagai <strong>log historis</strong> per periode Bulan & Tahun (menampilkan snapshot terakhir tanpa manipulasi hitungan rasio).
+                Data disimpan sebagai <strong>log historis</strong> per periode Bulan & Tahun (menampilkan snapshot terakhir tanpa manipulasi hitungan rasio).
               </li>
             </ul>
           </div>
@@ -292,13 +285,38 @@ export function IkkDashboardUploadModal({
                 </div>
               </div>
 
+              {/* Template Download Banner (Above Dropzone - Matching Standard) */}
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <FileSpreadsheet className="w-4 h-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                      {templateName}
+                    </p>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
+                      Unduh template standar sebelum mengisi data
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href={resolveAssetUrl(templateUrl)}
+                  download="template-realisasi-ikk.xlsx"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-[#175CD3] dark:hover:text-blue-400 shadow-2xs transition-all shrink-0 cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Unduh Template</span>
+                </a>
+              </div>
+
               {/* Drag and Drop Zone */}
               <div
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+                className={`border-2 border-dashed rounded-2xl p-7 text-center cursor-pointer transition-all ${
                   isDragging
                     ? 'border-[#175CD3] bg-blue-50/50 dark:bg-blue-950/20'
                     : selectedFile
@@ -316,10 +334,10 @@ export function IkkDashboardUploadModal({
 
                 <div className="flex flex-col items-center justify-center space-y-2">
                   <div
-                    className={`p-3 rounded-full ${
+                    className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
                       selectedFile
                         ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/40 dark:text-emerald-300'
-                        : 'bg-blue-100 text-[#175CD3] dark:bg-blue-900/40 dark:text-blue-300'
+                        : 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
                     }`}
                   >
                     {selectedFile ? (
@@ -341,11 +359,14 @@ export function IkkDashboardUploadModal({
                       </div>
                     ) : (
                       <div>
-                        <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
-                          Klik untuk memilih berkas atau seret ke sini
+                        <p className="text-xs sm:text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          Tarik &amp; lepaskan file Excel di sini, atau{' '}
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold underline">
+                            pilih file
+                          </span>
                         </p>
-                        <p className="text-[11px] text-slate-400">
-                          Format yang didukung: Microsoft Excel (.xlsx, .xls) maksimal 20 MB
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Format yang didukung: .xlsx, .xls (Maksimal 15 MB)
                         </p>
                       </div>
                     )}
